@@ -1,0 +1,11 @@
+{
+  "name": "SIR Rens & Pleie — Справочник",
+  "short_name": "SIR Справочник",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0f12",
+  "theme_color": "#101214",
+  "lang": "ru",
+  "description": "Мобильный справочник по профессиональной автохимии и оборудованию SIR Rens & Pleie"
+}
