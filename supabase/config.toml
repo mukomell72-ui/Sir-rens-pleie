@@ -1,0 +1,4 @@
+project_id = "rskgbkqtrigtznnksbyp"
+
+[functions.vehicle-lookup]
+verify_jwt = false
