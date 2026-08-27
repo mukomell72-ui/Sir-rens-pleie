@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SIR Rens & Pleie</title>
+<style>
+:root{
+  --bg:#061723;
+  --bg2:#0b2230;
+  --card:#102b3b;
+  --line:#27495b;
+  --text:#f7fbff;
+  --muted:#aebdca;
+  --accent:#43d2b2;
+  --accent2:#4bbcf2;
+  --shadow:0 16px 42px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:linear-gradient(180deg,#061723,#071b28 45%,#061723);
+  color:var(--text);
+}
+button,input{font:inherit}
+button{cursor:pointer}
+a{color:inherit}
+.container{width:min(100% - 32px,760px);margin:auto}
+.header{
+  position:sticky;top:0;z-index:20;
+  background:rgba(6,23,35,.96);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(14px);
+}
+.header-inner{
+  min-height:100px;display:flex;align-items:center;gap:14px;
+}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{
+  width:74px;height:74px;border-radius:18px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),#73e0d1);
+  color:#072019;font-size:24px;font-weight:1000;
+  box-shadow:0 0 0 8px rgba(67,210,178,.06);
+}
+.brand-text{line-height:1}
+.brand-text strong{display:block;font-size:30px;letter-spacing:.5px}
+.brand-text small{display:block;margin-top:8px;font-size:13px;letter-spacing:4px;font-weight:850;color:#dfe8ef}
+.langs{margin-left:auto;display:flex;gap:10px}
+.langs button{
+  min-width:62px;height:58px;border-radius:14px;border:1px solid var(--line);
+  background:#0a1d2a;color:#c6d2dc;font-weight:900;font-size:18px;
+}
+.langs button.active{background:var(--accent);color:#082018;border-color:transparent}
+.hero{padding:68px 0 28px}
+.hero h1{
+  font-size:clamp(48px,11vw,82px);line-height:.98;letter-spacing:-2px;
+  margin:0 0 26px;font-weight:1000;
+}
+.hero p{
+  font-size:clamp(20px,4.8vw,28px);line-height:1.55;color:var(--muted);margin:0;
+}
+.why{
+  margin-top:36px;border:2px solid rgba(67,210,178,.6);border-radius:26px;
+  padding:20px;display:flex;align-items:center;gap:18px;background:rgba(16,43,59,.74);
+}
+.why .mini-logo{
+  width:88px;height:88px;border-radius:20px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),#5ec9f5);color:#072019;
+  font-size:24px;font-weight:1000;flex:0 0 auto;
+}
+.why-main{font-size:29px;font-weight:950;line-height:1.05}
+.why-sub{font-size:14px;letter-spacing:4px;color:#d4dde4;font-weight:900;margin-top:10px}
+.why-link{margin-left:auto;color:var(--accent);font-weight:950;font-size:17px;max-width:210px}
+.cta-mini{
+  margin-top:28px;padding:8px 22px;border-radius:999px;border:none;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));color:#052019;
+  font-size:18px;font-weight:950;
+}
+.banner{
+  margin-top:38px;border-radius:24px;overflow:hidden;border:1px solid var(--line);
+  background:
+    radial-gradient(circle at 15% 50%,rgba(75,188,242,.18),transparent 28%),
+    radial-gradient(circle at 75% 50%,rgba(67,210,178,.16),transparent 28%),
+    linear-gradient(120deg,#06121c,#0b2230 58%,#122f36);
+}
+.banner-inner{padding:24px;min-height:220px;display:grid;grid-template-columns:1.3fr .7fr;align-items:center;gap:20px}
+.banner small{letter-spacing:2px;font-weight:900;color:#dfe7ed}
+.banner h2{font-size:38px;line-height:.95;margin:8px 0 12px}
+.banner h2 span{color:#53bff0}
+.banner p{margin:0;color:#d4dde5}
+.banner-art{display:grid;place-items:center;font-size:62px}
+.section{padding:34px 0}
+.services{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.service-card{
+  min-height:300px;padding:28px;border-radius:27px;background:var(--card);
+  border:1px solid var(--line);display:flex;flex-direction:column;transition:.18s;
+}
+.service-card.selected{border-color:var(--accent);box-shadow:0 0 0 3px rgba(67,210,178,.08)}
+.service-card .ico{font-size:44px}
+.service-card h3{font-size:31px;margin:18px 0 14px;line-height:1.08}
+.service-card p{font-size:20px;line-height:1.55;color:var(--muted);margin:0}
+.choose{margin-top:auto;padding-top:20px;color:var(--accent);font-size:20px;font-weight:950}
+h2.section-title{font-size:46px;letter-spacing:-1.5px;margin:0 0 24px}
+.panel{
+  background:var(--card);border:1px solid var(--line);border-radius:28px;padding:32px;
+  box-shadow:var(--shadow);
+}
+.field{margin-bottom:22px}
+label{display:block;font-size:19px;font-weight:900;margin-bottom:10px}
+input{
+  width:100%;height:72px;border-radius:18px;border:1px solid var(--line);
+  background:#0a1d2a;color:var(--text);padding:0 20px;font-size:20px;outline:none;
+}
+input:focus{border-color:var(--accent)}
+.checkrow{display:flex;align-items:center;gap:14px;font-size:20px;font-weight:800;margin:22px 0 26px}
+.checkrow input{width:32px;height:32px}
+.primary{
+  width:100%;min-height:76px;border:none;border-radius:18px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  color:#062019;font-size:22px;font-weight:1000;
+}
+.notice{
+  display:none;margin-top:18px;padding:16px 18px;border-radius:16px;
+  background:#0a1d2a;border:1px solid var(--line);font-size:18px;line-height:1.45;
+}
+.notice.show{display:block}
+.status p{font-size:20px;line-height:1.5;color:var(--muted)}
+.contacts h2{font-size:46px;letter-spacing:-1.5px;margin:0 0 24px}
+.contact-card{
+  background:var(--card);border:1px solid var(--line);border-radius:28px;padding:30px;margin-bottom:18px;
+}
+.contact-card h3{font-size:31px;margin:0 0 10px}
+.contact-card .phone{font-size:23px;color:#b7c6d2;margin-bottom:22px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.actions a{
+  min-height:68px;border-radius:18px;display:grid;place-items:center;text-decoration:none;
+  font-size:20px;font-weight:950;
+}
+.call{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#062019}
+.sms{border:2px solid var(--accent);color:var(--accent);background:#0a1d2a}
+.footer{padding:48px 0 62px;border-top:1px solid rgba(255,255,255,.06);color:#b7c4cd;font-size:18px}
+.footer a{color:var(--text);text-decoration:none}
+.admin-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.66);display:none;place-items:center;padding:20px;z-index:40;
+}
+.admin-modal.show{display:grid}
+.admin-box{
+  width:min(100%,520px);background:#0d2433;border:1px solid var(--line);border-radius:24px;padding:26px;
+}
+.admin-box h3{margin-top:0;font-size:28px}
+.admin-orders{margin-top:16px;display:grid;gap:10px}
+.order-item{padding:14px;border-radius:14px;background:#081b28;border:1px solid var(--line);font-size:15px}
+.close-admin{margin-top:14px;width:100%;height:54px;border-radius:14px;border:1px solid var(--line);background:#081b28;color:#fff;font-weight:900}
+@media(max-width:640px){
+  .container{width:min(100% - 24px,760px)}
+  .header-inner{min-height:86px}
+  .logo{width:62px;height:62px;border-radius:16px}
+  .brand-text strong{font-size:24px}.brand-text small{font-size:10px;letter-spacing:3px}
+  .langs{gap:7px}.langs button{min-width:50px;height:50px;font-size:16px}
+  .why{align-items:flex-start}.why .mini-logo{width:68px;height:68px}
+  .why-main{font-size:22px}.why-link{font-size:14px;max-width:145px}
+  .banner-inner{grid-template-columns:1fr}.banner-art{display:none}
+  .services{gap:14px}
+  .service-card{min-height:270px;padding:22px}
+  .service-card h3{font-size:25px}.service-card p{font-size:17px}.choose{font-size:17px}
+  h2.section-title,.contacts h2{font-size:40px}
+  .panel{padding:24px}
+  input{height:66px}
+  .actions{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="container header-inner">
+    <div class="brand">
+      <div class="logo">SIR</div>
+      <div class="brand-text"><strong>SIR</strong><small>RENS &amp; PLEIE</small></div>
+    </div>
+    <div class="langs">
+      <button data-lang="no">NO</button>
+      <button data-lang="en">EN</button>
+      <button class="active" data-lang="ru">RU</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="container">
+    <h1 data-i18n="heroTitle">Чистый автомобиль.<br>Свежий дом.</h1>
+    <p data-i18n="heroText">Профессиональная химчистка салонов автомобилей и мягкой мебели в Конгсберге и окрестностях.</p>
+
+    <div class="why">
+      <div class="mini-logo">SIR</div>
+      <div>
+        <div class="why-main">SIR Rens &amp; Pleie</div>
+        <div class="why-sub">PROFESJONELL RENS</div>
+      </div>
+      <div class="why-link" data-i18n="whyLink">Нажмите — наши преимущества</div>
+    </div>
+
+    <button class="cta-mini" id="goServices" data-i18n="orderCleaning">Заказать химчистку</button>
+
+    <div class="banner">
+      <div class="banner-inner">
+        <div>
+          <small>MOBIL</small>
+          <h2><span>BILRENS</span><br>OG MØBELRENS</h2>
+          <p>KONGSBERG OG OMEGN · VI KOMMER TIL DEG!</p>
+        </div>
+        <div class="banner-art">🚘🛋️</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="services">
+  <div class="container">
+    <div class="services">
+      <button class="service-card" data-service="car">
+        <div class="ico">🚗</div>
+        <h3 data-i18n="car">Салон автомобиля</h3>
+        <p data-i18n="carText">Сиденья, пол, ковролин, потолок и багажник</p>
+        <div class="choose" data-i18n="choose">Нажмите, чтобы выбрать →</div>
+      </button>
+
+      <button class="service-card" data-service="sofa">
+        <div class="ico">🛋️</div>
+        <h3 data-i18n="sofa">Диван</h3>
+        <p data-i18n="sofaText">Диваны любого размера и типа</p>
+        <div class="choose" data-i18n="choose">Нажмите, чтобы выбрать →</div>
+      </button>
+
+      <button class="service-card" data-service="chair">
+        <div class="ico">🪑</div>
+        <h3 data-i18n="chair">Кресло</h3>
+        <p data-i18n="chairText">Мягкие, офисные и обеденные кресла</p>
+        <div class="choose" data-i18n="choose">Нажмите, чтобы выбрать →</div>
+      </button>
+
+      <button class="service-card" data-service="mattress">
+        <div class="ico">🛏️</div>
+        <h3 data-i18n="mattress">Матрас</h3>
+        <p data-i18n="mattressText">Односпальные, двуспальные матрасы и топперы</p>
+        <div class="choose" data-i18n="choose">Нажмите, чтобы выбрать →</div>
+      </button>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="request">
+  <div class="container">
+    <h2 class="section-title" data-i18n="sendTitle">Отправить заявку</h2>
+    <div class="panel">
+      <div class="field">
+        <label data-i18n="name">Имя</label>
+        <input id="name" autocomplete="name">
+      </div>
+      <div class="field">
+        <label data-i18n="phone">Телефон</label>
+        <input id="phone" inputmode="tel" placeholder="+47 939 53 581">
+      </div>
+      <label class="checkrow">
+        <input id="mobile" type="checkbox">
+        <span data-i18n="mobile">Нужен выезд ко мне</span>
+      </label>
+      <button class="primary" id="submit" data-i18n="sendBtn">Отправить заявку</button>
+      <div class="notice" id="submitNotice"></div>
+    </div>
+  </div>
+</section>
+
+<section class="section status">
+  <div class="container">
+    <div class="panel">
+      <h2 data-i18n="statusTitle">Проверить статус заказа</h2>
+      <p data-i18n="statusText">Используйте код отслеживания, полученный после заказа.</p>
+      <input id="tracking" placeholder="Sporingskode">
+      <button class="primary" id="check" data-i18n="checkBtn" style="margin-top:14px">Проверить</button>
+      <div class="notice" id="statusNotice"></div>
+    </div>
+  </div>
+</section>
+
+<section class="section contacts">
+  <div class="container">
+    <h2 data-i18n="contactTitle">Связаться с нами</h2>
+
+    <div class="contact-card">
+      <h3>Slava</h3>
+      <div class="phone">+47 93 95 35 81</div>
+      <div class="actions">
+        <a class="call" href="tel:+4793953581" data-i18n="call">📞 Позвонить</a>
+        <a class="sms" href="sms:+4793953581" data-i18n="sms">💬 Написать SMS</a>
+      </div>
+    </div>
+
+    <div class="contact-card">
+      <h3>Ivan</h3>
+      <div class="phone">+47 48 68 91 64</div>
+      <div class="actions">
+        <a class="call" href="tel:+4748689164" data-i18n="call">📞 Позвонить</a>
+        <a class="sms" href="sms:+4748689164" data-i18n="sms">💬 Написать SMS</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="container">SIR Rens &amp; Pleie · Kongsberg · +47 93 95 35 81 · <a href="#" id="adminLink">Admin</a></div>
+</footer>
+
+<div class="admin-modal" id="adminModal">
+  <div class="admin-box">
+    <h3>Admin</h3>
+    <div id="adminGate">
+      <input id="adminPin" type="password" inputmode="numeric" placeholder="PIN">
+      <button class="primary" id="adminLogin" style="margin-top:12px">Войти</button>
+    </div>
+    <div id="adminContent" style="display:none">
+      <div class="admin-orders" id="adminOrders"></div>
+    </div>
+    <button class="close-admin" id="adminClose">Закрыть</button>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let selectedService='';
+
+const serviceNames={
+  ru:{car:'Салон автомобиля',sofa:'Диван',chair:'Кресло',mattress:'Матрас'},
+  en:{car:'Car interior',sofa:'Sofa',chair:'Chair',mattress:'Mattress'},
+  no:{car:'Bilinteriør',sofa:'Sofa',chair:'Stol',mattress:'Madrass'}
+};
+
+const T={
+ru:{
+ heroTitle:'Чистый автомобиль.<br>Свежий дом.',
+ heroText:'Профессиональная химчистка салонов автомобилей и мягкой мебели в Конгсберге и окрестностях.',
+ whyLink:'Нажмите — наши преимущества',orderCleaning:'Заказать химчистку',
+ car:'Салон автомобиля',carText:'Сиденья, пол, ковролин, потолок и багажник',
+ sofa:'Диван',sofaText:'Диваны любого размера и типа',
+ chair:'Кресло',chairText:'Мягкие, офисные и обеденные кресла',
+ mattress:'Матрас',mattressText:'Односпальные, двуспальные матрасы и топперы',
+ choose:'Нажмите, чтобы выбрать →',sendTitle:'Отправить заявку',name:'Имя',phone:'Телефон',
+ mobile:'Нужен выезд ко мне',sendBtn:'Отправить заявку',
+ statusTitle:'Проверить статус заказа',statusText:'Используйте код отслеживания, полученный после заказа.',
+ checkBtn:'Проверить',contactTitle:'Связаться с нами',call:'📞 Позвонить',sms:'💬 Написать SMS'
+},
+en:{
+ heroTitle:'Clean car.<br>Fresh home.',
+ heroText:'Professional cleaning of car interiors and upholstered furniture in Kongsberg and nearby areas.',
+ whyLink:'Tap — our advantages',orderCleaning:'Book cleaning',
+ car:'Car interior',carText:'Seats, floor, carpet, ceiling and trunk',
+ sofa:'Sofa',sofaText:'Sofas of any size and type',
+ chair:'Chair',chairText:'Soft, office and dining chairs',
+ mattress:'Mattress',mattressText:'Single, double mattresses and toppers',
+ choose:'Tap to select →',sendTitle:'Send request',name:'Name',phone:'Phone',
+ mobile:'I need mobile service',sendBtn:'Send request',
+ statusTitle:'Check order status',statusText:'Use the tracking code received after ordering.',
+ checkBtn:'Check',contactTitle:'Contact us',call:'📞 Call',sms:'💬 Send SMS'
+},
+no:{
+ heroTitle:'Ren bil.<br>Friskt hjem.',
+ heroText:'Profesjonell rens av bilinteriør og stoppede møbler i Kongsberg og omegn.',
+ whyLink:'Trykk — våre fordeler',orderCleaning:'Bestill rens',
+ car:'Bilinteriør',carText:'Seter, gulv, tepper, tak og bagasjerom',
+ sofa:'Sofa',sofaText:'Sofaer i alle størrelser og typer',
+ chair:'Stol',chairText:'Myke stoler, kontor- og spisestuestoler',
+ mattress:'Madrass',mattressText:'Enkel-, dobbelmadrasser og toppmadrasser',
+ choose:'Trykk for å velge →',sendTitle:'Send forespørsel',name:'Navn',phone:'Telefon',
+ mobile:'Jeg trenger utrykning',sendBtn:'Send forespørsel',
+ statusTitle:'Sjekk ordrestatus',statusText:'Bruk sporingskoden du fikk etter bestillingen.',
+ checkBtn:'Sjekk',contactTitle:'Kontakt oss',call:'📞 Ring',sms:'💬 Send SMS'
+}
+};
+
+let lang='ru';
+
+function setLang(l){
+  lang=l;
+  $$('[data-lang]').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));
+  $$('[data-i18n]').forEach(el=>{
+    const k=el.dataset.i18n;
+    if(T[l][k]) el.innerHTML=T[l][k];
+  });
+}
+$$('[data-lang]').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
+
+$('#goServices').onclick=()=>$('#services').scrollIntoView({behavior:'smooth'});
+
+$$('.service-card').forEach(card=>{
+  card.onclick=()=>{
+    selectedService=card.dataset.service;
+    $$('.service-card').forEach(x=>x.classList.toggle('selected',x===card));
+    $('#request').scrollIntoView({behavior:'smooth'});
+  }
+});
+
+function orders(){
+  try{return JSON.parse(localStorage.getItem('sir_simple_orders')||'[]')}catch{return []}
+}
+function saveOrders(a){localStorage.setItem('sir_simple_orders',JSON.stringify(a))}
+
+$('#submit').onclick=()=>{
+  const name=$('#name').value.trim();
+  const phone=$('#phone').value.trim();
+  const note=$('#submitNotice');
+
+  if(!selectedService){
+    note.textContent=lang==='ru'?'Сначала выберите услугу.':lang==='en'?'Select a service first.':'Velg en tjeneste først.';
+    note.classList.add('show');return;
+  }
+  if(!name||!phone){
+    note.textContent=lang==='ru'?'Укажите имя и телефон.':lang==='en'?'Enter name and phone.':'Skriv inn navn og telefon.';
+    note.classList.add('show');return;
+  }
+
+  const list=orders();
+  const code='SIR-'+String(1001+list.length);
+  list.unshift({
+    code,
+    service:selectedService,
+    name,phone,
+    mobile:$('#mobile').checked,
+    status:'Принят'
+  });
+  saveOrders(list);
+
+  note.innerHTML=(lang==='ru'
+    ?`Заявка принята.<br>Код отслеживания: <b>${code}</b>`
+    :lang==='en'
+    ?`Request received.<br>Tracking code: <b>${code}</b>`
+    :`Forespørsel mottatt.<br>Sporingskode: <b>${code}</b>`);
+  note.classList.add('show');
+};
+
+$('#check').onclick=()=>{
+  const code=$('#tracking').value.trim().toUpperCase();
+  const note=$('#statusNotice');
+  const found=orders().find(o=>o.code.toUpperCase()===code);
+  if(!found){
+    note.textContent=lang==='ru'?'Заказ не найден.':lang==='en'?'Order not found.':'Ordren ble ikke funnet.';
+  }else{
+    const service=serviceNames[lang][found.service];
+    note.innerHTML=`<b>${found.code}</b><br>${service}<br>${lang==='ru'?'Статус':lang==='en'?'Status':'Status'}: <b>${found.status}</b>`;
+  }
+  note.classList.add('show');
+};
+
+function renderAdmin(){
+  const root=$('#adminOrders');
+  const list=orders();
+  root.innerHTML=list.length?list.map(o=>`
+    <div class="order-item">
+      <b>${o.code}</b><br>
+      ${serviceNames.ru[o.service]}<br>
+      ${o.name} · ${o.phone}<br>
+      Выезд: ${o.mobile?'Да':'Нет'} · Статус: ${o.status}
+    </div>`).join(''):'Нет заявок';
+}
+
+$('#adminLink').onclick=e=>{
+  e.preventDefault();
+  $('#adminModal').classList.add('show');
+};
+$('#adminClose').onclick=()=>$('#adminModal').classList.remove('show');
+$('#adminLogin').onclick=()=>{
+  if($('#adminPin').value==='1234'){
+    $('#adminGate').style.display='none';
+    $('#adminContent').style.display='block';
+    renderAdmin();
+  }
+};
+</script>
+</body>
+</html>
