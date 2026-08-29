@@ -9,12 +9,11 @@
   const brandOf=x=>{
     const n=(x.n||'').toLowerCase();
     if(n.includes('koch')) return 'Koch-Chemie';
-    if(n.includes('carpro')) return 'CarPro';
+    if(n.includes('carpro')) return 'CARPRO';
     if(n.includes('kärcher')||n.includes('karcher')) return 'Kärcher';
+    if(n.includes('ecolab')) return 'Ecolab';
+    if(n.includes('dasty')) return 'Dasty';
     if(n.includes('eikosha')) return 'Eikosha';
-    if(n.includes('taski')) return 'TASKI';
-    if(n.includes('autoglym')) return 'Autoglym';
-    if(n.includes('turtle wax')) return 'Turtle Wax';
     if(n.includes('bosch')) return 'Bosch';
     if(n.includes('marolex')) return 'Marolex';
     if(n.includes('ava')) return 'AVA';
@@ -25,15 +24,14 @@
   const categoryRank={'Химия':0,'Расходники':1,'Оборудование':2};
   const brandRank={
     'Koch-Chemie':0,
-    'CarPro':1,
+    'CARPRO':1,
     'Kärcher':2,
-    'TASKI':3,
-    'Autoglym':4,
-    'Turtle Wax':5,
-    'Eikosha':6,
-    'Bosch':7,
-    'Marolex':8,
-    'AVA':9,
+    'Ecolab':3,
+    'Dasty':4,
+    'Eikosha':5,
+    'Bosch':6,
+    'Marolex':7,
+    'AVA':8,
     'Другое':99
   };
   let broadActive='Все';
