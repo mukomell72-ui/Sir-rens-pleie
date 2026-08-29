@@ -1,5 +1,5 @@
-const CACHE='sir-guide-v9';
-const ASSETS=['./','./index.html','./manifest.json','./icon.svg','./chemistry-update.js','./usage-guide.js','./sort.js'];
+const CACHE='sir-guide-v10';
+const ASSETS=['./','./index.html','./manifest.json','./icon.svg','./chemistry-update.js','./usage-guide.js','./purchase-links.js','./sort.js'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
@@ -20,7 +20,7 @@ async function injectUpdates(response){
   const type=response.headers.get('content-type')||'';
   if(!type.includes('text/html')) return response;
   let html=await response.text();
-  const scripts='<script src="./chemistry-update.js"></script><script src="./usage-guide.js"></script><script src="./sort.js"></script>';
+  const scripts='<script src="./chemistry-update.js"></script><script src="./usage-guide.js"></script><script src="./purchase-links.js"></script><script src="./sort.js"></script>';
   if(!html.includes('chemistry-update.js')) html=html.replace('</body>',scripts+'</body>');
   return new Response(html,{status:response.status,statusText:response.statusText,headers:response.headers});
 }
