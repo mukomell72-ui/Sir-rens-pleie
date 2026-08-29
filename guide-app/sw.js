@@ -1,4 +1,4 @@
-const CACHE='sir-guide-v7';
+const CACHE='sir-guide-v8';
 const ASSETS=['./','./index.html','./manifest.json','./icon.svg','./chemistry-update.js','./sort.js'];
 
 self.addEventListener('install',e=>{
