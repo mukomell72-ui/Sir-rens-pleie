@@ -77,14 +77,17 @@
     .group-title{margin:22px 2px 8px;font-size:15px;font-weight:900;letter-spacing:.08em;color:#7ee4c8;text-transform:uppercase}
     .group-title:first-child{margin-top:12px}
     .brand-title{margin:14px 2px 6px;font-size:12px;font-weight:800;letter-spacing:.06em;color:#9aa7b3;text-transform:uppercase}
-    .buy-btn{display:inline-block;margin-top:4px;padding:11px 15px;border-radius:12px;background:#38d3ae;color:#07120f!important;text-decoration:none;font-weight:900}
+    .buy-btn,.buy-mini{display:inline-block;border-radius:12px;background:#38d3ae;color:#07120f!important;text-decoration:none;font-weight:900}
+    .buy-btn{margin-top:4px;padding:11px 15px}
+    .buy-mini{margin-top:8px;padding:7px 10px;font-size:12px}
   `;
   document.head.appendChild(style);
 
   card=function(x){
     const toolsBlock=x.t?`<div class="sec"><b>Чем чистить / чем наносить</b><p>${x.t}</p></div>`:'';
+    const buyTop=x.buy?`<a class="buy-mini" href="${x.buy.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Купить ↗</a>`:'';
     const buyBlock=x.buy?`<div class="sec"><b>Где купить</b><p><a class="buy-btn" href="${x.buy.url}" target="_blank" rel="noopener noreferrer">Купить — ${x.buy.shop} ↗</a></p></div>`:`<div class="sec"><b>Где купить</b><p class="warn">Ссылка пока не добавлена</p></div>`;
-    return `<article class="card"><div class="head"><div class="label" style="background:${x.col};color:${x.tc||'#111'}">${x.m}</div><div><div class="name">${x.n}</div><div class="mini">${x.f}</div></div><div class="arr">⌄</div></div><div class="body"><div class="sec"><b>Что чистить / назначение</b><p>${x.f}</p></div>${toolsBlock}<div class="sec"><b>Разведение</b><p>${x.d}</p></div><div class="sec"><b>Как чистить / применять</b><p>${x.u}</p></div><div class="sec"><b>Что делать после</b><p>${x.a}</p></div><div class="sec"><b>Риски и ограничения</b><p class="warn">${x.w}</p></div>${buyBlock}<div class="sec"><b>Наличие</b><p class="price">${x.p}</p></div><div class="tags">${(x.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div></div></article>`;
+    return `<article class="card"><div class="head"><div class="label" style="background:${x.col};color:${x.tc||'#111'}">${x.m}</div><div><div class="name">${x.n}</div><div class="mini">${x.f}</div>${buyTop}</div><div class="arr">⌄</div></div><div class="body"><div class="sec"><b>Что чистить / назначение</b><p>${x.f}</p></div>${toolsBlock}<div class="sec"><b>Разведение</b><p>${x.d}</p></div><div class="sec"><b>Как чистить / применять</b><p>${x.u}</p></div><div class="sec"><b>Что делать после</b><p>${x.a}</p></div><div class="sec"><b>Риски и ограничения</b><p class="warn">${x.w}</p></div>${buyBlock}<div class="sec"><b>Наличие</b><p class="price">${x.p}</p></div><div class="tags">${(x.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div></div></article>`;
   };
 
   function renderBroadChips(){
