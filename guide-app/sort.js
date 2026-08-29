@@ -11,6 +11,9 @@
     if(n.includes('koch')) return 'Koch-Chemie';
     if(n.includes('carpro')) return 'CARPRO';
     if(n.includes('kärcher')||n.includes('karcher')) return 'Kärcher';
+    if(n.includes('taski')) return 'TASKI';
+    if(n.includes('autoglym')) return 'Autoglym';
+    if(n.includes('turtle wax')) return 'Turtle Wax';
     if(n.includes('ecolab')) return 'Ecolab';
     if(n.includes('dasty')) return 'Dasty';
     if(n.includes('eikosha')) return 'Eikosha';
@@ -26,12 +29,15 @@
     'Koch-Chemie':0,
     'CARPRO':1,
     'Kärcher':2,
-    'Ecolab':3,
-    'Dasty':4,
-    'Eikosha':5,
-    'Bosch':6,
-    'Marolex':7,
-    'AVA':8,
+    'TASKI':3,
+    'Autoglym':4,
+    'Turtle Wax':5,
+    'Ecolab':6,
+    'Dasty':7,
+    'Eikosha':8,
+    'Bosch':9,
+    'Marolex':10,
+    'AVA':11,
     'Другое':99
   };
   let broadActive='Все';
@@ -55,7 +61,7 @@
 
   function renderBroad(){
     const s=q.value.toLowerCase().trim();
-    const filtered=items.filter(x=>(broadActive==='Все'||broadGroup(x)===broadActive)&&(!s||[x.n,x.c,broadGroup(x),brandOf(x),x.m,x.f,x.d,x.u,x.a,x.w,x.p,...x.tags].join(' ').toLowerCase().includes(s))));
+    const filtered=items.filter(x=>(broadActive==='Все'||broadGroup(x)===broadActive)&&(!s||[x.n,x.c,broadGroup(x),brandOf(x),x.m,x.f,x.t||'',x.d,x.u,x.a,x.w,x.p,...(x.tags||[])].join(' ').toLowerCase().includes(s))));
     const ordered=[...filtered].sort((a,b)=>
       categoryRank[broadGroup(a)]-categoryRank[broadGroup(b)] ||
       (brandRank[brandOf(a)]??99)-(brandRank[brandOf(b)]??99) ||
