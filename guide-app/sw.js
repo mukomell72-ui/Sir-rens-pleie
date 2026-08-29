@@ -1,5 +1,5 @@
-const CACHE='sir-guide-v6';
-const ASSETS=['./','./index.html','./manifest.json','./icon.svg','./sort.js'];
+const CACHE='sir-guide-v7';
+const ASSETS=['./','./index.html','./manifest.json','./icon.svg','./chemistry-update.js','./sort.js'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
@@ -16,11 +16,12 @@ self.addEventListener('activate',e=>{
   })());
 });
 
-async function injectSorter(response){
+async function injectUpdates(response){
   const type=response.headers.get('content-type')||'';
   if(!type.includes('text/html')) return response;
   let html=await response.text();
-  if(!html.includes('sort.js')) html=html.replace('</body>','<script src="./sort.js"></script></body>');
+  const scripts='<script src="./chemistry-update.js"></script><script src="./sort.js"></script>';
+  if(!html.includes('chemistry-update.js')) html=html.replace('</body>',scripts+'</body>');
   return new Response(html,{status:response.status,statusText:response.statusText,headers:response.headers});
 }
 
@@ -35,10 +36,10 @@ self.addEventListener('fetch',e=>{
         const res=await fetch(e.request);
         const copy=res.clone();
         caches.open(CACHE).then(c=>c.put(e.request,copy));
-        return await injectSorter(res);
+        return await injectUpdates(res);
       }catch(_){
         const cached=await caches.match(e.request)||await caches.match('./index.html');
-        return cached?await injectSorter(cached):Response.error();
+        return cached?await injectUpdates(cached):Response.error();
       }
     })());
     return;
