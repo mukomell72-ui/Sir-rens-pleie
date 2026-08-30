@@ -3,7 +3,7 @@
   window.fetch=async(input,init={})=>{
     const url=typeof input==='string'?input:(input?.url||'');
     const response=await nativeFetch(input,init);
-    if(url.includes('/rest/v1/rpc/public_submit_order_v2')&&response.ok){
+    if(url.includes('/rest/v1/rpc/public_submit_order')&&response.ok){
       try{
         const data=await response.clone().json();
         if(data?.order_no&&data?.status_token){
