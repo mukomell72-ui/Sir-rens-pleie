@@ -3,10 +3,11 @@ name: Deploy SIR Supabase functions
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, professional-redesign]
     paths:
       - 'supabase/functions/**'
       - 'supabase/config.toml'
+      - '.github/workflows/deploy-supabase-function.yml'
 
 permissions:
   contents: read
