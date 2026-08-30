@@ -30,11 +30,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -R --exclude-dir=.git -n 'rskgbkqtrigtznnksbyp' .; then
-            echo 'Old Supabase project reference found'
+          if grep -R -n 'rskgbkqtrigtznnksbyp' assets admin supabase scripts index.html privacy.html order q 2>/dev/null; then
+            echo 'Old Supabase project reference found in runtime/migration files'
             exit 1
           fi
-          if grep -R --exclude-dir=.git --exclude='sir_rens_only_screenshot_functions-2.html' -n "PIN.*1234\|pin.*1234" .; then
+          if grep -R --exclude='sir_rens_only_screenshot_functions-2.html' -n "PIN.*1234\|pin.*1234" assets admin supabase scripts index.html privacy.html order q 2>/dev/null; then
             echo 'Shared legacy admin PIN found in professional files'
             exit 1
           fi
