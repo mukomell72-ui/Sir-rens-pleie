@@ -1,13 +1,13 @@
 (() => {
   const consentKey='sir_privacy_consent';
-  const version='2026-08-30';
+  const version='2026-08-30-v2';
   const nativeFetch=window.fetch.bind(window);
 
   window.fetch=(input,init={})=>{
     let url=typeof input==='string'?input:(input?.url||'');
     const isOrder=url.includes('/rest/v1/rpc/public_submit_order');
     if(isOrder){
-      if(sessionStorage.getItem(consentKey)!=='yes')return Promise.reject(new Error('privacy consent required'));
+      if(sessionStorage.getItem(consentKey)!=='yes')return Promise.reject(new Error('privacy notice acknowledgement required'));
       if(typeof init.body==='string'){
         try{
           const body=JSON.parse(init.body);
@@ -23,9 +23,9 @@
 
   function labels(){
     const lang=localStorage.getItem('sir_lang')||'no';
-    if(lang==='ru')return{title:'Согласие на обработку данных',text:'Я согласен(на), что SIR использует данные заявки и фотографии для оценки, связи и выполнения заказа.',link:'Подробнее: Personvern',need:'Подтвердите согласие на обработку данных заказа.'};
-    if(lang==='en')return{title:'Data processing consent',text:'I agree that SIR may use the order details and photos to assess, contact me and perform the service.',link:'More: Privacy',need:'Please confirm consent to process the order data.'};
-    return{title:'Samtykke til behandling av opplysninger',text:'Jeg godtar at SIR bruker opplysninger og bilder i forespørselen for vurdering, kontakt og gjennomføring av oppdraget.',link:'Les mer: Personvern',need:'Bekreft samtykke til behandling av opplysningene i bestillingen.'};
+    if(lang==='ru')return{title:'Конфиденциальность заявки',text:'Я прочитал(а) информацию о конфиденциальности и понимаю, что SIR использует данные заявки и приложенные фотографии, чтобы обработать запрос, связаться со мной и выполнить согласованную услугу.',link:'Подробнее: Personvern',need:'Подтвердите, что вы ознакомились с информацией о конфиденциальности заявки.'};
+    if(lang==='en')return{title:'Request privacy',text:'I have read the privacy information and understand that SIR uses the request details and attached photos to handle my request, contact me and perform the agreed service.',link:'More: Privacy',need:'Please confirm that you have read the request privacy information.'};
+    return{title:'Personvern for forespørselen',text:'Jeg har lest personverninformasjonen og forstår at SIR bruker opplysningene i forespørselen og eventuelle bilder for å behandle henvendelsen, kontakte meg og gjennomføre avtalt tjeneste.',link:'Les mer: Personvern',need:'Bekreft at du har lest personverninformasjonen for forespørselen.'};
   }
 
   function inject(){
@@ -42,9 +42,9 @@
 
   document.addEventListener('click',e=>{
     const next=e.target.closest('.service-card.open #next');if(!next)return;
-    const consent=document.querySelector('.service-card.open #sirPrivacyConsent');
+    const acknowledgement=document.querySelector('.service-card.open #sirPrivacyConsent');
     const accepted=sessionStorage.getItem(consentKey)==='yes';
-    if((consent&&!consent.checked)||(!consent&&!accepted)){
+    if((acknowledgement&&!acknowledgement.checked)||(!acknowledgement&&!accepted)){
       e.preventDefault();e.stopImmediatePropagation();alert(labels().need);
     }
   },true);
