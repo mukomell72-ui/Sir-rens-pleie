@@ -1,0 +1,28 @@
+name: Validate SIR professional redesign
+
+on:
+  push:
+    branches: [professional-redesign]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Static HTML and reference checks
+        run: python3 scripts/validate_static.py
+      - name: JavaScript syntax checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          find assets admin -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --check "$file"
+          done
