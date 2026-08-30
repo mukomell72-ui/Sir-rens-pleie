@@ -41,18 +41,18 @@ begin
   if v_distance is not null and (v_distance<0 or v_distance>500) then raise exception 'invalid distance'; end if;
 
   insert into public.customers(name,phone,address,referral_code)
-  values(v_name,v_phone,nullif(trim(coalesce(p_payload->>'address','')),''),'SIR-'||upper(substr(encode(gen_random_bytes(5),'hex'),1,8)))
+  values(v_name,v_phone,nullif(trim(coalesce(p_payload->>'address','')),''),'SIR-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,8)))
   on conflict(phone) do update set name=excluded.name,address=coalesce(excluded.address,public.customers.address),updated_at=now()
   returning id into v_customer;
 
-  v_token:=encode(gen_random_bytes(24),'hex');
+  v_token:=replace(gen_random_uuid()::text,'-','')||replace(gen_random_uuid()::text,'-','');
 
   insert into public.orders(customer_id,customer_name,phone,address,distance_km,service_type,vehicle_plate,vehicle_seats,package_code,contamination,stains,pet_hair,odor,customer_comment,preliminary_price,source,referral_code_used,public_token_hash,public_token_expires_at)
-  values(v_customer,v_name,v_phone,nullif(trim(coalesce(p_payload->>'address','')),''),v_distance,left(coalesce(p_payload->>'service','unknown'),40),left(coalesce(p_payload->>'plate',''),20),nullif(p_payload->>'seats','')::integer,left(coalesce(p_payload->>'package',''),30),left(coalesce(p_payload->>'condition',''),20),coalesce((p_payload->>'stains')::boolean,false),coalesce((p_payload->>'hair')::boolean,false),coalesce((p_payload->>'odor')::boolean,false),left(coalesce(p_payload->>'comment',''),2000),v_price,'website',left(coalesce(p_payload->>'referral_code',''),50),encode(digest(v_token,'sha256'),'hex'),now()+interval '24 hours')
+  values(v_customer,v_name,v_phone,nullif(trim(coalesce(p_payload->>'address','')),''),v_distance,left(coalesce(p_payload->>'service','unknown'),40),left(coalesce(p_payload->>'plate',''),20),nullif(p_payload->>'seats','')::integer,left(coalesce(p_payload->>'package',''),30),left(coalesce(p_payload->>'condition',''),20),coalesce((p_payload->>'stains')::boolean,false),coalesce((p_payload->>'hair')::boolean,false),coalesce((p_payload->>'odor')::boolean,false),left(coalesce(p_payload->>'comment',''),2000),v_price,'website',left(coalesce(p_payload->>'referral_code',''),50),encode(extensions.digest(v_token,'sha256'),'hex'),now()+interval '24 hours')
   returning * into v_order;
 
   insert into public.order_events(order_id,event_type,to_value,note) values(v_order.id,'created','new','Website submission');
   return jsonb_build_object('order_no',v_order.order_no,'status',v_order.status,'upload_token',v_token);
 end $$;
 revoke all on function public.public_submit_order(jsonb) from public;
-grant execute on function public.public_submit_order(jsonb) to anon,authenticated;
+grant execute on function public.public_submit_order(jsonb) to anon;
