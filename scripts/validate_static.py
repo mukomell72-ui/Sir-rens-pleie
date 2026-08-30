@@ -62,7 +62,7 @@ def main() -> int:
                 errors.append(f"Broken local reference in {path.relative_to(ROOT)}: {ref}")
 
     config = (ROOT / "assets" / "config.js").read_text(encoding="utf-8")
-    required = ["supabaseUrl", "supabasePublishableKey", "photoUploadUrl", "masterQrPath", "minimumMobileOrder"]
+    required = ["supabaseUrl", "supabasePublishableKey", "photoUploadUrl", "masterQrPath", "minimumMobileOrder", "vehicleLookupUrl"]
     for key in required:
         if not re.search(rf"\b{re.escape(key)}\s*:\s*[^,\n]+", config):
             errors.append(f"Missing SIR_CONFIG key: {key}")
@@ -105,6 +105,17 @@ def main() -> int:
     minimum_ui = (ROOT / "assets" / "minimum-order-ui.js").read_text(encoding="utf-8")
     if "minimumMobileOrder" not in minimum_ui:
         errors.append("Customer estimate must display the configured mobile minimum")
+
+    vehicle = (ROOT / "assets" / "vehicle.js").read_text(encoding="utf-8")
+    if "C.supabaseUrl?" in vehicle or "functions/v1/vehicle-lookup`" in vehicle:
+        errors.append("Vehicle lookup must stay disabled until vehicleLookupUrl is explicitly configured")
+    if "C.vehicleLookupUrl" not in vehicle:
+        errors.append("Vehicle lookup must be controlled by vehicleLookupUrl")
+
+    for page in (ROOT / "order" / "index.html", ROOT / "status" / "index.html"):
+        text = page.read_text(encoding="utf-8")
+        if '<html lang="nb">' not in text:
+            errors.append(f"Norwegian must be the default language in {page.relative_to(ROOT)}")
 
     technology = (ROOT / "admin" / "technology.html").read_text(encoding="utf-8")
     if "technology-procedures.js" not in technology:
