@@ -23,9 +23,9 @@
 
   function labels(){
     const lang=localStorage.getItem('sir_lang')||'no';
-    if(lang==='ru')return{title:'Согласие на обработку данных',text:'Я согласен(на), что SIR использует данные заявки и фотографии для оценки, связи и выполнения заказа.',link:'Подробнее: Personvern'};
-    if(lang==='en')return{title:'Data processing consent',text:'I agree that SIR may use the order details and photos to assess, contact me and perform the service.',link:'More: Privacy'};
-    return{title:'Samtykke til behandling av opplysninger',text:'Jeg godtar at SIR bruker opplysninger og bilder i forespørselen for vurdering, kontakt og gjennomføring av oppdraget.',link:'Les mer: Personvern'};
+    if(lang==='ru')return{title:'Согласие на обработку данных',text:'Я согласен(на), что SIR использует данные заявки и фотографии для оценки, связи и выполнения заказа.',link:'Подробнее: Personvern',need:'Подтвердите согласие на обработку данных заказа.'};
+    if(lang==='en')return{title:'Data processing consent',text:'I agree that SIR may use the order details and photos to assess, contact me and perform the service.',link:'More: Privacy',need:'Please confirm consent to process the order data.'};
+    return{title:'Samtykke til behandling av opplysninger',text:'Jeg godtar at SIR bruker opplysninger og bilder i forespørselen for vurdering, kontakt og gjennomføring av oppdraget.',link:'Les mer: Personvern',need:'Bekreft samtykke til behandling av opplysningene i bestillingen.'};
   }
 
   function inject(){
@@ -43,7 +43,10 @@
   document.addEventListener('click',e=>{
     const next=e.target.closest('.service-card.open #next');if(!next)return;
     const consent=document.querySelector('.service-card.open #sirPrivacyConsent');
-    if(consent&&!consent.checked){e.preventDefault();e.stopImmediatePropagation();const lang=localStorage.getItem('sir_lang')||'no';alert(lang==='ru'?'Подтвердите согласие на обработку данных заказа.':lang==='en'?'Please confirm consent to process the order data.':'Bekreft samtykke til behandling av opplysningene i bestillingen.');}
+    const accepted=sessionStorage.getItem(consentKey)==='yes';
+    if((consent&&!consent.checked)||(!consent&&!accepted)){
+      e.preventDefault();e.stopImmediatePropagation();alert(labels().need);
+    }
   },true);
 
   addEventListener('DOMContentLoaded',()=>{
