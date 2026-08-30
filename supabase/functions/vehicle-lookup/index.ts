@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { plate } = await req.json();
-    const normalized = clean(plate).toUpperCase().replace(/\s+/g, "");
+    const body = await req.json();
+    const normalized = clean(body?.registrationNumber ?? body?.plate).toUpperCase().replace(/\s+/g, "");
     if (!/^[A-ZÆØÅ0-9]{2,10}$/.test(normalized)) {
       return new Response(JSON.stringify({ ok: false, error: "invalid_plate" }), { status: 400, headers });
     }
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: false, error: "not_found" }), { status: 404, headers });
     }
     if (!upstream.ok) {
-      console.error("Vegvesen upstream error", upstream.status, await upstream.text());
+      console.error("Vegvesen upstream error", upstream.status);
       return new Response(JSON.stringify({ ok: false, error: "upstream_error" }), { status: 502, headers });
     }
 
@@ -70,20 +70,13 @@ Deno.serve(async (req) => {
       || clean(k?.godkjenning?.forstegangsGodkjenning?.forstegangRegistrertDato);
     const yearMatch = regDate.match(/^(\d{4})/);
     const year = yearMatch ? yearMatch[1] : "";
-    const body = clean(bodyData?.karosseritype?.kodeNavn) || clean(bodyData?.karosseritype?.kodeBeskrivelse);
+    const bodyType = bodyData?.karosseritype;
+    const vehicleBody = clean(bodyType?.kodeNavn) || clean(bodyType?.kodeBeskrivelse);
+    const vehicle = { plate: normalized, brand, model, year, body: vehicleBody };
 
-    return new Response(JSON.stringify({
-      ok: true,
-      vehicle: {
-        plate: normalized,
-        brand,
-        model,
-        year,
-        body,
-      },
-    }), { headers });
+    return new Response(JSON.stringify({ ok: true, ...vehicle, vehicle }), { headers });
   } catch (error) {
-    console.error(error);
+    console.error(error instanceof Error ? error.message : "vehicle_lookup_error");
     return new Response(JSON.stringify({ ok: false, error: "internal_error" }), { status: 500, headers });
   }
 });
