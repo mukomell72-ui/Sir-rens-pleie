@@ -6,7 +6,18 @@ import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-HTML_FILES = [ROOT / "index.html", ROOT / "privacy.html", ROOT / "admin" / "index.html", ROOT / "admin" / "technology.html", ROOT / "admin" / "payments.html", ROOT / "order" / "index.html", ROOT / "q" / "index.html"]
+HTML_FILES = [
+    ROOT / "index.html",
+    ROOT / "privacy.html",
+    ROOT / "admin" / "index.html",
+    ROOT / "admin" / "calendar.html",
+    ROOT / "admin" / "technology.html",
+    ROOT / "admin" / "payments.html",
+    ROOT / "admin" / "backup.html",
+    ROOT / "order" / "index.html",
+    ROOT / "status" / "index.html",
+    ROOT / "q" / "index.html",
+]
 
 class Parser(HTMLParser):
     def __init__(self, path: Path):
@@ -25,7 +36,6 @@ def local_target(base: Path, ref: str) -> Path | None:
     if not ref or ref.startswith(("http://", "https://", "tel:", "sms:", "mailto:", "data:", "javascript:")):
         return None
     p = (base.parent / ref).resolve()
-    # Directory links are valid if an index.html exists.
     if ref.endswith("/"):
         p = p / "index.html"
     return p
@@ -58,9 +68,14 @@ def main() -> int:
 
     app = (ROOT / "assets" / "app.js").read_text(encoding="utf-8")
     if "public_submit_order" not in app:
-        errors.append("Public app no longer calls public_submit_order")
+        errors.append("Public app no longer calls the protected order-submission flow")
     if "localStorage" in app and "sir_lang" not in app:
         errors.append("Business order data must not be stored in localStorage")
+
+    index = (ROOT / "index.html").read_text(encoding="utf-8")
+    for script in ("referral.js", "privacy-consent.js", "status-link.js", "app.js", "vehicle.js", "i18n.js"):
+        if script not in index:
+            errors.append(f"Public site is missing required script: {script}")
 
     if errors:
         print("SIR static validation FAILED")
