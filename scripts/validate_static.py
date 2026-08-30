@@ -12,6 +12,7 @@ HTML_FILES = [
     ROOT / "admin" / "index.html",
     ROOT / "admin" / "calendar.html",
     ROOT / "admin" / "technology.html",
+    ROOT / "admin" / "guide-editor.html",
     ROOT / "admin" / "payments.html",
     ROOT / "admin" / "backup.html",
     ROOT / "order" / "index.html",
@@ -73,9 +74,19 @@ def main() -> int:
         errors.append("Business order data must not be stored in localStorage")
 
     index = (ROOT / "index.html").read_text(encoding="utf-8")
-    for script in ("referral.js", "privacy-consent.js", "status-link.js", "app.js", "vehicle.js", "i18n.js"):
+    for script in ("referral.js", "privacy-consent.js", "status-link.js", "app.js", "vehicle.js", "mobile-ux.js", "i18n.js", "meta-i18n.js"):
         if script not in index:
             errors.append(f"Public site is missing required script: {script}")
+    if 'data-lang="no" class="active"' not in index or '<html lang="nb">' not in index:
+        errors.append("Norwegian must remain the default public storefront language")
+
+    technology = (ROOT / "admin" / "technology.html").read_text(encoding="utf-8")
+    if "technology-procedures.js" not in technology:
+        errors.append("SIR Technology is missing the editable procedure integration")
+
+    admin_index = (ROOT / "admin" / "index.html").read_text(encoding="utf-8")
+    if "guide-editor.html" not in admin_index:
+        errors.append("Admin navigation is missing Guide Editor")
 
     if errors:
         print("SIR static validation FAILED")
