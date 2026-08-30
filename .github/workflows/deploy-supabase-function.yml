@@ -1,11 +1,11 @@
-name: Deploy Supabase vehicle lookup
+name: Deploy SIR Supabase functions
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'supabase/functions/vehicle-lookup/**'
+      - 'supabase/functions/**'
       - 'supabase/config.toml'
 
 permissions:
@@ -23,7 +23,12 @@ jobs:
         with:
           version: latest
 
-      - name: Deploy vehicle-lookup
+      - name: Deploy vehicle lookup
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase functions deploy vehicle-lookup --project-ref rskgbkqtrigtznnksbyp --no-verify-jwt
+        run: supabase functions deploy vehicle-lookup --project-ref twahxojwxxxzwapotdst --no-verify-jwt
+
+      - name: Deploy private order photo upload
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy order-photo-upload --project-ref twahxojwxxxzwapotdst --no-verify-jwt
