@@ -1,4 +1,7 @@
-project_id = "rskgbkqtrigtznnksbyp"
+project_id = "twahxojwxxxzwapotdst"
 
 [functions.vehicle-lookup]
+verify_jwt = false
+
+[functions.order-photo-upload]
 verify_jwt = false
