@@ -26,3 +26,16 @@ jobs:
             echo "Checking $file"
             node --check "$file"
           done
+      - name: Safety regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R --exclude-dir=.git -n 'rskgbkqtrigtznnksbyp' .; then
+            echo 'Old Supabase project reference found'
+            exit 1
+          fi
+          if grep -R --exclude-dir=.git --exclude='sir_rens_only_screenshot_functions-2.html' -n "PIN.*1234\|pin.*1234" .; then
+            echo 'Shared legacy admin PIN found in professional files'
+            exit 1
+          fi
+          echo 'Safety regression checks OK'
