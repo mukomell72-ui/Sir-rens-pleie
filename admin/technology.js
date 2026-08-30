@@ -28,7 +28,7 @@
     if(error||!o){root.innerHTML='<div class="notice">Заказ не найден или нет доступа.</div>';throw error||new Error('not found');}
     order=o;items=i;card=t;chemicals=c;
     photos=[];
-    for(const p of p){const {data}=await sb.storage.from('order-photos').createSignedUrl(p.storage_path,1800);if(data?.signedUrl)photos.push({url:data.signedUrl});}
+    for(const photo of p){const {data}=await sb.storage.from('order-photos').createSignedUrl(photo.storage_path,1800);if(data?.signedUrl)photos.push({url:data.signedUrl});}
   }
 
   function render(){
@@ -36,27 +36,35 @@
     const risk=(card?.risk_level||order.risk_level||'caution').toUpperCase();
     const steps=Array.isArray(card?.instructions)?card.instructions:[];
     const stops=Array.isArray(card?.stop_conditions)?card.stop_conditions:[];
-    const orderItems=items.length?items.map(x=>`${esc(x.item_code)} × ${x.quantity}`).join(', '):(order.package_code==='full'?'Полный салон':esc(order.package_code||'—'));
+    const orderItems=items.length?items.map(x=>`${esc(itemLabel(x.item_code))} × ${x.quantity}`).join(', '):(order.package_code==='full'?'Полный салон':esc(order.package_code||'—'));
+    const matched=matchedChemicals();
     root.innerHTML=`
-      <div class="section-title"><div><h1>${esc(order.order_no)} · SIR Технолог</h1><p>${esc(order.customer_name)} · ${esc(order.service_type)} · загрязнение: ${esc(order.contamination||'—')}</p></div><a class="btn" href="./">← Admin</a></div>
-      <div class="notice safe"><b>Принцип:</b> карта является инструкцией по безопасной последовательности, а не разрешением усиливать воздействие. Реальный материал и повреждения проверяются на месте.</div>
+      <div class="section-title"><div><h1>${esc(order.order_no)} · SIR Технолог</h1><p>${esc(order.customer_name)} · ${esc(serviceLabel(order.service_type))} · загрязнение: ${esc(conditionLabel(order.contamination))}</p></div><a class="btn" href="./">← Admin</a></div>
+      <div class="notice safe"><b>Принцип:</b> карта задаёт безопасную последовательность, а не разрешение «усиливать до результата». Реальный материал, цветостойкость, клей и повреждения проверяются на месте.</div>
       <div class="settings-grid">
-        <section class="card"><h3>Заказ</h3><div class="kv"><span>Работы</span><b>${orderItems}</b></div><div class="kv"><span>Пятна</span><b>${order.stains?'да':'нет'}</b></div><div class="kv"><span>Шерсть</span><b>${order.pet_hair?'да':'нет'}</b></div><div class="kv"><span>Запах</span><b>${order.odor?'да':'нет'}</b></div><div class="kv"><span>Текущий риск</span><b class="risk ${risk==='STOP'?'stop':risk==='CAUTION'?'caution':'low'}">${risk}</b></div>${canManage?'<button class="btn primary" id="generate">Сформировать безопасный черновик</button>':''}<button class="btn" id="raiseStop" style="margin-left:8px">STOP — остановить работу</button></section>
-        <section class="card"><h3>Подтверждение материала</h3><div class="field"><label>Материал после осмотра</label><input id="material" value="${esc(card?.material_guess||'Требуется проверка материала на месте')}" ${canManage?'':'disabled'}></div><div class="field"><label>Оценка загрязнения 1–10</label><input id="score" type="number" min="1" max="10" value="${card?.contamination_score??''}" ${canManage?'':'disabled'}></div><div class="field"><label>Риск</label><select id="risk" ${canManage?'':'disabled'}>${['low','caution','high_risk','stop'].map(x=>`<option value="${x}" ${(card?.risk_level||order.risk_level)===x?'selected':''}>${x.toUpperCase()}</option>`).join('')}</select></div><div class="field"><label>Заметка владельца/менеджера</label><textarea id="ownerNote" ${canManage?'':'disabled'}>${esc(card?.owner_note||'')}</textarea></div>${canManage?'<button class="btn primary" id="approve">Подтвердить карту</button>':''}<p class="mini">${card?.reviewed_at?`Подтверждено: ${new Date(card.reviewed_at).toLocaleString('ru')}`:'Пока не подтверждено человеком.'}</p></section>
+        <section class="card"><h3>Заказ</h3><div class="kv"><span>Работы</span><b>${orderItems}</b></div><div class="kv"><span>Пятна</span><b>${order.stains?'да':'нет'}</b></div><div class="kv"><span>Шерсть</span><b>${order.pet_hair?'да':'нет'}</b></div><div class="kv"><span>Запах</span><b>${order.odor?'да':'нет'}</b></div><div class="kv"><span>Расчётное время</span><b>${timeLabel(order.estimated_minutes)}</b></div><div class="kv"><span>Текущий риск</span><b class="risk ${risk==='STOP'?'stop':risk==='HIGH_RISK'?'high':risk==='CAUTION'?'caution':'low'}">${risk}</b></div>${canManage?'<button class="btn primary" id="generate">Сформировать безопасный черновик</button>':''}<button class="btn" id="raiseStop" style="margin-left:8px">STOP — остановить работу</button></section>
+        <section class="card"><h3>Подтверждение материала</h3><div class="field"><label>Материал после осмотра</label><input id="material" value="${esc(card?.material_guess||'Требуется проверка материала на месте')}" ${canManage?'':'disabled'}></div><div class="field"><label>Оценка загрязнения 1–10</label><input id="score" type="number" min="1" max="10" value="${card?.contamination_score??''}" ${canManage?'':'disabled'}></div><div class="field"><label>Риск</label><select id="risk" ${canManage?'':'disabled'}>${['low','caution','high_risk','stop'].map(x=>`<option value="${x}" ${(card?.risk_level||order.risk_level)===x?'selected':''}>${x.toUpperCase()}</option>`).join('')}</select></div><div class="field"><label>Заметка владельца/менеджера</label><textarea id="ownerNote" ${canManage?'':'disabled'}>${esc(card?.owner_note||'')}</textarea></div>${canManage?'<button class="btn primary" id="approve">Подтвердить карту</button>':''}<p class="mini">${card?.reviewed_at?`Подтверждено человеком: ${new Date(card.reviewed_at).toLocaleString('ru')}`:'Пока не подтверждено человеком.'}</p></section>
       </div>
       ${photos.length?`<section class="panel"><div class="panel-head">Фото клиента</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:14px">${photos.map(x=>`<a href="${x.url}" target="_blank"><img src="${x.url}" alt="Фото заказа" style="width:100%;height:160px;object-fit:cover;border-radius:12px"></a>`).join('')}</div></section>`:'<div class="notice">Фото клиента не загружены. Для спорного материала итоговую технологию не подтверждать без осмотра.</div>'}
       <section class="panel"><div class="panel-head"><span>Последовательность работ</span><span>${risk}</span></div><div style="padding:16px">${steps.length?`<ol>${steps.map(x=>`<li style="margin:10px 0">${esc(x)}</li>`).join('')}</ol>`:'<p>Черновик ещё не сформирован.</p>'}</div></section>
       <section class="panel"><div class="panel-head">Обязательные условия STOP</div><div style="padding:16px">${stops.length?`<ul>${stops.map(x=>`<li style="margin:10px 0">${esc(x)}</li>`).join('')}</ul>`:'<p>После формирования карты здесь появятся условия остановки.</p>'}</div></section>
-      <section class="panel"><div class="panel-head"><span>Проверенная химия SIR</span><span class="mini">только manufacturer_verified</span></div><div class="notice" style="margin:14px"><b>Важно:</b> список ниже не означает автоматическое назначение средства. Сначала совпадение материала и области применения, затем инструкция производителя и spot-test.</div>${chemTable()}</section>`;
+      <section class="panel"><div class="panel-head"><span>Химия, совпадающая по области применения</span><span class="mini">manufacturer_verified · ${matched.length}</span></div><div class="notice safe" style="margin:14px"><b>Это кандидаты, а не автоматическое назначение.</b> Перед использованием обязателен осмотр материала и spot-test. Если поверхность не совпадает с официальной областью применения — средство не использовать.</div>${chemTable(matched)}</section>
+      <details class="panel"><summary class="panel-head">Показать всю проверенную базу SIR (${chemicals.length})</summary>${chemTable(chemicals)}</details>`;
 
     document.getElementById('generate')?.addEventListener('click',generate);
     document.getElementById('approve')?.addEventListener('click',approve);
     document.getElementById('raiseStop')?.addEventListener('click',raiseStop);
   }
 
-  function chemTable(){
-    if(!chemicals.length)return'<div class="empty">Подтверждённых записей пока нет.</div>';
-    return `<div class="table-wrap"><table class="table"><thead><tr><th>Средство</th><th>Разведение</th><th>Применение</th><th>Предупреждение</th></tr></thead><tbody>${chemicals.map(x=>`<tr><td><b>${esc(x.brand||'')} ${esc(x.name)}</b><div class="mini"><a href="${esc(x.source_note||'#')}" target="_blank" rel="noopener">Источник производителя</a></div></td><td>${esc(x.dilution||'—')}</td><td>${esc((x.intended_surfaces||[]).join(', '))}</td><td>${esc(x.warnings||'—')}</td></tr>`).join('')}</tbody></table></div>`;
+  function matchedChemicals(){
+    const wanted=new Set();
+    if(['car','sofa','chair','mattress'].includes(order.service_type)){wanted.add('textiles');wanted.add('vehicle interior');}
+    if(order.service_type==='car'&&items.some(x=>['interior_plastic','dashboard_console','door_cards'].includes(x.item_code)))wanted.add('vehicle interior');
+    return chemicals.filter(c=>(c.intended_surfaces||[]).some(s=>wanted.has(String(s).toLowerCase())));
+  }
+  function chemTable(rows){
+    if(!rows.length)return'<div class="empty">Нет подтверждённого средства, которое можно безопасно подобрать автоматически по этой категории. Используйте ручной поиск в SIR Guide и не придумывайте смесь/разведение.</div>';
+    return `<div class="table-wrap"><table class="table"><thead><tr><th>Средство</th><th>Разведение</th><th>Как применять</th><th>Выдержка</th><th>После</th><th>STOP / предупреждение</th></tr></thead><tbody>${rows.map(x=>`<tr><td><b>${esc(x.brand||'')} ${esc(x.name)}</b><div class="mini"><a href="${esc(x.source_note||'#')}" target="_blank" rel="noopener">официальный источник</a></div></td><td>${esc(x.dilution||'—')}</td><td>${esc(x.application_method||'—')}</td><td>${esc(x.dwell_time||'—')}</td><td>${esc(x.follow_up||'—')}</td><td>${esc(x.warnings||'—')}</td></tr>`).join('')}</tbody></table></div>`;
   }
 
   async function generate(){
@@ -79,4 +87,8 @@
     await load();render();
   }
   const num=v=>{const n=Number(v);return Number.isFinite(n)&&n>=1&&n<=10?n:null;};
+  const timeLabel=m=>m?`${Math.floor(m/60)} ч ${m%60?`${m%60} мин`:''}`.trim():'—';
+  const conditionLabel=v=>({light:'лёгкое',medium:'среднее',heavy:'сильное',special:'особое'}[v]||v||'—');
+  const serviceLabel=v=>({car:'салон автомобиля',sofa:'диван',chair:'кресло',mattress:'матрас'}[v]||v||'—');
+  const itemLabel=v=>({seat:'сиденья',ceiling:'потолок',floor_carpet:'пол / ковролин',trunk:'багажник',door_cards:'дверные карты',dashboard_console:'панель + консоль',interior_plastic:'пластик',textile_mats:'текстильные коврики',seat_belt:'ремни безопасности',interior_glass:'стёкла внутри',child_seat:'детское кресло'}[v]||v);
 })();
