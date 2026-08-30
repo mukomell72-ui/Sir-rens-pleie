@@ -62,7 +62,7 @@ def main() -> int:
                 errors.append(f"Broken local reference in {path.relative_to(ROOT)}: {ref}")
 
     config = (ROOT / "assets" / "config.js").read_text(encoding="utf-8")
-    required = ["supabaseUrl", "supabasePublishableKey", "photoUploadUrl", "masterQrPath"]
+    required = ["supabaseUrl", "supabasePublishableKey", "photoUploadUrl", "masterQrPath", "minimumMobileOrder"]
     for key in required:
         if not re.search(rf"\b{re.escape(key)}\s*:\s*[^,\n]+", config):
             errors.append(f"Missing SIR_CONFIG key: {key}")
@@ -74,11 +74,37 @@ def main() -> int:
         errors.append("Business order data must not be stored in localStorage")
 
     index = (ROOT / "index.html").read_text(encoding="utf-8")
-    for script in ("referral.js", "privacy-consent.js", "status-link.js", "app.js", "vehicle.js", "mobile-ux.js", "i18n.js", "meta-i18n.js"):
+    required_scripts = (
+        "referral.js",
+        "privacy-consent.js",
+        "status-link.js",
+        "app.js",
+        "minimum-order-ui.js",
+        "vehicle.js",
+        "mobile-ux.js",
+        "i18n.js",
+        "meta-i18n.js",
+    )
+    for script in required_scripts:
         if script not in index:
             errors.append(f"Public site is missing required script: {script}")
+    positions = [index.find(script) for script in ("privacy-consent.js", "status-link.js", "app.js")]
+    if any(pos < 0 for pos in positions) or positions != sorted(positions):
+        errors.append("Consent/status wrappers must load before app.js in the documented order")
     if 'data-lang="no" class="active"' not in index or '<html lang="nb">' not in index:
         errors.append("Norwegian must remain the default public storefront language")
+
+    privacy = (ROOT / "assets" / "privacy-consent.js").read_text(encoding="utf-8")
+    if "public_submit_order_v2" not in privacy or "privacy_accepted=true" not in privacy.replace(" ", ""):
+        errors.append("Privacy wrapper must route public orders through v2 with explicit consent")
+
+    status_link = (ROOT / "assets" / "status-link.js").read_text(encoding="utf-8")
+    if "'/rest/v1/rpc/public_submit_order'" not in status_link or "status_token" not in status_link:
+        errors.append("Status-link wrapper must capture the protected order response token")
+
+    minimum_ui = (ROOT / "assets" / "minimum-order-ui.js").read_text(encoding="utf-8")
+    if "minimumMobileOrder" not in minimum_ui:
+        errors.append("Customer estimate must display the configured mobile minimum")
 
     technology = (ROOT / "admin" / "technology.html").read_text(encoding="utf-8")
     if "technology-procedures.js" not in technology:
