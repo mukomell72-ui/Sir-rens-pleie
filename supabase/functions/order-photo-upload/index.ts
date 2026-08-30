@@ -90,6 +90,9 @@ Deno.serve(async (req: Request) => {
     });
     if (metaError) {
       await admin.storage.from("order-photos").remove([path]);
+      if ((metaError.message || "").toLowerCase().includes("photo limit reached")) {
+        return json(req, { error: "photo_limit_reached" }, 409);
+      }
       return json(req, { error: "metadata_failed" }, 500);
     }
     return json(req, { uploaded: true });
