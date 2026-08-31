@@ -25,7 +25,6 @@ async function setup() {
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
-  // Stable browser tests: the UI is real, network dependencies are mocked.
   await page.route(/fxdgeizhlhgvybclvmyo\.supabase\.co/, async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
   });
@@ -57,6 +56,11 @@ async function setup() {
   return { context, page, dialogs, pageErrors, submitted };
 }
 
+async function settle(page) {
+  // mobile-ux.js starts a smooth auto-scroll shortly after each step render
+  await page.waitForTimeout(800);
+}
+
 async function title(page) {
   return (await page.locator('.service-card.open .step-title').textContent())?.trim() || '';
 }
@@ -64,6 +68,7 @@ async function title(page) {
 async function next(page, expectedTitle) {
   const before = await title(page);
   console.log(`STEP ${before} -> ${expectedTitle}`);
+  await settle(page);
   await page.locator('.service-card.open #next').click();
   await page.waitForFunction((expected) => {
     const el = document.querySelector('.service-card.open .step-title');
@@ -76,6 +81,7 @@ async function open(page, service, expectedTitle) {
   console.log(`OPEN ${service}`);
   await page.locator(`.service-card[data-service="${service}"] .service-head`).click();
   await page.waitForSelector('.service-card.open #next');
+  await settle(page);
   assert.equal(await title(page), expectedTitle);
 }
 
@@ -86,7 +92,7 @@ async function fillContactAndConsent(page) {
   await page.locator('input[name="distance_km"]').fill('5');
   await page.waitForSelector('#sirPrivacyConsent');
 
-  // Consent may only block the contact step, never an earlier step.
+  await settle(page);
   await page.locator('.service-card.open #next').click();
   assert.equal(await title(page), 'Контакт и выезд');
   await page.waitForSelector('.privacy-consent-error:not([hidden])');
@@ -119,6 +125,7 @@ async function testCarFull() {
     await fillContactAndConsent(page);
 
     console.log('SUBMIT order');
+    await settle(page);
     await page.locator('.service-card.open #next').click();
     await page.waitForFunction(() => document.querySelector('.service-card.open .step-title')?.textContent.includes('Заявка получена'));
     assert.equal(submitted.length, 1);
