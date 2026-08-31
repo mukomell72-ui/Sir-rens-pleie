@@ -19,6 +19,41 @@ function clean(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function consumeQuota(req: Request): Promise<boolean> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) throw new Error("rate_limit_not_configured");
+
+  const forwarded = clean(req.headers.get("cf-connecting-ip"))
+    || clean(req.headers.get("x-forwarded-for")?.split(",")[0]);
+  const userAgent = clean(req.headers.get("user-agent"));
+  const origin = clean(req.headers.get("origin"));
+  const clientHash = await sha256Hex(`${forwarded || "unknown"}|${userAgent}|${origin}`);
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/internal_consume_vehicle_lookup_quota`, {
+    method: "POST",
+    headers: {
+      "apikey": serviceRoleKey,
+      "Authorization": `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ p_client_hash: clientHash }),
+  });
+
+  if (!response.ok) {
+    console.error("Vehicle lookup rate limiter error", response.status);
+    throw new Error("rate_limit_unavailable");
+  }
+
+  return (await response.json()) === true;
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const headers = cors(origin);
@@ -29,6 +64,11 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const quotaAllowed = await consumeQuota(req);
+    if (!quotaAllowed) {
+      return new Response(JSON.stringify({ ok: false, error: "rate_limited" }), { status: 429, headers });
+    }
+
     const body = await req.json();
     const normalized = clean(body?.registrationNumber ?? body?.plate).toUpperCase().replace(/\s+/g, "");
     if (!/^[A-ZÆØÅ0-9]{2,10}$/.test(normalized)) {
@@ -76,7 +116,11 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true, ...vehicle, vehicle }), { headers });
   } catch (error) {
-    console.error(error instanceof Error ? error.message : "vehicle_lookup_error");
+    const message = error instanceof Error ? error.message : "vehicle_lookup_error";
+    console.error(message);
+    if (message === "rate_limit_not_configured" || message === "rate_limit_unavailable") {
+      return new Response(JSON.stringify({ ok: false, error: "rate_limit_unavailable" }), { status: 503, headers });
+    }
     return new Response(JSON.stringify({ ok: false, error: "internal_error" }), { status: 500, headers });
   }
 });
