@@ -24,10 +24,14 @@
     const km=Number(sessionStorage.getItem(distanceKey)||0);
     const travel=travelFor(km);if(travel==null)return;
     const minimumTotal=min+travel;
-    if(shown<minimumTotal)priceEl.textContent=money(minimumTotal);
+    const wantedPrice=money(minimumTotal);
+    if(shown<minimumTotal&&priceEl.textContent!==wantedPrice)priceEl.textContent=wantedPrice;
     let note=card.querySelector('.mobile-minimum-note');
     if(!note){note=document.createElement('div');note.className='notice safe mobile-minimum-note';card.querySelector('.summary')?.after(note);}
-    if(note)note.textContent=labels().note.replace('{min}',money(min));
+    if(note){
+      const wantedNote=labels().note.replace('{min}',money(min));
+      if(note.textContent!==wantedNote)note.textContent=wantedNote;
+    }
   }
   document.addEventListener('input',e=>{if(e.target?.matches?.('[name="distance_km"]'))sessionStorage.setItem(distanceKey,String(e.target.value||0));});
   document.addEventListener('change',e=>{if(e.target?.matches?.('[name="distance_km"]'))sessionStorage.setItem(distanceKey,String(e.target.value||0));});
