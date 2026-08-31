@@ -64,5 +64,5 @@ jobs:
           done
           cat /tmp/sir-http.log
           exit 1
-      - name: Run mobile browser regression
-        run: node tests/client-e2e.mjs
+      - name: Run final mobile browser regression
+        run: node tests/client-e2e-final.mjs
