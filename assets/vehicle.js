@@ -1,12 +1,37 @@
 (() => {
   const C=window.SIR_CONFIG;
   const endpoint=()=>String(C.vehicleLookupUrl||'').trim()||null;
+  const saved={brand:'',model:'',year:'',body:'',material:''};
+
   const labels=()=>{
     const lang=localStorage.getItem('sir_lang')||'no';
-    if(lang==='ru')return{find:'Найти автомобиль',ready:'При поиске регистрационный номер передаётся Statens vegvesen через SIR для получения технических данных автомобиля.',off:'Автопоиск пока не подключён. Регномер можно указать вручную.',empty:'Введите регистрационный номер.',loading:'Ищем автомобиль…',brand:'Марка',model:'Модель',year:'Год',body:'Кузов',check:'Проверьте данные — их можно исправить.',notFound:'Автомобиль с таким номером не найден. Проверьте номер или продолжите вручную.',limited:'Слишком много запросов. Подождите немного и попробуйте снова.',service:'Поиск автомобиля временно недоступен. Продолжите вручную.',fail:'Не удалось получить данные. Продолжите вручную.'};
-    if(lang==='en')return{find:'Find vehicle',ready:'When you search, the registration number is sent to Statens vegvesen through SIR to retrieve technical vehicle details.',off:'Automatic lookup is not enabled yet. You can enter the registration number manually.',empty:'Enter a registration number.',loading:'Looking up vehicle…',brand:'Make',model:'Model',year:'Year',body:'Body',check:'Check the details — they can be corrected.',notFound:'No vehicle was found for that registration number. Check the number or continue manually.',limited:'Too many lookups. Wait a moment and try again.',service:'Vehicle lookup is temporarily unavailable. Continue manually.',fail:'Could not retrieve vehicle details. Continue manually.'};
-    return{find:'Finn kjøretøy',ready:'Når du søker, sendes registreringsnummeret via SIR til Statens vegvesen for å hente tekniske kjøretøyopplysninger.',off:'Automatisk oppslag er ikke aktivert ennå. Registreringsnummer kan fylles inn manuelt.',empty:'Skriv inn registreringsnummer.',loading:'Søker etter kjøretøy…',brand:'Merke',model:'Modell',year:'År',body:'Karosseri',check:'Kontroller opplysningene — de kan korrigeres.',notFound:'Fant ikke kjøretøy med dette registreringsnummeret. Kontroller nummeret eller fortsett manuelt.',limited:'For mange oppslag. Vent litt og prøv igjen.',service:'Kjøretøyoppslag er midlertidig utilgjengelig. Fortsett manuelt.',fail:'Kunne ikke hente kjøretøydata. Fortsett manuelt.'};
+    if(lang==='ru')return{find:'Найти автомобиль',ready:'При поиске регистрационный номер передаётся Statens vegvesen через SIR для получения технических данных автомобиля.',off:'Автопоиск сейчас недоступен. Заполните данные автомобиля вручную.',empty:'Введите регистрационный номер.',loading:'Ищем автомобиль…',brand:'Марка',model:'Модель',year:'Год',body:'Кузов',material:'Материал салона',check:'Автомобиль найден. Проверьте данные — их можно исправить.',notFound:'Автомобиль с таким номером не найден. Проверьте номер или заполните данные вручную.',limited:'Слишком много запросов. Заполните данные вручную или попробуйте позже.',service:'Поиск автомобиля временно недоступен. Заполните данные вручную.',fail:'Не удалось получить данные. Заполните их вручную.'};
+    if(lang==='en')return{find:'Find vehicle',ready:'When you search, the registration number is sent to Statens vegvesen through SIR to retrieve technical vehicle details.',off:'Automatic lookup is unavailable. Enter the vehicle details manually.',empty:'Enter a registration number.',loading:'Looking up vehicle…',brand:'Make',model:'Model',year:'Year',body:'Body',material:'Interior material',check:'Vehicle found. Check the details — they can be corrected.',notFound:'No vehicle was found for that registration number. Check it or enter the details manually.',limited:'Too many lookups. Enter the details manually or try again later.',service:'Vehicle lookup is temporarily unavailable. Enter the details manually.',fail:'Could not retrieve vehicle details. Enter them manually.'};
+    return{find:'Finn kjøretøy',ready:'Når du søker, sendes registreringsnummeret via SIR til Statens vegvesen for å hente tekniske kjøretøyopplysninger.',off:'Automatisk oppslag er ikke tilgjengelig. Fyll inn kjøretøyopplysningene manuelt.',empty:'Skriv inn registreringsnummer.',loading:'Søker etter kjøretøy…',brand:'Merke',model:'Modell',year:'År',body:'Karosseri',material:'Interiørmateriale',check:'Kjøretøy funnet. Kontroller opplysningene — de kan korrigeres.',notFound:'Fant ikke kjøretøy med dette registreringsnummeret. Kontroller nummeret eller fyll inn manuelt.',limited:'For mange oppslag. Fyll inn manuelt eller prøv igjen senere.',service:'Kjøretøyoppslag er midlertidig utilgjengelig. Fyll inn opplysningene manuelt.',fail:'Kunne ikke hente kjøretøydata. Fyll inn opplysningene manuelt.'};
   };
+
+  function detailsBox(wrap,text){
+    let box=wrap.querySelector('.vehicle-details');
+    if(box)return box;
+    box=document.createElement('div');
+    box.className='summary vehicle-details';
+    box.style.marginTop='10px';
+    box.innerHTML=[
+      ['brand',text.brand,'text'],['model',text.model,'text'],['year',text.year,'number'],['body',text.body,'text'],['material',text.material,'text']
+    ].map(([key,label,type])=>`<div class="summary-row"><span data-vehicle-label="${key}">${label}</span><input name="vehicle_${key}" type="${type}" value="${esc(saved[key])}" aria-label="${label}" ${key==='year'?'min="1900" max="2100" inputmode="numeric"':''}></div>`).join('');
+    box.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{saved[input.name.replace('vehicle_','')]=input.value;}));
+    wrap.append(box);
+    return box;
+  }
+
+  function setDetails(box,data){
+    const values={brand:data.brand||'',model:data.model||'',year:data.year||'',body:data.body||''};
+    for(const [key,value] of Object.entries(values)){
+      saved[key]=String(value);
+      const input=box.querySelector(`[name="vehicle_${key}"]`);if(input)input.value=saved[key];
+    }
+  }
+
   function enhance(){
     const plate=document.querySelector('.service-card.open input[name="plate"]');
     if(!plate||plate.dataset.enhanced)return;
@@ -15,6 +40,8 @@
     const button=document.createElement('button');button.type='button';button.className='btn vehicle-lookup-btn';button.textContent=l.find;button.style.marginTop='8px';button.disabled=!ep;
     const info=document.createElement('div');info.className='status-line vehicle-lookup-info';info.textContent=ep?l.ready:l.off;
     wrap.append(button,info);
+    const box=detailsBox(wrap,l);
+
     button.addEventListener('click',async()=>{
       const currentEndpoint=endpoint(),text=labels(),value=plate.value.replace(/\s+/g,'').toUpperCase();
       if(!value){info.textContent=text.empty;plate.focus();return;}
@@ -30,14 +57,16 @@
           else info.textContent=text.fail;
           return;
         }
-        const box=document.createElement('div');box.className='summary';box.style.marginTop='10px';box.innerHTML=`<div class="summary-row"><span>${text.brand}</span><input name="vehicle_brand" value="${esc(d.brand||'')}" aria-label="${text.brand}"></div><div class="summary-row"><span>${text.model}</span><input name="vehicle_model" value="${esc(d.model||'')}" aria-label="${text.model}"></div><div class="summary-row"><span>${text.year}</span><input name="vehicle_year" value="${esc(d.year||'')}" aria-label="${text.year}"></div><div class="summary-row"><span>${text.body}</span><input name="vehicle_body" value="${esc(d.body||'')}" aria-label="${text.body}"></div>`;
-        wrap.querySelector('.summary')?.remove();wrap.append(box);info.textContent=text.check;
+        setDetails(box,d);info.textContent=text.check;
       }catch(_e){info.textContent=text.fail;}finally{button.disabled=false;}
     });
   }
+
   function refreshLanguage(){
     const button=document.querySelector('.service-card.open .vehicle-lookup-btn'),info=document.querySelector('.service-card.open .vehicle-lookup-info');if(!button||!info)return;
     const l=labels(),ep=endpoint();button.textContent=l.find;button.disabled=!ep;if(!ep)info.textContent=l.off;
+    const box=document.querySelector('.service-card.open .vehicle-details');
+    if(box){for(const key of ['brand','model','year','body','material']){const span=box.querySelector(`[data-vehicle-label="${key}"]`),input=box.querySelector(`[name="vehicle_${key}"]`);if(span)span.textContent=l[key];if(input)input.setAttribute('aria-label',l[key]);}}
   }
   function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
   const obs=new MutationObserver(enhance);obs.observe(document.body,{subtree:true,childList:true});
