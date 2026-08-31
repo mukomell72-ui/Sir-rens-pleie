@@ -1,0 +1,75 @@
+name: Test SIR ENK accounting database
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [professional-redesign]
+    paths:
+      - '.github/workflows/test-accounting-db.yml'
+      - 'supabase/migrations/**accounting**.sql'
+
+permissions:
+  contents: read
+
+jobs:
+  accounting-db-test:
+    runs-on: ubuntu-latest
+    env:
+      PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify ENK accounting isolation and release guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "host=aws-1-eu-west-1.pooler.supabase.com port=5432 user=postgres.fxdgeizhlhgvybclvmyo dbname=postgres sslmode=require" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            t text;
+            rls_enabled boolean;
+            is_public boolean;
+            size_limit bigint;
+            fn text;
+          begin
+            foreach t in array array['accounting_entries','accounting_invoices','accounting_mileage','accounting_assets'] loop
+              select c.relrowsecurity into rls_enabled
+                from pg_class c join pg_namespace n on n.oid=c.relnamespace
+               where n.nspname='public' and c.relname=t;
+              if not coalesce(rls_enabled,false) then raise exception '%_rls_disabled',t; end if;
+              if has_table_privilege('anon',format('public.%I',t),'SELECT') then raise exception '%_anon_select_granted',t; end if;
+              if has_table_privilege('anon',format('public.%I',t),'INSERT') then raise exception '%_anon_insert_granted',t; end if;
+              if has_table_privilege('anon',format('public.%I',t),'UPDATE') then raise exception '%_anon_update_granted',t; end if;
+              if has_table_privilege('anon',format('public.%I',t),'DELETE') then raise exception '%_anon_delete_granted',t; end if;
+            end loop;
+
+            select public,file_size_limit into is_public,size_limit
+              from storage.buckets where id='accounting-documents';
+            if not found then raise exception 'accounting_documents_bucket_missing'; end if;
+            if is_public then raise exception 'accounting_documents_bucket_public'; end if;
+            if size_limit <> 15728640 then raise exception 'accounting_documents_size_limit_wrong'; end if;
+
+            if has_function_privilege('anon','public.create_accounting_invoice_from_order(uuid)','EXECUTE') then raise exception 'anon_invoice_create_granted'; end if;
+            if has_function_privilege('anon','public.create_accounting_credit_note(uuid)','EXECUTE') then raise exception 'anon_credit_create_granted'; end if;
+            if has_function_privilege('anon','public.set_accounting_invoice_paid(uuid,boolean,text)','EXECUTE') then raise exception 'anon_invoice_paid_granted'; end if;
+
+            if not has_function_privilege('authenticated','public.create_accounting_invoice_from_order(uuid)','EXECUTE') then raise exception 'authenticated_invoice_create_missing'; end if;
+            if not has_function_privilege('authenticated','public.create_accounting_credit_note(uuid)','EXECUTE') then raise exception 'authenticated_credit_create_missing'; end if;
+            if not has_function_privilege('authenticated','public.set_accounting_invoice_paid(uuid,boolean,text)','EXECUTE') then raise exception 'authenticated_invoice_paid_missing'; end if;
+
+            select pg_get_functiondef('public.create_accounting_invoice_from_order(uuid)'::regprocedure) into fn;
+            if position('owner' in lower(fn))=0 or position('admin' in lower(fn))=0 or position('is_staff' in lower(fn))=0 then raise exception 'invoice_create_staff_guard_missing'; end if;
+            select pg_get_functiondef('public.create_accounting_credit_note(uuid)'::regprocedure) into fn;
+            if position('owner' in lower(fn))=0 or position('admin' in lower(fn))=0 or position('is_staff' in lower(fn))=0 then raise exception 'credit_create_staff_guard_missing'; end if;
+            select pg_get_functiondef('public.set_accounting_invoice_paid(uuid,boolean,text)'::regprocedure) into fn;
+            if position('owner' in lower(fn))=0 or position('admin' in lower(fn))=0 or position('is_staff' in lower(fn))=0 then raise exception 'invoice_paid_staff_guard_missing'; end if;
+
+            if not exists(select 1 from public.app_settings where key='accounting') then raise exception 'accounting_settings_missing'; end if;
+            if not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='accounting_invoice_no_seq' and c.relkind='S') then raise exception 'invoice_sequence_missing'; end if;
+
+            if not exists(select 1 from pg_constraint where conrelid='public.accounting_entries'::regclass and contype='c' and pg_get_constraintdef(oid) like '%amount_gross >=%') then raise exception 'accounting_entry_amount_constraint_missing'; end if;
+            if not exists(select 1 from pg_constraint where conrelid='public.accounting_mileage'::regclass and contype='c' and pg_get_constraintdef(oid) like '%kilometers >%') then raise exception 'mileage_constraint_missing'; end if;
+            if not exists(select 1 from pg_constraint where conrelid='public.accounting_invoices'::regclass and conname='accounting_invoice_sign') then raise exception 'invoice_sign_constraint_missing'; end if;
+          end $$;
+          SQL
