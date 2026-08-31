@@ -2,6 +2,7 @@
   const C=window.SIR_CONFIG;
   const endpoint=()=>String(C.vehicleLookupUrl||'').trim()||null;
   const saved={brand:'',model:'',year:'',body:'',material:''};
+  const clearSaved=()=>{for(const key of Object.keys(saved))saved[key]='';};
 
   const labels=()=>{
     const lang=localStorage.getItem('sir_lang')||'no';
@@ -69,6 +70,11 @@
     if(box){for(const key of ['brand','model','year','body','material']){const span=box.querySelector(`[data-vehicle-label="${key}"]`),input=box.querySelector(`[name="vehicle_${key}"]`);if(span)span.textContent=l[key];if(input)input.setAttribute('aria-label',l[key]);}}
   }
   function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+
   const obs=new MutationObserver(enhance);obs.observe(document.body,{subtree:true,childList:true});
-  document.addEventListener('click',e=>{if(e.target.closest('[data-lang]'))setTimeout(refreshLanguage,0);setTimeout(enhance,0);});
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.service-card[data-service="car"] .service-head'))clearSaved();
+    if(e.target.closest('[data-lang]'))setTimeout(refreshLanguage,0);
+    setTimeout(enhance,0);
+  },true);
 })();
