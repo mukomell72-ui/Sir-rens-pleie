@@ -40,10 +40,7 @@
   function filteredValues(input){
     const needle=norm(input.value);
     if(!needle)return[];
-    const values=sourceValues(input);
-    const starts=values.filter(v=>norm(v).startsWith(needle));
-    if(starts.length)return starts.slice(0,10);
-    return values.filter(v=>norm(v).includes(needle)).slice(0,10);
+    return sourceValues(input).filter(v=>norm(v).startsWith(needle)).slice(0,10);
   }
 
   function close(menu){menu.hidden=true;menu.replaceChildren();}
