@@ -82,6 +82,7 @@ def main() -> int:
         "minimum-order-ui.js",
         "vehicle.js",
         "mobile-ux.js",
+        "i18n-runtime-fixes.js",
         "i18n.js",
         "meta-i18n.js",
     )
@@ -91,6 +92,9 @@ def main() -> int:
     positions = [index.find(script) for script in ("privacy-consent.js", "status-link.js", "app.js")]
     if any(pos < 0 for pos in positions) or positions != sorted(positions):
         errors.append("Consent/status wrappers must load before app.js in the documented order")
+    i18n_positions = [index.find(script) for script in ("i18n-runtime-fixes.js", "i18n.js", "meta-i18n.js")]
+    if any(pos < 0 for pos in i18n_positions) or i18n_positions != sorted(i18n_positions):
+        errors.append("Dynamic translation completion must load before the main i18n and metadata layers")
     if 'data-lang="no" class="active"' not in index or '<html lang="nb">' not in index:
         errors.append("Norwegian must remain the default public storefront language")
 
@@ -111,6 +115,11 @@ def main() -> int:
         errors.append("Vehicle lookup must stay disabled until vehicleLookupUrl is explicitly configured")
     if "C.vehicleLookupUrl" not in vehicle:
         errors.append("Vehicle lookup must be controlled by vehicleLookupUrl")
+
+    runtime_i18n = (ROOT / "assets" / "i18n-runtime-fixes.js").read_text(encoding="utf-8")
+    for marker in ("места", "/ шт.", "Полный пакет включает все основные зоны", "Фото не прикрепились"):
+        if marker not in runtime_i18n:
+            errors.append(f"Dynamic storefront translation coverage missing marker: {marker}")
 
     for page in (ROOT / "order" / "index.html", ROOT / "status" / "index.html"):
         text = page.read_text(encoding="utf-8")
