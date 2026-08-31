@@ -55,8 +55,8 @@
       if(box){
         const err=box.querySelector('.privacy-consent-error');if(err)err.hidden=false;
         box.style.borderLeftColor='var(--danger)';
-        box.scrollIntoView({behavior:'smooth',block:'center'});
         acknowledgement.focus({preventScroll:true});
+        setTimeout(()=>box.scrollIntoView({behavior:'smooth',block:'center'}),0);
       }
     }
   },true);
