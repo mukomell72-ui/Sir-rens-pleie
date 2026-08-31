@@ -29,7 +29,7 @@ await loadRu();
 
 const title = async () => (await page.locator('.service-card.open .step-title').textContent())?.trim();
 const waitTitle = async expected => {
-  await page.waitForFunction(e => document.querySelector('.service-card.open .step-title')?.textContent.trim() === e, expected);
+  await page.waitForFunction(e => document.querySelector('.service-card.open .step-title')?.textContent.trim() === e, expected, {timeout:8000});
   assert.equal(await title(), expected);
 };
 const domNext = async expected => {
@@ -64,7 +64,6 @@ const contactToSummary = async () => {
   await domNext('План и предварительный расчёт');
 };
 
-// Full car flow + lookup + submission.
 await openService('car', 'Ваш автомобиль');
 await page.waitForSelector('input[name="vehicle_brand"]');
 assert.equal(await page.locator('input[name="vehicle_brand"]').inputValue(), '');
@@ -73,7 +72,7 @@ assert.equal(await page.locator('input[name="vehicle_material"]').inputValue(), 
 await page.locator('input[name="plate"]').fill('BR92992');
 await page.waitForSelector('.vehicle-lookup-btn');
 await page.locator('.vehicle-lookup-btn').click();
-await page.waitForFunction(() => document.querySelector('input[name="vehicle_brand"]')?.value === 'VOLKSWAGEN');
+await page.waitForFunction(() => document.querySelector('input[name="vehicle_brand"]')?.value === 'VOLKSWAGEN', null, {timeout:8000});
 assert.equal(await page.locator('input[name="vehicle_brand"]').inputValue(), 'VOLKSWAGEN');
 assert.equal(await page.locator('input[name="vehicle_model"]').inputValue(), 'TRANSPORTER');
 assert.equal(await page.locator('input[name="vehicle_year"]').inputValue(), '2010');
@@ -86,12 +85,11 @@ await domNext('Что ещё заметно?');
 await domNext('Контакт и выезд');
 await contactToSummary();
 await page.evaluate(() => document.querySelector('.service-card.open #next').click());
-await page.waitForFunction(() => document.querySelector('.service-card.open .step-title')?.textContent.includes('Заявка получена'));
+await page.waitForFunction(() => document.querySelector('.service-card.open .step-title')?.textContent.includes('Заявка получена'), null, {timeout:8000});
 assert.equal(submissions.length, 1);
 assert.equal(submissions[0]?.p_payload?.privacy_accepted, true);
 assert.ok(submissions[0]?.p_payload?.privacy_version);
 
-// Separate-elements branch.
 await loadRu();
 await openService('car', 'Ваш автомобиль');
 await domNext('Что чистим?');
@@ -101,7 +99,6 @@ await domNext('Выберите элементы');
 await page.locator('input[name="el_seat"]').check();
 await domNext('Что ещё заметно?');
 
-// Furniture flows reach summary with fresh consent state.
 for (const [service, first] of [['sofa','Размер дивана'],['chair','Тип кресла'],['mattress','Матрас']]) {
   await loadRu();
   await openService(service, first);
@@ -111,7 +108,6 @@ for (const [service, first] of [['sofa','Размер дивана'],['chair','�
   await contactToSummary();
 }
 
-// Language controls and mobile card spacing.
 await page.goto('http://127.0.0.1:4173/index.html', {waitUntil:'domcontentloaded'});
 for (const lang of ['no','en','ru']) {
   await page.locator(`[data-lang="${lang}"]`).click();
