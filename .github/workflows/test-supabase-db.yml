@@ -20,7 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify database constraints, RLS and private storage
+      - name: Verify database constraints, RLS, workflow guards and private storage
         shell: bash
         run: |
           set -euo pipefail
@@ -76,6 +76,7 @@ jobs:
             size_limit bigint;
             rls_orders boolean;
             rls_photos boolean;
+            caught boolean;
           begin
             select public, file_size_limit into is_public, size_limit
               from storage.buckets where id='order-photos';
@@ -93,6 +94,77 @@ jobs:
             if has_function_privilege('anon','public.internal_consume_vehicle_lookup_quota(text)','EXECUTE') then raise exception 'anon_vehicle_quota_execute_granted'; end if;
             if has_function_privilege('authenticated','public.internal_consume_vehicle_lookup_quota(text)','EXECUTE') then raise exception 'authenticated_vehicle_quota_execute_granted'; end if;
             if not has_function_privilege('service_role','public.internal_consume_vehicle_lookup_quota(text)','EXECUTE') then raise exception 'service_role_vehicle_quota_execute_missing'; end if;
+
+            if not has_function_privilege('anon','public.public_submit_order_v2(jsonb)','EXECUTE') then raise exception 'anon_public_submit_missing'; end if;
+            if has_function_privilege('authenticated','public.public_submit_order_v2(jsonb)','EXECUTE') then raise exception 'authenticated_public_submit_granted'; end if;
+
+            caught := false;
+            begin
+              perform public.public_submit_order_v2('{"customer_name":"CI Public","phone":"99999123","service":"car"}'::jsonb);
+            exception when others then
+              caught := position('privacy consent required' in SQLERRM) > 0;
+            end;
+            if not caught then raise exception 'public_order_privacy_guard_failed'; end if;
+          end $$;
+
+          do $$
+          declare
+            v_order uuid;
+            caught boolean;
+          begin
+            insert into public.orders(customer_name,phone,service_type)
+            values('CI Photo','9000000001','car') returning id into v_order;
+
+            insert into public.order_photos(order_id,storage_path,mime_type,size_bytes)
+            select v_order, 'ci/'||g::text||'.jpg', 'image/jpeg', 1
+            from generate_series(1,5) g;
+
+            caught := false;
+            begin
+              insert into public.order_photos(order_id,storage_path,mime_type,size_bytes)
+              values(v_order,'ci/6.jpg','image/jpeg',1);
+            exception when others then
+              caught := position('photo limit reached' in SQLERRM) > 0;
+            end;
+            if not caught then raise exception 'sixth_photo_not_blocked'; end if;
+          end $$;
+
+          do $$
+          declare
+            v_order_a uuid;
+            v_order_b uuid;
+            v_order_expired uuid;
+            v_order_after uuid;
+            caught boolean;
+            v_start timestamptz := date_trunc('hour',now()) + interval '3 days';
+            v_expired_start timestamptz := date_trunc('hour',now()) + interval '5 days';
+          begin
+            insert into public.orders(customer_name,phone,service_type,status)
+            values('CI Calendar A','9000000011','car','scheduled') returning id into v_order_a;
+            insert into public.orders(customer_name,phone,service_type,status)
+            values('CI Calendar B','9000000012','car','scheduled') returning id into v_order_b;
+
+            insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
+            values(v_order_a,v_start,v_start+interval '2 hours',false,0);
+
+            caught := false;
+            begin
+              insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
+              values(v_order_b,v_start+interval '1 hour',v_start+interval '3 hours',false,0);
+            exception when others then
+              caught := position('calendar conflict' in SQLERRM) > 0;
+            end;
+            if not caught then raise exception 'calendar_overlap_not_blocked'; end if;
+
+            insert into public.orders(customer_name,phone,service_type,status,confirmation_expires_at)
+            values('CI Expired Hold','9000000013','car','awaiting_confirmation',now()-interval '1 hour') returning id into v_order_expired;
+            insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
+            values(v_order_expired,v_expired_start,v_expired_start+interval '2 hours',true,0);
+
+            insert into public.orders(customer_name,phone,service_type,status)
+            values('CI After Expiry','9000000014','car','scheduled') returning id into v_order_after;
+            insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
+            values(v_order_after,v_expired_start+interval '30 minutes',v_expired_start+interval '90 minutes',false,0);
           end $$;
 
           rollback;
