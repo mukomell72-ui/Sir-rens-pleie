@@ -91,17 +91,32 @@ const contactToSummary = async () => {
 
 await openService('car', 'Ваш автомобиль');
 await page.waitForSelector('input[name="vehicle_brand"]');
-assert.equal(await page.locator('input[name="vehicle_brand"]').inputValue(), '');
-assert.equal(await page.locator('input[name="vehicle_model"]').inputValue(), '');
+const brandInput=page.locator('input[name="vehicle_brand"]');
+const modelInput=page.locator('input[name="vehicle_model"]');
+assert.equal(await brandInput.inputValue(), '');
+assert.equal(await modelInput.inputValue(), '');
 assert.equal(await page.locator('input[name="vehicle_material"]').inputValue(), '');
+assert.equal(await brandInput.getAttribute('list'), 'sir-vehicle-brands');
+assert.equal(await modelInput.getAttribute('list'), 'sir-vehicle-models');
+const brandOptions=await page.locator('#sir-vehicle-brands option').evaluateAll(options=>options.map(o=>o.value));
+assert.ok(brandOptions.includes('VOLKSWAGEN'));
+assert.ok(brandOptions.includes('VOLVO'));
+await brandInput.fill('VOLKSWAGEN');
+await page.waitForFunction(()=>[...document.querySelectorAll('#sir-vehicle-models option')].some(o=>o.value==='Transporter'));
+const vwModels=await page.locator('#sir-vehicle-models option').evaluateAll(options=>options.map(o=>o.value));
+assert.ok(vwModels.includes('Golf'));
+assert.ok(vwModels.includes('Transporter'));
+await brandInput.fill('');
+
 await page.locator('input[name="plate"]').fill('BR92992');
 await page.waitForSelector('.vehicle-lookup-btn');
 await page.locator('.vehicle-lookup-btn').click();
 await page.waitForFunction(() => document.querySelector('input[name="vehicle_brand"]')?.value === 'VOLKSWAGEN', null, {timeout:8000});
-assert.equal(await page.locator('input[name="vehicle_brand"]').inputValue(), 'VOLKSWAGEN');
-assert.equal(await page.locator('input[name="vehicle_model"]').inputValue(), 'TRANSPORTER');
+assert.equal(await brandInput.inputValue(), 'VOLKSWAGEN');
+assert.equal(await modelInput.inputValue(), 'TRANSPORTER');
 assert.equal(await page.locator('input[name="vehicle_year"]').inputValue(), '2010');
 assert.equal(await page.locator('input[name="vehicle_body"]').inputValue(), 'Flerbruksbil (AF)');
+await page.waitForFunction(()=>[...document.querySelectorAll('#sir-vehicle-models option')].some(o=>o.value==='Transporter'));
 await page.waitForTimeout(100);
 await page.locator('.service-card.open #next').click();
 await waitTitle('Что чистим?');
