@@ -35,7 +35,7 @@ SIR is currently in **pre-ENK mode**: the enterprise has not yet been registered
 
 ## Compliance boundaries
 
-This module is an internal bookkeeping and reconciliation tool. It does not submit tax returns or VAT returns to Skatteetaten and should not be described as an approved accounting/filing system.
+This module is an internal preparation, bookkeeping and reconciliation tool. It does not register an ENK, submit tax returns, or submit VAT returns to Norwegian authorities, and should not be described as an approved accounting/filing system.
 
 Current rules used for safeguards and warnings were checked against official Norwegian sources on 2026-08-31:
 
