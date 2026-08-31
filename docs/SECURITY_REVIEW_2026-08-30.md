@@ -16,10 +16,11 @@ Scope: `professional-redesign` + dedicated Supabase project used by SIR Rens & P
 - Technology generation is not executable by `anon`.
 - Public order submission enforces privacy consent, server-side price calculation, travel fee, minimum mobile order, referral eligibility/discount and per-phone anti-spam throttling.
 - Mobile minimum is applied before referral eligibility/discount.
+- `rls_auto_enable()` remains installed as the database event-trigger function but direct `EXECUTE` has been revoked from `public`, `anon` and `authenticated`.
 
-## Transaction smoke tests completed
+## Transaction and integration tests completed
 
-Tests were performed inside transactions and rolled back unless they were schema/security migrations.
+Tests were performed inside transactions and rolled back unless they were schema/security migrations or explicit release integration tests.
 
 - public request -> private status token -> public status lookup: PASS
 - 0 km minimum mobile order: 750 NOK: PASS
@@ -30,11 +31,16 @@ Tests were performed inside transactions and rolled back unless they were schema
 - simulated WORKER can start assigned job and add internal progress note: PASS
 - simulated WORKER price change rejected and original price preserved: PASS
 - public RPC still works after direct anonymous table privileges were removed: PASS
-- latest GitHub static/JS/safety validation: PASS at the time of this review
+- live owner-authorized Statens vegvesen lookup through the deployed `vehicle-lookup` Edge Function: PASS
+- the live lookup exposed a response-shape bug (`kjoretoydataListe` was not parsed); parser corrected and redeployed; repeat lookup returned non-empty make/model/year/body: PASS
+- temporary PostgreSQL `http` extension used to drive the release E2E request was removed immediately after the test: PASS
+- latest GitHub static/JS/safety validation after the vehicle parser correction: PASS
 
-## Expected Supabase linter warnings
+## Supabase advisor review
 
-The Supabase database linter reports `SECURITY DEFINER` warnings for these anonymous RPCs:
+Final direct Security Advisor and Performance Advisor checks were run after the migration and Edge Function work.
+
+Expected Security Advisor warnings remain for these deliberately public `SECURITY DEFINER` RPCs:
 
 - `public_submit_order_v2`
 - `public_get_order_status`
@@ -43,16 +49,23 @@ The Supabase database linter reports `SECURITY DEFINER` warnings for these anony
 
 These are intentionally public entry points. They do not grant direct table access; the status/offer endpoints require expiring hashed tokens and the submit endpoint returns a deliberately limited response.
 
-The linter also reports `claim_initial_owner` while the initial OWNER has not yet been claimed. This function is intentionally temporary and self-revokes from `authenticated` after the first successful claim.
+The advisor also reports `claim_initial_owner` while the initial OWNER has not yet been claimed. This function is intentionally temporary and self-revokes from `authenticated` after the first successful claim.
+
+`vehicle_lookup_rate_limits` is intentionally RLS-enabled with no end-user policy. It is an internal rate-limit table used through a service-role-only RPC; the no-policy state therefore denies browser roles by default.
+
+Performance Advisor currently reports several unused indexes. The database is new and has not accumulated representative production traffic, so those indexes are retained until real workload statistics exist.
 
 Supabase linter references:
 - https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
 - https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+- https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+- https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index
 
 ## Remaining release gates
 
-1. Create the first real OWNER account with an owner-controlled email/password and consume the one-time bootstrap.
-2. Perform final manual mobile/browser walkthrough of customer and admin screens.
-3. Keep Vegvesen lookup disabled until `vehicleLookupUrl` is explicitly configured with a working protected integration.
+1. Rotate the Supabase deployment token and Statens vegvesen API key that were exposed during setup, then update the deployment/function secrets.
+2. Create the first real OWNER account with an owner-controlled email/password and consume the one-time bootstrap.
+3. Perform final manual mobile/browser walkthrough of customer and admin screens.
 4. Use only real SIR Before/After assets; no fabricated customer examples.
-5. Merge to `main` only after the final release checklist is green.
+5. Finalize legal company identity and retention wording before commercial launch.
+6. Merge to `main` only after the final release checklist is green.
