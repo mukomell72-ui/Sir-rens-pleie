@@ -17,8 +17,8 @@ const keyboard = {
 };
 
 async function sha256hex(s: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-  return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, "0")).join("");
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(d)].map(x => x.toString(16).padStart(2, "0")).join("");
 }
 
 async function tg(method: string, body: Record<string, unknown> = {}) {
@@ -48,21 +48,20 @@ function scoreUsername(u: string) {
   const vowels = new Set(["a", "e", "i", "o", "u", "y"]);
   const rare = new Set(["q", "x", "z", "j"]);
   const chars = [...u];
-  const vowelCount = chars.filter(c => vowels.has(c)).length;
-  const rareCount = chars.filter(c => rare.has(c)).length;
+  const vc = chars.filter(c => vowels.has(c)).length;
+  const rc = chars.filter(c => rare.has(c)).length;
   const unique = new Set(chars).size;
 
   if (/^[a-z]{5}$/.test(u)) score += 10;
-  if (vowelCount >= 1 && vowelCount <= 3) score += 9;
+  if (vc >= 1 && vc <= 3) score += 9;
   if (unique >= 4) score += 7;
   if (/^[^aeiouy][aeiouy][^aeiouy][aeiouy][^aeiouy]$/.test(u)) score += 12;
   if (/^[^aeiouy][aeiouy][^aeiouy][^aeiouy][aeiouy]$/.test(u)) score += 8;
   if (/([a-z])\1\1/.test(u)) score -= 14;
-  if (/^[qxzj]{2}/.test(u) || rareCount >= 3) score -= 12;
+  if (/^[qxzj]{2}/.test(u) || rc >= 3) score -= 12;
   if (/^(.)\1{4}$/.test(u)) score -= 20;
   if ([...u].reverse().join("") === u) score += 5;
   if (!/[qjx]{2,}/.test(u)) score += 4;
-
   return Math.max(1, Math.min(99, score));
 }
 
@@ -80,8 +79,8 @@ function reasonFor(u: string, score: number) {
   const v = (u.match(/[aeiouy]/g) ?? []).length;
   if (v >= 1 && v <= 3) parts.push("произносимый");
   if (new Set(u).size >= 4) parts.push("мало повторов");
-  if (/^[^aeiouy][aeiouy][^aeiouy][aeiouy][^aeiouy]$/.test(u)) parts.push("сильный CVCVC-ритм");
-  if (score >= 90) parts.push("высокий брендовый потенциал");
+  if (/^[^aeiouy][aeiouy][^aeiouy][aeiouy][^aeiouy]$/.test(u)) parts.push("CVCVC");
+  if (score >= 90) parts.push("брендовый");
   return parts.join(", ");
 }
 
@@ -89,15 +88,16 @@ const onset = ["b","c","d","f","g","h","k","l","m","n","p","r","s","t","v","w"];
 const vowels = ["a","e","i","o","u","y"];
 const coda = ["b","c","d","f","g","k","l","m","n","p","r","s","t","v","x","z"];
 
-function generateCandidates(limit = 30) {
+function generateCandidates(limit = 60) {
   const out = new Set<string>();
   const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-  for (let i = 0; i < limit * 12 && out.size < limit; i++) {
-    const p = Math.floor(Math.random() * 3);
+  for (let i = 0; i < limit * 30 && out.size < limit; i++) {
+    const p = Math.floor(Math.random() * 4);
     let u = "";
     if (p === 0) u = `${pick(onset)}${pick(vowels)}${pick(coda)}${pick(vowels)}${pick(coda)}`;
     else if (p === 1) u = `${pick(onset)}${pick(vowels)}${pick(coda)}${pick(coda)}${pick(vowels)}`;
-    else u = `${pick(onset)}${pick(vowels)}${pick(onset)}${pick(vowels)}${pick(onset)}`;
+    else if (p === 2) u = `${pick(onset)}${pick(vowels)}${pick(onset)}${pick(vowels)}${pick(onset)}`;
+    else u = `${pick(onset)}${pick(vowels)}${pick(coda)}${pick(onset)}${pick(vowels)}`;
     out.add(u);
   }
   return [...out].map(username => {
@@ -111,20 +111,25 @@ async function preliminaryAvailability(username: string) {
   try {
     const r = await fetch(`https://t.me/${username}`, {
       redirect: "follow",
-      headers: { "user-agent": "Mozilla/5.0" }
+      headers: { "user-agent": "Mozilla/5.0 (compatible; UsernameHunter/1.0)" }
     });
-    const html = await r.text();
-    const occupiedMarkers = [
-      "tgme_page_title",
-      "tgme_page_photo",
-      "tgme_page_description",
-      "tgme_page_extra",
-      "Preview channel",
-      "Send Message"
-    ];
     if (r.status === 404) return "likely_free";
-    if (occupiedMarkers.some(x => html.includes(x))) return "occupied";
-    return "likely_free";
+    if (r.status === 429) return "unknown";
+    const html = await r.text();
+
+    // Старый код считал любой tgme_page_title признаком занятости,
+    // из-за чего почти вся выборка отбрасывалась. Теперь исключаем только
+    // страницы с сильными признаками существующего профиля/канала/бота.
+    const strongOccupied =
+      html.includes("tgme_page_photo_image") ||
+      html.includes("tgme_page_description") ||
+      html.includes("tgme_page_extra") ||
+      html.includes("tgme_channel_info") ||
+      html.includes("tgme_widget_message") ||
+      html.includes("Preview channel") ||
+      html.includes("View in Telegram");
+
+    return strongOccupied ? "occupied" : "likely_free";
   } catch {
     return "unknown";
   }
@@ -133,7 +138,7 @@ async function preliminaryAvailability(username: string) {
 function labelAvailability(a: string) {
   if (a === "likely_free") return "🟢 предварительно свободен";
   if (a === "occupied") return "🔴 занят";
-  return "🟡 проверка не удалась";
+  return "🟡 нужна точная проверка";
 }
 
 async function inspectOne(chatId: number, raw: string) {
@@ -146,33 +151,67 @@ async function inspectOne(chatId: number, raw: string) {
   const [min, max] = estimate(score);
   const availability = await preliminaryAvailability(u);
   await send(chatId,
-    `@${u}\n${labelAvailability(availability)}\n⭐ ${score}/100\n💰 ~$${min.toLocaleString("en-US")}–$${max.toLocaleString("en-US")}\n${reasonFor(u, score)}\n\n⚠️ Цена ориентировочная. Веб-проверка свободности предварительная.`
+    `@${u}\n${labelAvailability(availability)}\n⭐ ${score}/100\n💰 ~$${min.toLocaleString("en-US")}–$${max.toLocaleString("en-US")}\n${reasonFor(u, score)}\n\n⚠️ Цена ориентировочная. Точная свободность возможна только через Telegram user-session (MTProto).`
   );
 }
 
-async function scan(chatId: number, mode: "free" | "top" | "auto") {
-  await send(chatId, "⚡ Проверяю новую подборку 5-буквенных вариантов…");
-  const candidates = generateCandidates(28).filter(x => x.score >= 78).slice(0, 16);
-  const checked: Array<any> = [];
-
-  for (const c of candidates) {
-    const availability = await preliminaryAvailability(c.username);
-    checked.push({ ...c, availability });
+async function checkBatch<T extends {username:string}>(items: T[], concurrency = 10) {
+  const result: Array<T & {availability:string}> = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const part = items.slice(i, i + concurrency);
+    const checked = await Promise.all(part.map(async c => ({ ...c, availability: await preliminaryAvailability(c.username) })));
+    result.push(...checked);
   }
+  return result;
+}
 
-  checked.sort((a, b) => b.score - a.score);
-  let rows = checked;
-  if (mode === "free" || mode === "auto") rows = checked.filter(x => x.availability === "likely_free");
-  rows = rows.slice(0, 8);
-
+async function sendRows(chatId: number, title: string, rows: Array<any>, exactNote = true) {
   if (!rows.length) {
-    await send(chatId, "В этой пачке подходящих вариантов не нашлось. Нажми «⚡ Автопоиск» ещё раз — будет новая выборка.");
+    await send(chatId, "В этой проверке подходящих вариантов не найдено. Нажми «⚡ Автопоиск» ещё раз — будет новая пачка.");
     return;
   }
 
-  const title = mode === "top" ? "💎 ТОП текущей проверки" : "🔥 Лучшие предварительно свободные";
-  const list = rows.map((x, i) => `${i + 1}. @${x.username} — ⭐ ${x.score}/100 — ~$${x.min}–$${x.max}`).join("\n");
-  await send(chatId, `${title}\n\n${list}\n\n⚠️ Свободность пока предварительная. Для 100% результата нужен Telegram user-session (MTProto).`);
+  const chunks: Array<any[]> = [];
+  for (let i = 0; i < rows.length; i += 10) chunks.push(rows.slice(i, i + 10));
+  for (let c = 0; c < chunks.length; c++) {
+    const list = chunks[c].map((x, i) => `${c * 10 + i + 1}. @${x.username} — ⭐ ${x.score}/100 — ~$${x.min}–$${x.max}`).join("\n");
+    const note = exactNote ? "\n\n⚠️ Это предварительно свободные варианты. Точную проверку Telegram даёт только через user-session (MTProto)." : "";
+    await send(chatId, `${c === 0 ? title + "\n\n" : ""}${list}${note}`);
+  }
+}
+
+async function scan(chatId: number, mode: "free" | "top" | "auto") {
+  await send(chatId, "⚡ Ищу 5-буквенные варианты…");
+
+  const poolSize = mode === "auto" ? 60 : 40;
+  const candidates = generateCandidates(poolSize).filter(x => x.score >= 78);
+  const checked = await checkBatch(candidates, 10);
+  checked.sort((a, b) => b.score - a.score);
+
+  if (mode === "top") {
+    await sendRows(chatId, "💎 ТОП по потенциальной цене", checked.slice(0, 20), false);
+    return;
+  }
+
+  let free = checked.filter(x => x.availability === "likely_free");
+
+  // Автопоиск не должен молчать: если Telegram Web не дал уверенного ответа,
+  // показываем лучшие непроверенные отдельно, а не пустой результат.
+  if (!free.length) {
+    const unknown = checked.filter(x => x.availability === "unknown").slice(0, 15);
+    if (unknown.length) {
+      await sendRows(chatId, "🟡 Telegram Web не подтвердил свободность. Вот лучшие варианты для точной проверки:", unknown, true);
+      return;
+    }
+  }
+
+  free = free.slice(0, mode === "auto" ? 30 : 20);
+  await sendRows(
+    chatId,
+    mode === "auto" ? `⚡ Автопоиск: найдено ${free.length} предварительно свободных` : `🔥 Найдено ${free.length} предварительно свободных`,
+    free,
+    true
+  );
 }
 
 Deno.serve(async (req: Request) => {
@@ -206,7 +245,7 @@ Deno.serve(async (req: Request) => {
   const text = String(msg.text).trim();
 
   if (text === "/start") {
-    await send(chatId, "💎 Username Hunter\n\nИщу перспективные 5-буквенные Telegram username, оцениваю их коммерческий потенциал и примерную стоимость.\n\nВыбери действие:");
+    await send(chatId, "💎 Username Hunter\n\nИщу перспективные 5-буквенные Telegram username и показываю примерную стоимость.\n\nНажми «⚡ Автопоиск» — бот сразу выдаст все найденные в текущей пачке варианты.");
   } else if (text === "🔥 Дорогие доступные") {
     await scan(chatId, "free");
   } else if (text === "💎 ТОП по цене") {
@@ -220,7 +259,7 @@ Deno.serve(async (req: Request) => {
       selective: true
     });
   } else if (text === "📊 Статистика") {
-    await send(chatId, "📊 Сейчас работает живая проверка пачками.\n\nВ одной проверке анализируется до 16 сильных 5-буквенных кандидатов. Постоянную базу и фоновый сканер подключу следующим этапом.");
+    await send(chatId, "📊 Автопоиск проверяет до 60 сильных 5-буквенных кандидатов за одно нажатие и выводит до 30 найденных вариантов. Каждое новое нажатие создаёт новую пачку.");
   } else if (msg?.reply_to_message?.text?.includes("Отправь username")) {
     await inspectOne(chatId, text);
   } else if (/^@?[a-zA-Z]{5}$/.test(text)) {
