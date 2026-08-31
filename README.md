@@ -14,4 +14,6 @@ Current redesign work is developed in the `professional-redesign` branch and rev
 - ENK / Regnskap module with private document storage, ledger, mileage, assets, VAT-threshold monitoring and printable invoice support.
 - **Pre-ENK mode is active:** the enterprise is not registered as an ENK yet, so preparation/internal records are available while official invoice issuance is blocked both in the UI and at database level until registration and legal identity are completed.
 
-See `docs/ENK_ACCOUNTING.md` and the PR #8 description for implementation and launch notes.
+The current task is to finish and publish the site safely without inventing ENK details. When ENK is later registered, the owner can switch the accounting module from pre-ENK mode and enter the real legal identity.
+
+See `docs/ENK_ACCOUNTING.md` and PR #8 for implementation and launch notes.
