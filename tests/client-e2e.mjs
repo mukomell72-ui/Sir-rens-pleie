@@ -11,6 +11,7 @@ async function setup() {
     locale: 'nb-NO',
     hasTouch: true,
     isMobile: true,
+    reducedMotion: 'reduce',
   });
   const page = await context.newPage();
   page.setDefaultTimeout(7000);
@@ -25,9 +26,6 @@ async function setup() {
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
-  await page.route(/fxdgeizhlhgvybclvmyo\.supabase\.co/, async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-  });
   await page.route(/\/rest\/v1\/price_rules/, async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
   });
@@ -50,6 +48,11 @@ async function setup() {
       body: JSON.stringify({ order_no: 'SIR-E2E', upload_token: 'e2e-token', preliminary_price: 1690 }),
     });
   });
+  await page.route(/fxdgeizhlhgvybclvmyo\.supabase\.co/, async (route) => {
+    const url = route.request().url();
+    if (url.includes('/rest/v1/rpc/public_submit_order_v2') || url.includes('/functions/v1/vehicle-lookup')) return route.fallback();
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
 
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page.locator('[data-lang="ru"]').click();
@@ -57,8 +60,7 @@ async function setup() {
 }
 
 async function settle(page) {
-  // mobile-ux.js starts a smooth auto-scroll shortly after each step render
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(120);
 }
 
 async function title(page) {
