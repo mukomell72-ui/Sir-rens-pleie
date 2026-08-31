@@ -39,13 +39,19 @@ jobs:
           test "$code" = "400"
           grep -q '"error":"invalid_request"' "$body_file"
 
-      - name: CORS preflight works for production origin
+      - name: CORS preflight works for GitHub Pages and intended custom domains
         shell: bash
         run: |
           set -euo pipefail
-          headers="$(mktemp)"
-          curl -sS -D "$headers" -o /dev/null -X OPTIONS \
-            'https://fxdgeizhlhgvybclvmyo.supabase.co/functions/v1/vehicle-lookup' \
-            -H 'Origin: https://mukomell72-ui.github.io' \
-            -H 'Access-Control-Request-Method: POST'
-          grep -qi '^access-control-allow-origin: https://mukomell72-ui.github.io' "$headers"
+          for origin in \
+            'https://mukomell72-ui.github.io' \
+            'https://sir-rens.no' \
+            'https://www.sir-rens.no'
+          do
+            headers="$(mktemp)"
+            curl -sS -D "$headers" -o /dev/null -X OPTIONS \
+              'https://fxdgeizhlhgvybclvmyo.supabase.co/functions/v1/vehicle-lookup' \
+              -H "Origin: $origin" \
+              -H 'Access-Control-Request-Method: POST'
+            grep -qi "^access-control-allow-origin: $origin" "$headers"
+          done
