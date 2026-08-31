@@ -20,8 +20,13 @@ await page.route(/\/rest\/v1\/rpc\/public_submit_order_v2/, async r => {
   await r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({order_no:'SIR-E2E',upload_token:'token',preliminary_price:1690})});
 });
 
-await page.goto('http://127.0.0.1:4173/index.html', { waitUntil:'domcontentloaded' });
-await page.locator('[data-lang="ru"]').click();
+const loadRu = async () => {
+  await page.goto('http://127.0.0.1:4173/index.html', { waitUntil:'domcontentloaded' });
+  await page.evaluate(() => sessionStorage.clear());
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('[data-lang="ru"]').click();
+};
+await loadRu();
 
 const title = async () => (await page.locator('.service-card.open .step-title').textContent())?.trim();
 const waitTitle = async expected => {
@@ -30,7 +35,15 @@ const waitTitle = async expected => {
 };
 const domNext = async expected => {
   await page.waitForTimeout(250);
-  await page.locator('.service-card.open #next').dispatchEvent('click');
+  const before = await page.evaluate(() => ({
+    title: document.querySelector('.service-card.open .step-title')?.textContent.trim() || '',
+    next: !!document.querySelector('.service-card.open #next'),
+    consent: document.querySelector('#sirPrivacyConsent')?.checked ?? null,
+    stored: sessionStorage.getItem('sir_privacy_consent')
+  }));
+  console.log('DOM_NEXT', JSON.stringify(before), '=>', expected);
+  assert.equal(before.next, true, `Next button missing before transition from ${before.title}`);
+  await page.evaluate(() => document.querySelector('.service-card.open #next').click());
   await waitTitle(expected);
 };
 const openService = async (service, expected) => {
@@ -46,7 +59,9 @@ const contactToSummary = async () => {
   await page.locator('.service-card.open #next').click();
   assert.equal(await title(), 'Контакт и выезд');
   await page.waitForSelector('.privacy-consent-error:not([hidden])');
+  assert.equal(await page.locator('#sirPrivacyConsent').isChecked(), false);
   await page.locator('#sirPrivacyConsent').check();
+  assert.equal(await page.locator('#sirPrivacyConsent').isChecked(), true);
   await domNext('План и предварительный расчёт');
 };
 
@@ -59,8 +74,6 @@ await page.waitForSelector('input[name="vehicle_brand"]');
 assert.equal(await page.locator('input[name="vehicle_brand"]').inputValue(), 'VOLKSWAGEN');
 assert.equal(await page.locator('input[name="vehicle_model"]').inputValue(), 'TRANSPORTER');
 assert.equal(await page.locator('input[name="vehicle_year"]').inputValue(), '2010');
-
-// At least the first customer tap is a real pointer click; this is the regression that previously failed for the user.
 await page.waitForTimeout(500);
 await page.locator('.service-card.open #next').click();
 await waitTitle('Что чистим?');
@@ -68,15 +81,14 @@ await domNext('Степень загрязнения');
 await domNext('Что ещё заметно?');
 await domNext('Контакт и выезд');
 await contactToSummary();
-await page.locator('.service-card.open #next').dispatchEvent('click');
+await page.evaluate(() => document.querySelector('.service-card.open #next').click());
 await page.waitForFunction(() => document.querySelector('.service-card.open .step-title')?.textContent.includes('Заявка получена'));
 assert.equal(submissions.length, 1);
 assert.equal(submissions[0]?.p_payload?.privacy_accepted, true);
 assert.ok(submissions[0]?.p_payload?.privacy_version);
 
 // Separate-elements branch.
-await page.reload({waitUntil:'domcontentloaded'});
-await page.locator('[data-lang="ru"]').click();
+await loadRu();
 await openService('car', 'Ваш автомобиль');
 await domNext('Что чистим?');
 await page.locator('input[name="package"][value="elements"]').check();
@@ -85,10 +97,9 @@ await domNext('Выберите элементы');
 await page.locator('input[name="el_seat"]').check();
 await domNext('Что ещё заметно?');
 
-// Furniture flows reach summary with consent.
+// Furniture flows reach summary with fresh consent state.
 for (const [service, first] of [['sofa','Размер дивана'],['chair','Тип кресла'],['mattress','Матрас']]) {
-  await page.reload({waitUntil:'domcontentloaded'});
-  await page.locator('[data-lang="ru"]').click();
+  await loadRu();
   await openService(service, first);
   await domNext('Степень загрязнения');
   await domNext('Что ещё заметно?');
@@ -97,7 +108,7 @@ for (const [service, first] of [['sofa','Размер дивана'],['chair','�
 }
 
 // Language controls and mobile card spacing.
-await page.reload({waitUntil:'domcontentloaded'});
+await page.goto('http://127.0.0.1:4173/index.html', {waitUntil:'domcontentloaded'});
 for (const lang of ['no','en','ru']) {
   await page.locator(`[data-lang="${lang}"]`).click();
   assert.ok((await page.locator(`[data-lang="${lang}"]`).getAttribute('class'))?.includes('active'));
