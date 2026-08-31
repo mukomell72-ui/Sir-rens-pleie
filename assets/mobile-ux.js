@@ -12,10 +12,12 @@
     if(!mobile())return;
     const step=activeStep();if(!step)return;
     const sig=signature(step);if(!sig||sig===lastSignature)return;
-    const isFirst=!lastSignature;lastSignature=sig;
-    if(isFirst)return;
+    lastSignature=sig;
     requestAnimationFrame(()=>setTimeout(()=>{
-      const top=(step.querySelector('.step-title')||step).getBoundingClientRect().top+scrollY-82;
+      const target=step.querySelector('.step-title')||step;
+      const header=document.querySelector('.topbar');
+      const offset=(header?.getBoundingClientRect().height||60)+12;
+      const top=target.getBoundingClientRect().top+scrollY-offset;
       scrollTo({top:Math.max(0,top),behavior:'smooth'});
       const first=step.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]),select,textarea');
       if(first&&first.matches(':invalid')===false&&first.type!=='file')first.setAttribute('data-sir-next-field','');
