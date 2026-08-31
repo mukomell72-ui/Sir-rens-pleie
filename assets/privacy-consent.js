@@ -48,15 +48,15 @@
   document.addEventListener('click',e=>{
     const next=e.target.closest('.service-card.open #next');if(!next)return;
     const acknowledgement=document.querySelector('.service-card.open #sirPrivacyConsent');
-    const accepted=sessionStorage.getItem(consentKey)==='yes';
-    if((acknowledgement&&!acknowledgement.checked)||(!acknowledgement&&!accepted)){
+    if(!acknowledgement)return;
+    if(!acknowledgement.checked){
       e.preventDefault();e.stopImmediatePropagation();
       const box=document.querySelector('.service-card.open .privacy-consent');
       if(box){
         const err=box.querySelector('.privacy-consent-error');if(err)err.hidden=false;
         box.style.borderLeftColor='var(--danger)';
         box.scrollIntoView({behavior:'smooth',block:'center'});
-        acknowledgement?.focus({preventScroll:true});
+        acknowledgement.focus({preventScroll:true});
       }
     }
   },true);
