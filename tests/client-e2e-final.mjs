@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'nb-NO' });
+const context = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  hasTouch: true,
+  isMobile: true,
+  locale: 'nb-NO',
+  reducedMotion: 'reduce'
+});
 const page = await context.newPage();
 page.setDefaultTimeout(8000);
 const dialogs = [];
@@ -11,12 +17,31 @@ const submissions = [];
 page.on('dialog', async d => { dialogs.push(d.message()); await d.dismiss(); });
 page.on('pageerror', e => errors.push(e.message));
 
-await page.route(/\/rest\/v1\/price_rules/, r => r.fulfill({status:200,contentType:'application/json',body:'[]'}));
-await page.route(/\/rest\/v1\/app_settings/, r => r.fulfill({status:200,contentType:'application/json',body:'[]'}));
-await page.route(/\/functions\/v1\/vehicle-lookup/, r => r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({brand:'VOLKSWAGEN',model:'TRANSPORTER',year:2010,body:'Flerbruksbil (AF)'})}));
+const cors = {
+  'Access-Control-Allow-Origin': 'http://127.0.0.1:4173',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Max-Age': '86400'
+};
+const json = (r, body, status = 200) => r.fulfill({status, contentType:'application/json', headers:cors, body:JSON.stringify(body)});
+const maybePreflight = async r => {
+  if (r.request().method() === 'OPTIONS') {
+    await r.fulfill({status:204, headers:cors, body:''});
+    return true;
+  }
+  return false;
+};
+
+await page.route(/\/rest\/v1\/price_rules/, async r => { if (!(await maybePreflight(r))) await json(r, []); });
+await page.route(/\/rest\/v1\/app_settings/, async r => { if (!(await maybePreflight(r))) await json(r, []); });
+await page.route(/\/functions\/v1\/vehicle-lookup/, async r => {
+  if (await maybePreflight(r)) return;
+  await json(r, {brand:'VOLKSWAGEN',model:'TRANSPORTER',year:2010,body:'Flerbruksbil (AF)'});
+});
 await page.route(/\/rest\/v1\/rpc\/public_submit_order_v2/, async r => {
+  if (await maybePreflight(r)) return;
   submissions.push(r.request().postDataJSON());
-  await r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({order_no:'SIR-E2E',upload_token:'token',preliminary_price:1690})});
+  await json(r, {order_no:'SIR-E2E',upload_token:'token',preliminary_price:1690});
 });
 
 const loadRu = async () => {
@@ -33,7 +58,7 @@ const waitTitle = async expected => {
   assert.equal(await title(), expected);
 };
 const domNext = async expected => {
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(100);
   const before = await page.evaluate(() => ({
     title: document.querySelector('.service-card.open .step-title')?.textContent.trim() || '',
     next: !!document.querySelector('.service-card.open #next'),
@@ -54,7 +79,7 @@ const contactToSummary = async () => {
   await page.locator('input[name="phone"]').fill('99999999');
   await page.locator('input[name="distance_km"]').fill('5');
   await page.waitForSelector('#sirPrivacyConsent');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(100);
   await page.locator('.service-card.open #next').click();
   assert.equal(await title(), 'Контакт и выезд');
   await page.waitForSelector('.privacy-consent-error:not([hidden])');
@@ -77,7 +102,7 @@ assert.equal(await page.locator('input[name="vehicle_brand"]').inputValue(), 'VO
 assert.equal(await page.locator('input[name="vehicle_model"]').inputValue(), 'TRANSPORTER');
 assert.equal(await page.locator('input[name="vehicle_year"]').inputValue(), '2010');
 assert.equal(await page.locator('input[name="vehicle_body"]').inputValue(), 'Flerbruksbil (AF)');
-await page.waitForTimeout(500);
+await page.waitForTimeout(100);
 await page.locator('.service-card.open #next').click();
 await waitTitle('Что чистим?');
 await domNext('Степень загрязнения');
