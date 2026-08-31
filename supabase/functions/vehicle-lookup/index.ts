@@ -101,7 +101,13 @@ Deno.serve(async (req) => {
     }
 
     const data = await upstream.json();
-    const k = data?.kjoretoy ?? data;
+    const k = Array.isArray(data?.kjoretoydataListe)
+      ? data.kjoretoydataListe[0]
+      : (data?.kjoretoy ?? data);
+    if (!k) {
+      return new Response(JSON.stringify({ ok: false, error: "not_found" }), { status: 404, headers });
+    }
+
     const technical = k?.godkjenning?.tekniskGodkjenning?.tekniskeData ?? {};
     const general = technical?.generelt ?? {};
     const bodyData = technical?.karosseriOgLasteplan ?? {};
