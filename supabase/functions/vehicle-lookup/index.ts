@@ -1,5 +1,7 @@
 const ALLOWED_ORIGINS = new Set([
   "https://mukomell72-ui.github.io",
+  "https://sir-rens.no",
+  "https://www.sir-rens.no",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
 ]);
