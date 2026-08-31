@@ -8,8 +8,8 @@ const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/username-scanner-bot`;
 
 const keyboard = {
   keyboard: [
-    [{ text: "🔥 Дорогие доступные" }, { text: "💎 ТОП по цене" }],
-    [{ text: "🔍 Проверить username" }, { text: "⚡ Автопоиск" }],
+    [{ text: "⚡ Найти 15 доступных" }, { text: "➡️ Следующие 15" }],
+    [{ text: "💎 ТОП по цене" }, { text: "🔍 Проверить username" }],
     [{ text: "📊 Статистика" }]
   ],
   resize_keyboard: true,
@@ -43,175 +43,153 @@ function normalizeUsername(input: string) {
   return input.trim().replace(/^@/, "").toLowerCase();
 }
 
-function scoreUsername(u: string) {
-  let score = 50;
-  const vowels = new Set(["a", "e", "i", "o", "u", "y"]);
-  const rare = new Set(["q", "x", "z", "j"]);
-  const chars = [...u];
-  const vc = chars.filter(c => vowels.has(c)).length;
-  const rc = chars.filter(c => rare.has(c)).length;
-  const unique = new Set(chars).size;
+const V = ["a","e","i","o","u","y"];
+const C = ["b","c","d","f","g","h","k","l","m","n","p","r","s","t","v","w","x","z"];
+const SOFT = ["b","d","f","g","k","l","m","n","p","r","s","t","v"];
+const END = ["n","r","s","t","l","m","x","z","k","v"];
+const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
-  if (/^[a-z]{5}$/.test(u)) score += 10;
-  if (vc >= 1 && vc <= 3) score += 9;
-  if (unique >= 4) score += 7;
-  if (/^[^aeiouy][aeiouy][^aeiouy][aeiouy][^aeiouy]$/.test(u)) score += 12;
-  if (/^[^aeiouy][aeiouy][^aeiouy][^aeiouy][aeiouy]$/.test(u)) score += 8;
-  if (/([a-z])\1\1/.test(u)) score -= 14;
-  if (/^[qxzj]{2}/.test(u) || rc >= 3) score -= 12;
-  if (/^(.)\1{4}$/.test(u)) score -= 20;
-  if ([...u].reverse().join("") === u) score += 5;
-  if (!/[qjx]{2,}/.test(u)) score += 4;
+function makeName() {
+  const len = 5 + Math.floor(Math.random() * 6); // 5..10
+  let out = "";
+  const mode = Math.floor(Math.random() * 4);
+
+  while (out.length < len) {
+    if (mode === 0) out += `${pick(SOFT)}${pick(V)}`;
+    else if (mode === 1) out += `${pick(SOFT)}${pick(V)}${pick(END)}`;
+    else if (mode === 2) out += `${pick(V)}${pick(SOFT)}`;
+    else out += `${pick(SOFT)}${pick(V)}${pick(C)}`;
+  }
+
+  out = out.slice(0, len);
+  if (!/^[a-z]/.test(out)) out = `a${out.slice(1)}`;
+  if (/([a-z])\1\1/.test(out)) return makeName();
+  return out;
+}
+
+function scoreUsername(u: string) {
+  let score = 35;
+  const len = u.length;
+  const vowels = (u.match(/[aeiouy]/g) ?? []).length;
+  const unique = new Set(u).size;
+
+  if (len === 5) score += 38;
+  else if (len === 6) score += 28;
+  else if (len === 7) score += 20;
+  else if (len === 8) score += 13;
+  else if (len === 9) score += 8;
+  else score += 4;
+
+  if (vowels >= 2 && vowels <= Math.ceil(len / 2)) score += 10;
+  if (unique >= Math.min(5, len - 1)) score += 8;
+  if (!/[qjx]{2,}/.test(u)) score += 5;
+  if (/([a-z])\1\1/.test(u)) score -= 18;
   return Math.max(1, Math.min(99, score));
 }
 
-function estimate(score: number) {
-  if (score >= 95) return [2500, 8000];
-  if (score >= 90) return [1000, 4000];
-  if (score >= 85) return [400, 1500];
-  if (score >= 80) return [150, 600];
-  if (score >= 70) return [50, 250];
-  return [10, 100];
-}
-
-function reasonFor(u: string, score: number) {
-  const parts = ["5 букв"];
-  const v = (u.match(/[aeiouy]/g) ?? []).length;
-  if (v >= 1 && v <= 3) parts.push("произносимый");
-  if (new Set(u).size >= 4) parts.push("мало повторов");
-  if (/^[^aeiouy][aeiouy][^aeiouy][aeiouy][^aeiouy]$/.test(u)) parts.push("CVCVC");
-  if (score >= 90) parts.push("брендовый");
-  return parts.join(", ");
-}
-
-const onset = ["b","c","d","f","g","h","k","l","m","n","p","r","s","t","v","w"];
-const vowels = ["a","e","i","o","u","y"];
-const coda = ["b","c","d","f","g","k","l","m","n","p","r","s","t","v","x","z"];
-
-function generateCandidates(limit = 60) {
-  const out = new Set<string>();
-  const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-  for (let i = 0; i < limit * 30 && out.size < limit; i++) {
-    const p = Math.floor(Math.random() * 4);
-    let u = "";
-    if (p === 0) u = `${pick(onset)}${pick(vowels)}${pick(coda)}${pick(vowels)}${pick(coda)}`;
-    else if (p === 1) u = `${pick(onset)}${pick(vowels)}${pick(coda)}${pick(coda)}${pick(vowels)}`;
-    else if (p === 2) u = `${pick(onset)}${pick(vowels)}${pick(onset)}${pick(vowels)}${pick(onset)}`;
-    else u = `${pick(onset)}${pick(vowels)}${pick(coda)}${pick(onset)}${pick(vowels)}`;
-    out.add(u);
-  }
-  return [...out].map(username => {
-    const score = scoreUsername(username);
-    const [min, max] = estimate(score);
-    return { username, score, min, max, reason: reasonFor(username, score) };
-  }).sort((a, b) => b.score - a.score);
+function estimate(u: string, score: number) {
+  const len = u.length;
+  if (len === 5 && score >= 85) return [300, 2500];
+  if (len === 5) return [100, 700];
+  if (len === 6 && score >= 75) return [80, 600];
+  if (len === 6) return [30, 250];
+  if (len === 7) return [20, 180];
+  if (len === 8) return [10, 120];
+  return [5, 80];
 }
 
 async function preliminaryAvailability(username: string) {
   try {
     const r = await fetch(`https://t.me/${username}`, {
       redirect: "follow",
-      headers: { "user-agent": "Mozilla/5.0 (compatible; UsernameHunter/1.0)" }
+      headers: { "user-agent": "Mozilla/5.0 (compatible; UsernameHunter/2.0)" }
     });
     if (r.status === 404) return "likely_free";
     if (r.status === 429) return "unknown";
     const html = await r.text();
 
-    // Старый код считал любой tgme_page_title признаком занятости,
-    // из-за чего почти вся выборка отбрасывалась. Теперь исключаем только
-    // страницы с сильными признаками существующего профиля/канала/бота.
-    const strongOccupied =
+    const occupied =
+      html.includes("If you have Telegram, you can contact") ||
+      html.includes("Send Message") ||
       html.includes("tgme_page_photo_image") ||
       html.includes("tgme_page_description") ||
       html.includes("tgme_page_extra") ||
       html.includes("tgme_channel_info") ||
       html.includes("tgme_widget_message") ||
-      html.includes("Preview channel") ||
-      html.includes("View in Telegram");
+      html.includes("Preview channel");
 
-    return strongOccupied ? "occupied" : "likely_free";
+    return occupied ? "occupied" : "likely_free";
   } catch {
     return "unknown";
   }
 }
 
-function labelAvailability(a: string) {
-  if (a === "likely_free") return "🟢 предварительно свободен";
-  if (a === "occupied") return "🔴 занят";
-  return "🟡 нужна точная проверка";
-}
-
 async function inspectOne(chatId: number, raw: string) {
   const u = normalizeUsername(raw);
-  if (!/^[a-z]{5}$/.test(u)) {
-    await send(chatId, "Нужен username ровно из 5 латинских букв. Например: @nexor");
+  if (!/^[a-z]{5,10}$/.test(u)) {
+    await send(chatId, "Отправь username из 5–10 латинских букв. Например: @nexora");
     return;
   }
   const score = scoreUsername(u);
-  const [min, max] = estimate(score);
-  const availability = await preliminaryAvailability(u);
-  await send(chatId,
-    `@${u}\n${labelAvailability(availability)}\n⭐ ${score}/100\n💰 ~$${min.toLocaleString("en-US")}–$${max.toLocaleString("en-US")}\n${reasonFor(u, score)}\n\n⚠️ Цена ориентировочная. Точная свободность возможна только через Telegram user-session (MTProto).`
-  );
+  const [min, max] = estimate(u, score);
+  const status = await preliminaryAvailability(u);
+  const label = status === "likely_free" ? "🟢 по веб-проверке свободен" : status === "occupied" ? "🔴 занят" : "🟡 точный статус не получен";
+  await send(chatId, `@${u}\n${label}\n⭐ ${score}/100\n💰 примерно $${min}–$${max}\n\n⚠️ Цена ориентировочная. Для 100% подтверждения свободности нужен Telegram user-session (MTProto).`);
 }
 
-async function checkBatch<T extends {username:string}>(items: T[], concurrency = 10) {
-  const result: Array<T & {availability:string}> = [];
-  for (let i = 0; i < items.length; i += concurrency) {
-    const part = items.slice(i, i + concurrency);
-    const checked = await Promise.all(part.map(async c => ({ ...c, availability: await preliminaryAvailability(c.username) })));
-    result.push(...checked);
-  }
-  return result;
+function buildPool(size: number) {
+  const set = new Set<string>();
+  for (let i = 0; i < size * 30 && set.size < size; i++) set.add(makeName());
+  return [...set].map(username => {
+    const score = scoreUsername(username);
+    const [min, max] = estimate(username, score);
+    return { username, score, min, max };
+  });
 }
 
-async function sendRows(chatId: number, title: string, rows: Array<any>, exactNote = true) {
-  if (!rows.length) {
-    await send(chatId, "В этой проверке подходящих вариантов не найдено. Нажми «⚡ Автопоиск» ещё раз — будет новая пачка.");
-    return;
-  }
+async function findAvailable(limit = 15) {
+  const found: Array<any> = [];
+  const seen = new Set<string>();
 
-  const chunks: Array<any[]> = [];
-  for (let i = 0; i < rows.length; i += 10) chunks.push(rows.slice(i, i + 10));
-  for (let c = 0; c < chunks.length; c++) {
-    const list = chunks[c].map((x, i) => `${c * 10 + i + 1}. @${x.username} — ⭐ ${x.score}/100 — ~$${x.min}–$${x.max}`).join("\n");
-    const note = exactNote ? "\n\n⚠️ Это предварительно свободные варианты. Точную проверку Telegram даёт только через user-session (MTProto)." : "";
-    await send(chatId, `${c === 0 ? title + "\n\n" : ""}${list}${note}`);
-  }
-}
+  for (let round = 0; round < 8 && found.length < limit; round++) {
+    const pool = buildPool(50).filter(x => !seen.has(x.username));
+    for (const x of pool) seen.add(x.username);
 
-async function scan(chatId: number, mode: "free" | "top" | "auto") {
-  await send(chatId, "⚡ Ищу 5-буквенные варианты…");
-
-  const poolSize = mode === "auto" ? 60 : 40;
-  const candidates = generateCandidates(poolSize).filter(x => x.score >= 78);
-  const checked = await checkBatch(candidates, 10);
-  checked.sort((a, b) => b.score - a.score);
-
-  if (mode === "top") {
-    await sendRows(chatId, "💎 ТОП по потенциальной цене", checked.slice(0, 20), false);
-    return;
-  }
-
-  let free = checked.filter(x => x.availability === "likely_free");
-
-  // Автопоиск не должен молчать: если Telegram Web не дал уверенного ответа,
-  // показываем лучшие непроверенные отдельно, а не пустой результат.
-  if (!free.length) {
-    const unknown = checked.filter(x => x.availability === "unknown").slice(0, 15);
-    if (unknown.length) {
-      await sendRows(chatId, "🟡 Telegram Web не подтвердил свободность. Вот лучшие варианты для точной проверки:", unknown, true);
-      return;
+    for (let i = 0; i < pool.length && found.length < limit; i += 10) {
+      const part = pool.slice(i, i + 10);
+      const checked = await Promise.all(part.map(async x => ({ ...x, availability: await preliminaryAvailability(x.username) })));
+      for (const x of checked) {
+        if (x.availability === "likely_free") found.push(x);
+        if (found.length >= limit) break;
+      }
     }
   }
 
-  free = free.slice(0, mode === "auto" ? 30 : 20);
-  await sendRows(
-    chatId,
-    mode === "auto" ? `⚡ Автопоиск: найдено ${free.length} предварительно свободных` : `🔥 Найдено ${free.length} предварительно свободных`,
-    free,
-    true
-  );
+  found.sort((a, b) => b.score - a.score || a.username.length - b.username.length);
+  return found.slice(0, limit);
+}
+
+async function send15(chatId: number) {
+  await send(chatId, "⚡ Ищу 15 нормальных свободных username длиной 5–10 букв…");
+  const rows = await findAvailable(15);
+
+  if (!rows.length) {
+    await send(chatId, "Telegram Web сейчас не подтвердил ни одного варианта. Нажми «➡️ Следующие 15» — проверю новую большую пачку.");
+    return;
+  }
+
+  const list = rows.map((x, i) => `${i + 1}. @${x.username} — ⭐ ${x.score}/100 — ~$${x.min}–$${x.max}`).join("\n");
+  await send(chatId, `🟢 Найдено ${rows.length} вариантов\n\n${list}\n\nНажми «➡️ Следующие 15» — получишь следующую новую подборку.\n\n⚠️ Это свободные по текущей веб-проверке; 100% подтверждение возможно только через MTProto.`);
+}
+
+async function top15(chatId: number) {
+  await send(chatId, "💎 Ищу самые ценные из доступных…");
+  const rows = await findAvailable(30);
+  rows.sort((a, b) => b.score - a.score || a.username.length - b.username.length);
+  const top = rows.slice(0, 15);
+  if (!top.length) return send(chatId, "Сейчас не удалось подтвердить доступные варианты. Попробуй ещё раз.");
+  const list = top.map((x, i) => `${i + 1}. @${x.username} — ⭐ ${x.score}/100 — ~$${x.min}–$${x.max}`).join("\n");
+  await send(chatId, `💎 ТОП-15\n\n${list}\n\n⚠️ Стоимость ориентировочная.`);
 }
 
 Deno.serve(async (req: Request) => {
@@ -224,18 +202,12 @@ Deno.serve(async (req: Request) => {
       return Response.json({ ok: false, error: "Wrong bot token" }, { status: 409 });
     }
     const secret = await sha256hex(`${TOKEN}:username-scanner-webhook`);
-    const hook = await tg("setWebhook", {
-      url: WEBHOOK_URL,
-      secret_token: secret,
-      drop_pending_updates: true
-    });
+    const hook = await tg("setWebhook", { url: WEBHOOK_URL, secret_token: secret, drop_pending_updates: true });
     return Response.json({ ok: !!hook?.ok, bot: `@${EXPECTED_BOT}`, webhook: hook?.description ?? "set" });
   }
 
   const expectedSecret = await sha256hex(`${TOKEN}:username-scanner-webhook`);
-  if (req.headers.get("x-telegram-bot-api-secret-token") !== expectedSecret) {
-    return new Response("forbidden", { status: 403 });
-  }
+  if (req.headers.get("x-telegram-bot-api-secret-token") !== expectedSecret) return new Response("forbidden", { status: 403 });
 
   const update = await req.json().catch(() => null);
   const msg = update?.message;
@@ -245,27 +217,21 @@ Deno.serve(async (req: Request) => {
   const text = String(msg.text).trim();
 
   if (text === "/start") {
-    await send(chatId, "💎 Username Hunter\n\nИщу перспективные 5-буквенные Telegram username и показываю примерную стоимость.\n\nНажми «⚡ Автопоиск» — бот сразу выдаст все найденные в текущей пачке варианты.");
-  } else if (text === "🔥 Дорогие доступные") {
-    await scan(chatId, "free");
+    await send(chatId, "💎 Username Hunter\n\nТеперь ищу не только 5-буквенные. Проверяю нормальные username длиной 5–10 букв и выдаю по 15 за раз.\n\nНажми «⚡ Найти 15 доступных».");
+  } else if (["⚡ Найти 15 доступных", "➡️ Следующие 15", "⚡ Автопоиск", "🔥 Дорогие доступные"].includes(text)) {
+    await send15(chatId);
   } else if (text === "💎 ТОП по цене") {
-    await scan(chatId, "top");
-  } else if (text === "⚡ Автопоиск") {
-    await scan(chatId, "auto");
+    await top15(chatId);
   } else if (text === "🔍 Проверить username") {
-    await send(chatId, "Отправь username ровно из 5 латинских букв, например @nexor", {
-      force_reply: true,
-      input_field_placeholder: "@nexor",
-      selective: true
-    });
+    await send(chatId, "Отправь username из 5–10 латинских букв, например @nexora", { force_reply: true, input_field_placeholder: "@nexora", selective: true });
   } else if (text === "📊 Статистика") {
-    await send(chatId, "📊 Автопоиск проверяет до 60 сильных 5-буквенных кандидатов за одно нажатие и выводит до 30 найденных вариантов. Каждое новое нажатие создаёт новую пачку.");
+    await send(chatId, "📊 По одному нажатию бот перебирает большие пачки вариантов длиной 5–10 букв, пока не соберёт до 15 свободных по веб-проверке. «Следующие 15» запускает новую подборку.");
   } else if (msg?.reply_to_message?.text?.includes("Отправь username")) {
     await inspectOne(chatId, text);
-  } else if (/^@?[a-zA-Z]{5}$/.test(text)) {
+  } else if (/^@?[a-zA-Z]{5,10}$/.test(text)) {
     await inspectOne(chatId, text);
   } else {
-    await send(chatId, "Используй кнопки меню или отправь 5-буквенный username для проверки.");
+    await send(chatId, "Нажми «⚡ Найти 15 доступных» или отправь username из 5–10 латинских букв.");
   }
 
   return new Response("ok");
