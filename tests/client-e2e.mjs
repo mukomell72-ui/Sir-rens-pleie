@@ -13,6 +13,8 @@ async function setup() {
     isMobile: true,
   });
   const page = await context.newPage();
+  page.setDefaultTimeout(7000);
+  page.setDefaultNavigationTimeout(10000);
   const dialogs = [];
   const pageErrors = [];
   const submitted = [];
@@ -60,6 +62,8 @@ async function title(page) {
 }
 
 async function next(page, expectedTitle) {
+  const before = await title(page);
+  console.log(`STEP ${before} -> ${expectedTitle}`);
   await page.locator('.service-card.open #next').click();
   await page.waitForFunction((expected) => {
     const el = document.querySelector('.service-card.open .step-title');
@@ -69,12 +73,14 @@ async function next(page, expectedTitle) {
 }
 
 async function open(page, service, expectedTitle) {
+  console.log(`OPEN ${service}`);
   await page.locator(`.service-card[data-service="${service}"] .service-head`).click();
   await page.waitForSelector('.service-card.open #next');
   assert.equal(await title(page), expectedTitle);
 }
 
 async function fillContactAndConsent(page) {
+  console.log('CONTACT consent guard');
   await page.locator('input[name="customer_name"]').fill('Тест SIR');
   await page.locator('input[name="phone"]').fill('99999999');
   await page.locator('input[name="distance_km"]').fill('5');
@@ -112,6 +118,7 @@ async function testCarFull() {
     await next(page, 'Контакт и выезд');
     await fillContactAndConsent(page);
 
+    console.log('SUBMIT order');
     await page.locator('.service-card.open #next').click();
     await page.waitForFunction(() => document.querySelector('.service-card.open .step-title')?.textContent.includes('Заявка получена'));
     assert.equal(submitted.length, 1);
@@ -159,6 +166,7 @@ async function testLanguageAndMobileLayout() {
   const run = await setup();
   const { page, context } = run;
   try {
+    console.log('LANG NO -> EN -> RU');
     await page.locator('[data-lang="no"]').click();
     assert.equal(await page.locator('[data-lang="no"]').getAttribute('class').then(v => v?.includes('active')), true);
     await page.locator('[data-lang="en"]').click();
@@ -190,6 +198,7 @@ const tests = [
 
 for (const [name, fn] of tests) {
   try {
+    console.log(`\nTEST ${name}`);
     await fn();
     console.log(`PASS ${name}`);
   } catch (error) {
