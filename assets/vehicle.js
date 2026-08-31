@@ -3,9 +3,9 @@
   const endpoint=()=>String(C.vehicleLookupUrl||'').trim()||null;
   const labels=()=>{
     const lang=localStorage.getItem('sir_lang')||'no';
-    if(lang==='ru')return{find:'Найти автомобиль',ready:'Данные будут запрошены через SIR / Statens vegvesen.',off:'Автопоиск пока не подключён. Регномер можно указать вручную.',empty:'Введите регистрационный номер.',loading:'Ищем автомобиль…',brand:'Марка',model:'Модель',year:'Год',body:'Кузов',check:'Проверьте данные — их можно исправить.',fail:'Не удалось получить данные. Продолжите вручную.'};
-    if(lang==='en')return{find:'Find vehicle',ready:'Vehicle details will be requested through SIR / Statens vegvesen.',off:'Automatic lookup is not enabled yet. You can enter the registration number manually.',empty:'Enter a registration number.',loading:'Looking up vehicle…',brand:'Make',model:'Model',year:'Year',body:'Body',check:'Check the details — they can be corrected.',fail:'Could not retrieve vehicle details. Continue manually.'};
-    return{find:'Finn kjøretøy',ready:'Kjøretøydata hentes via SIR / Statens vegvesen.',off:'Automatisk oppslag er ikke aktivert ennå. Registreringsnummer kan fylles inn manuelt.',empty:'Skriv inn registreringsnummer.',loading:'Søker etter kjøretøy…',brand:'Merke',model:'Modell',year:'År',body:'Karosseri',check:'Kontroller opplysningene — de kan korrigeres.',fail:'Kunne ikke hente kjøretøydata. Fortsett manuelt.'};
+    if(lang==='ru')return{find:'Найти автомобиль',ready:'Данные будут запрошены через SIR / Statens vegvesen.',off:'Автопоиск пока не подключён. Регномер можно указать вручную.',empty:'Введите регистрационный номер.',loading:'Ищем автомобиль…',brand:'Марка',model:'Модель',year:'Год',body:'Кузов',check:'Проверьте данные — их можно исправить.',notFound:'Автомобиль с таким номером не найден. Проверьте номер или продолжите вручную.',limited:'Слишком много запросов. Подождите немного и попробуйте снова.',service:'Поиск автомобиля временно недоступен. Продолжите вручную.',fail:'Не удалось получить данные. Продолжите вручную.'};
+    if(lang==='en')return{find:'Find vehicle',ready:'Vehicle details will be requested through SIR / Statens vegvesen.',off:'Automatic lookup is not enabled yet. You can enter the registration number manually.',empty:'Enter a registration number.',loading:'Looking up vehicle…',brand:'Make',model:'Model',year:'Year',body:'Body',check:'Check the details — they can be corrected.',notFound:'No vehicle was found for that registration number. Check the number or continue manually.',limited:'Too many lookups. Wait a moment and try again.',service:'Vehicle lookup is temporarily unavailable. Continue manually.',fail:'Could not retrieve vehicle details. Continue manually.'};
+    return{find:'Finn kjøretøy',ready:'Kjøretøydata hentes via SIR / Statens vegvesen.',off:'Automatisk oppslag er ikke aktivert ennå. Registreringsnummer kan fylles inn manuelt.',empty:'Skriv inn registreringsnummer.',loading:'Søker etter kjøretøy…',brand:'Merke',model:'Modell',year:'År',body:'Karosseri',check:'Kontroller opplysningene — de kan korrigeres.',notFound:'Fant ikke kjøretøy med dette registreringsnummeret. Kontroller nummeret eller fortsett manuelt.',limited:'For mange oppslag. Vent litt og prøv igjen.',service:'Kjøretøyoppslag er midlertidig utilgjengelig. Fortsett manuelt.',fail:'Kunne ikke hente kjøretøydata. Fortsett manuelt.'};
   };
   function enhance(){
     const plate=document.querySelector('.service-card.open input[name="plate"]');
@@ -22,7 +22,14 @@
       button.disabled=true;info.textContent=text.loading;
       try{
         const r=await fetch(currentEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({registrationNumber:value})});
-        if(!r.ok)throw new Error('lookup failed');const d=await r.json();
+        let d={};try{d=await r.json();}catch(_e){}
+        if(!r.ok){
+          if(r.status===404||d.error==='not_found')info.textContent=text.notFound;
+          else if(r.status===429||d.error==='rate_limited')info.textContent=text.limited;
+          else if(r.status===503||d.error==='rate_limit_unavailable'||d.error==='server_not_configured')info.textContent=text.service;
+          else info.textContent=text.fail;
+          return;
+        }
         const box=document.createElement('div');box.className='summary';box.style.marginTop='10px';box.innerHTML=`<div class="summary-row"><span>${text.brand}</span><input name="vehicle_brand" value="${esc(d.brand||'')}" aria-label="${text.brand}"></div><div class="summary-row"><span>${text.model}</span><input name="vehicle_model" value="${esc(d.model||'')}" aria-label="${text.model}"></div><div class="summary-row"><span>${text.year}</span><input name="vehicle_year" value="${esc(d.year||'')}" aria-label="${text.year}"></div><div class="summary-row"><span>${text.body}</span><input name="vehicle_body" value="${esc(d.body||'')}" aria-label="${text.body}"></div>`;
         wrap.querySelector('.summary')?.remove();wrap.append(box);info.textContent=text.check;
       }catch(_e){info.textContent=text.fail;}finally{button.disabled=false;}
