@@ -11,7 +11,6 @@ const submissions = [];
 page.on('dialog', async d => { dialogs.push(d.message()); await d.dismiss(); });
 page.on('pageerror', e => errors.push(e.message));
 
-await page.route(/fxdgeizhlhgvybclvmyo\.supabase\.co/, r => r.fulfill({status:200,contentType:'application/json',body:'[]'}));
 await page.route(/\/rest\/v1\/price_rules/, r => r.fulfill({status:200,contentType:'application/json',body:'[]'}));
 await page.route(/\/rest\/v1\/app_settings/, r => r.fulfill({status:200,contentType:'application/json',body:'[]'}));
 await page.route(/\/functions\/v1\/vehicle-lookup/, r => r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({brand:'VOLKSWAGEN',model:'TRANSPORTER',year:2010,body:'Flerbruksbil (AF)'})}));
@@ -67,13 +66,18 @@ const contactToSummary = async () => {
 
 // Full car flow + lookup + submission.
 await openService('car', 'Ваш автомобиль');
+await page.waitForSelector('input[name="vehicle_brand"]');
+assert.equal(await page.locator('input[name="vehicle_brand"]').inputValue(), '');
+assert.equal(await page.locator('input[name="vehicle_model"]').inputValue(), '');
+assert.equal(await page.locator('input[name="vehicle_material"]').inputValue(), '');
 await page.locator('input[name="plate"]').fill('BR92992');
 await page.waitForSelector('.vehicle-lookup-btn');
 await page.locator('.vehicle-lookup-btn').click();
-await page.waitForSelector('input[name="vehicle_brand"]');
+await page.waitForFunction(() => document.querySelector('input[name="vehicle_brand"]')?.value === 'VOLKSWAGEN');
 assert.equal(await page.locator('input[name="vehicle_brand"]').inputValue(), 'VOLKSWAGEN');
 assert.equal(await page.locator('input[name="vehicle_model"]').inputValue(), 'TRANSPORTER');
 assert.equal(await page.locator('input[name="vehicle_year"]').inputValue(), '2010');
+assert.equal(await page.locator('input[name="vehicle_body"]').inputValue(), 'Flerbruksbil (AF)');
 await page.waitForTimeout(500);
 await page.locator('.service-card.open #next').click();
 await waitTitle('Что чистим?');
