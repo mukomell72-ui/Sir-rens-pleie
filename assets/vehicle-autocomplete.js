@@ -1,9 +1,18 @@
 (() => {
   const FIELD_NAMES=['vehicle_brand','vehicle_model'];
+  const MODEL_PREFIX_ALIASES={
+    volkswagen:[
+      'T4 — Transporter','T5 — Transporter','T6 — Transporter','T6.1 — Transporter','T7 — Transporter',
+      'T4 — Caravelle','T5 — Caravelle','T6 — Caravelle','T6.1 — Caravelle',
+      'T4 — Multivan','T5 — Multivan','T6 — Multivan','T6.1 — Multivan','T7 — Multivan'
+    ]
+  };
 
   function norm(value){
-    return String(value||'').trim().toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return String(value||'').trim().toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[-_.\s]+/g,' ');
   }
+
+  function compact(value){return norm(value).replace(/\s+/g,'');}
 
   function text(){
     const lang=localStorage.getItem('sir_lang')||'no';
@@ -33,14 +42,19 @@
   function sourceValues(input){
     const listId=input.name==='vehicle_brand'?'sir-vehicle-brands':'sir-vehicle-models';
     const list=document.getElementById(listId);
-    if(!list)return[];
-    return [...list.querySelectorAll('option')].map(o=>o.value).filter(Boolean);
+    const values=list?[...list.querySelectorAll('option')].map(o=>o.value).filter(Boolean):[];
+    if(input.name==='vehicle_model'){
+      const brand=document.querySelector('.service-card.open input[name="vehicle_brand"]');
+      const aliases=MODEL_PREFIX_ALIASES[compact(brand?.value)]||[];
+      return [...new Set([...aliases,...values])];
+    }
+    return values;
   }
 
   function filteredValues(input){
-    const needle=norm(input.value);
+    const needle=compact(input.value);
     if(!needle)return[];
-    return sourceValues(input).filter(v=>norm(v).startsWith(needle)).slice(0,10);
+    return sourceValues(input).filter(v=>compact(v).startsWith(needle)).slice(0,10);
   }
 
   function close(menu){menu.hidden=true;menu.replaceChildren();}
@@ -60,7 +74,7 @@
   function render(input,menu){
     input.removeAttribute('list');
     const labels=text();
-    const needle=norm(input.value);
+    const needle=compact(input.value);
     if(!needle){close(menu);return;}
 
     const values=filteredValues(input);
