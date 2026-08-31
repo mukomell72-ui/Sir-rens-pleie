@@ -40,10 +40,20 @@
     return'other';
   }
 
+  function optionsSignature(){
+    return `${lang()}|${placeholder()}|${TYPES.map(row=>`${row[0]}:${typeText(row)}`).join('|')}`;
+  }
+
   function refreshOptions(select,current){
+    const signature=optionsSignature();
+    if(select.dataset.optionsSignature===signature){
+      if(current&&[...select.options].some(o=>o.value===current))select.value=current;
+      return;
+    }
     const wanted=current||select.value||'';
     const first=document.createElement('option');first.value='';first.textContent=placeholder();
     select.replaceChildren(first,...TYPES.map(row=>{const o=document.createElement('option');o.value=row[0];o.textContent=typeText(row);return o;}));
+    select.dataset.optionsSignature=signature;
     if(wanted&&[...select.options].some(o=>o.value===wanted))select.value=wanted;
   }
 
@@ -52,7 +62,9 @@
     const hidden=card.querySelector('input[name="vehicle_body"]');
     if(!hidden)return;
     const row=hidden.closest('.summary-row');if(!row)return;
-    const labelEl=row.querySelector('[data-vehicle-label="body"]');if(labelEl)labelEl.textContent=label();
+    const labelEl=row.querySelector('[data-vehicle-label="body"]');
+    const currentLabel=label();
+    if(labelEl&&labelEl.textContent!==currentLabel)labelEl.textContent=currentLabel;
 
     hidden.type='hidden';
     hidden.setAttribute('aria-hidden','true');
@@ -60,18 +72,20 @@
     if(!select){
       select=document.createElement('select');
       select.dataset.vehicleType='1';
-      select.setAttribute('aria-label',label());
+      select.setAttribute('aria-label',currentLabel);
       refreshOptions(select,'');
       row.append(select);
       select.addEventListener('change',()=>{
+        hidden.dataset.userVehicleType=select.value;
         hidden.value=select.value;
         hidden.dispatchEvent(new Event('input',{bubbles:true}));
         hidden.dispatchEvent(new Event('change',{bubbles:true}));
       });
+      return;
     }
-    select.setAttribute('aria-label',label());
-    const existing=hidden.dataset.userVehicleType||'';
-    refreshOptions(select,existing||select.value);
+    if(select.getAttribute('aria-label')!==currentLabel)select.setAttribute('aria-label',currentLabel);
+    const existing=hidden.dataset.userVehicleType||select.value||'';
+    refreshOptions(select,existing);
   }
 
   function syncAfterLookup(){
@@ -80,10 +94,11 @@
       const hidden=card.querySelector('input[name="vehicle_body"]');
       const select=card.querySelector('select[data-vehicle-type]');
       if(!hidden||!select)return;
-      const mapped=mapOfficial(hidden.value);
+      const official=hidden.value;
+      const mapped=mapOfficial(official);
       if(mapped){
         select.value=mapped;
-        hidden.dataset.officialBody=hidden.value;
+        hidden.dataset.officialBody=official;
         hidden.dataset.userVehicleType=mapped;
         hidden.value=mapped;
         hidden.dispatchEvent(new Event('input',{bubbles:true}));
@@ -91,18 +106,13 @@
     },350);
   }
 
-  document.addEventListener('change',e=>{
-    if(e.target?.matches?.('select[data-vehicle-type]')){
-      const hidden=e.target.closest('.summary-row')?.querySelector('input[name="vehicle_body"]');
-      if(hidden)hidden.dataset.userVehicleType=e.target.value;
-    }
-  });
   document.addEventListener('click',e=>{
     if(e.target.closest('.vehicle-lookup-btn'))syncAfterLookup();
     if(e.target.closest('[data-lang]'))setTimeout(enhance,30);
     setTimeout(enhance,0);
   },true);
 
-  const obs=new MutationObserver(enhance);obs.observe(document.body,{childList:true,subtree:true});
+  const obs=new MutationObserver(()=>enhance());
+  obs.observe(document.body,{childList:true,subtree:true});
   addEventListener('DOMContentLoaded',enhance);
 })();
