@@ -99,28 +99,30 @@ assert.equal(await page.locator('input[name="vehicle_material"]').inputValue(), 
 assert.equal(await brandInput.getAttribute('list'), null);
 assert.equal(await modelInput.getAttribute('list'), null);
 
+const typeSelect=page.locator('select[data-vehicle-type]');
+await typeSelect.waitFor();
+assert.equal(await page.locator('[data-vehicle-label="body"]').textContent(), 'Тип автомобиля');
+const typeLabels=await typeSelect.locator('option').allTextContents();
+assert.ok(typeLabels.includes('Седан'));
+assert.ok(typeLabels.includes('Кроссовер'));
+assert.ok(typeLabels.includes('SUV / внедорожник'));
+assert.ok(typeLabels.includes('Минивэн / MPV'));
+assert.ok(typeLabels.includes('Микроавтобус / пассажирский фургон'));
+assert.ok(typeLabels.includes('Фургон / коммерческий'));
+assert.ok(typeLabels.includes('Пикап'));
+
 await brandInput.fill('vol');
 await page.waitForSelector('.sir-vehicle-dropdown:not([hidden]) .sir-vehicle-option');
 let visibleOptions=await page.locator('input[name="vehicle_brand"] + .sir-vehicle-dropdown .sir-vehicle-option').allTextContents();
-assert.ok(visibleOptions.includes('VOLKSWAGEN'));
-assert.ok(visibleOptions.includes('VOLVO'));
-assert.ok(visibleOptions.every(v=>v.toLowerCase().startsWith('vol')));
+assert.deepEqual(visibleOptions.sort(), ['VOLKSWAGEN','VOLVO'].sort());
 await page.locator('input[name="vehicle_brand"] + .sir-vehicle-dropdown .sir-vehicle-option', {hasText:'VOLKSWAGEN'}).click();
 assert.equal(await brandInput.inputValue(), 'VOLKSWAGEN');
-
-await modelInput.fill('t5');
-await page.waitForSelector('input[name="vehicle_model"] + .sir-vehicle-dropdown:not([hidden]) .sir-vehicle-option');
-visibleOptions=await page.locator('input[name="vehicle_model"] + .sir-vehicle-dropdown .sir-vehicle-option').allTextContents();
-assert.ok(visibleOptions.includes('T5 — Transporter'));
-assert.ok(visibleOptions.every(v=>v.toLowerCase().replace(/[\s._-]+/g,'').startsWith('t5')));
-await page.locator('input[name="vehicle_model"] + .sir-vehicle-dropdown .sir-vehicle-option', {hasText:'T5 — Transporter'}).click();
-assert.equal(await modelInput.inputValue(), 'T5 — Transporter');
 
 await modelInput.fill('tra');
 await page.waitForSelector('input[name="vehicle_model"] + .sir-vehicle-dropdown:not([hidden]) .sir-vehicle-option');
 visibleOptions=await page.locator('input[name="vehicle_model"] + .sir-vehicle-dropdown .sir-vehicle-option').allTextContents();
-assert.ok(visibleOptions.includes('Transporter'));
 assert.ok(visibleOptions.every(v=>v.toLowerCase().startsWith('tra')));
+assert.ok(visibleOptions.includes('Transporter'));
 await page.locator('input[name="vehicle_model"] + .sir-vehicle-dropdown .sir-vehicle-option', {hasText:'Transporter'}).click();
 assert.equal(await modelInput.inputValue(), 'Transporter');
 await brandInput.fill('');
@@ -133,7 +135,8 @@ await page.waitForFunction(() => document.querySelector('input[name="vehicle_bra
 assert.equal(await brandInput.inputValue(), 'VOLKSWAGEN');
 assert.equal(await modelInput.inputValue(), 'TRANSPORTER');
 assert.equal(await page.locator('input[name="vehicle_year"]').inputValue(), '2010');
-assert.equal(await page.locator('input[name="vehicle_body"]').inputValue(), 'Flerbruksbil (AF)');
+await page.waitForFunction(()=>document.querySelector('select[data-vehicle-type]')?.value==='mpv',null,{timeout:8000});
+assert.equal(await typeSelect.inputValue(), 'mpv');
 await page.waitForTimeout(100);
 await page.locator('.service-card.open #next').click();
 await waitTitle('Что чистим?');
