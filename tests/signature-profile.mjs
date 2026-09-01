@@ -15,7 +15,7 @@ assert.equal(await page.locator('[data-profile-score]').textContent(),'2/2');
 assert.equal(await page.locator('[data-profile-start]').isEnabled(),true);
 await page.locator('[data-profile-start]').click();
 assert.equal(await page.locator('.service-card.open').getAttribute('data-service'),'sofa');
-await page.locator('[data-lang="ru"]').click();
+await page.locator('[data-poster-lang="ru"]').click();
 await page.waitForTimeout(100);
 assert.equal((await page.locator('#sir-profile-title').textContent())?.trim(),'Создайте профиль чистоты');
 assert.deepEqual(errors,[]);
