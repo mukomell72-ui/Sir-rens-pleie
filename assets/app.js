@@ -8,7 +8,7 @@
     en:{back:'Back',next:'Next',send:'Send request',light:'Light',medium:'Medium',heavy:'Heavy',special:'Special condition',prelim:'Preliminary price',manual:'Review after photos',received:'Request received'}
   };
   const t=k=>T[state.language][k]||T.ru[k]||k;
-  const services={car:{title:'Салон автомобиля'},sofa:{title:'Диван'},chair:{title:'Кресло'},mattress:{title:'Матрас'}};
+  const services={car:{title:'Салон автомобиля'},sofa:{title:'Диван'},chair:{title:'Кресло'},mattress:{title:'Матрас'},rug:{title:'Ковёр'}};
   const elementDefs=[
     ['seat','Сиденья','Количество выбранных сидений'],
     ['ceiling','Потолок','Деликатная зона: минимальное увлажнение'],
@@ -75,9 +75,10 @@
     cards.forEach(c=>c.classList.toggle('open',c.dataset.service===service));render();document.querySelector(`.service-card[data-service="${service}"]`).scrollIntoView({behavior:'smooth',block:'start'});}
   function steps(){
     if(state.service==='car')return [carVehicle,carPackage,condition,...(state.data.package==='elements'?[carElements]:[]),issues,contact,summary];
-    if(state.service==='sofa')return [sofaSize,condition,issues,contact,summary];
-    if(state.service==='chair')return [chairType,condition,issues,contact,summary];
-    return [mattressType,condition,issues,contact,summary];
+    if(state.service==='sofa')return [sofaSize,furnitureMaterial,condition,issues,contact,summary];
+    if(state.service==='chair')return [chairType,furnitureMaterial,condition,issues,contact,summary];
+    if(state.service==='mattress')return [mattressType,mattressMaterial,condition,issues,contact,summary];
+    return [rugSize,rugMaterial,condition,issues,contact,summary];
   }
   function render(){
     const root=currentRoot();if(!root)return;const s=steps();state.step=Math.max(0,Math.min(state.step,s.length-1));
@@ -119,6 +120,17 @@
   function sofaSize(el){const cur=String(state.data.size||3);el.innerHTML=`<div class="step-title">Размер дивана</div><div class="choice-grid">${[2,3,4,5].map(n=>choice('size',n,`${n} места`,'Количество посадочных мест',cur===String(n))).join('')}</div>`;}
   function chairType(el){el.innerHTML=`<div class="step-title">Тип кресла</div>${choice('size','armchair','Кресло','Мягкое кресло',true)}`;}
   function mattressType(el){const cur=state.data.size||'double';el.innerHTML=`<div class="step-title">Матрас</div><div class="choice-grid">${choice('size','single','Односпальный','Одна сторона',cur==='single')}${choice('size','double','Двуспальный','Одна сторона',cur==='double')}</div>`;}
+  function materialChoices(el,title,options){const cur=state.data.material||'';el.innerHTML=`<div class="step-title">${title}</div><div class="step-help">Материал определяет безопасную химию и способ очистки.</div><div class="choice-grid">${options.map(([value,label,sub])=>choice('material',value,label,sub,cur===value)).join('')}</div>`;}
+  function furnitureMaterial(el){materialChoices(el,'Материал обивки',[
+    ['textile','Ткань / текстиль',''],['velour','Велюр',''],['alcantara','Алькантара',''],['leather','Натуральная кожа',''],['eco_leather','Искусственная кожа / экокожа',''],['combined','Комбинированная обивка',''],['vinyl','Винил',''],['unknown','Не знаю / не уверен','Проверим материал перед работой']
+  ]);}
+  function mattressMaterial(el){materialChoices(el,'Материал матраса',[
+    ['textile','Текстильный чехол',''],['synthetic','Синтетическая обивка',''],['natural_fill','Натуральный наполнитель',''],['memory_foam','Memory foam','Минимальное увлажнение'],['latex','Латекс','Минимальное увлажнение'],['unknown','Не знаю / не уверен','Проверим состав перед работой']
+  ]);}
+  function rugSize(el){const cur=state.data.size||'medium';el.innerHTML=`<div class="step-title">Размер ковра</div><div class="step-help">Для точной оценки добавьте длину и ширину в комментарии или приложите фото.</div><div class="choice-grid">${choice('size','small','До 3 м²','Небольшой ковёр',cur==='small')}${choice('size','medium','3–6 м²','Средний ковёр',cur==='medium')}${choice('size','large','Более 6 м²','Цена после фото и размеров',cur==='large')}</div>`;}
+  function rugMaterial(el){materialChoices(el,'Материал ковра',[
+    ['synthetic','Синтетика',''],['wool','Шерсть','Обязательный тест цвета'],['viscose','Вискоза','Деликатная оценка'],['cotton','Хлопок',''],['mixed','Смешанный состав',''],['high_pile','Высокий ворс / shaggy',''],['unknown','Не знаю / не уверен','Проверим маркировку и ворс']
+  ]);}
 
   function buildItems(){
     if(state.service!=='car'||state.data.package!=='elements')return[];
@@ -137,7 +149,8 @@
       else for(const it of buildItems()){base+=it.code==='seat'?seatTotal(it.quantity,level):(rule(it.code,it.size_key,level)||0)*it.quantity;}
     }else if(state.service==='sofa')base=rule('sofa',String(d.size||3),level)||0;
     else if(state.service==='chair')base=rule('armchair','default',level)||0;
-    else base=rule(d.size==='single'?'mattress_single':'mattress_double','default',level)||0;
+    else if(state.service==='mattress')base=rule(d.size==='single'?'mattress_single':'mattress_double','default',level)||0;
+    else return{manual:true,base:null,travel,price:null};
     if(d.hair)base+=rule('extra_pet_hair','default',level)??(level==='heavy'?350:200);
     if(d.odor)base+=rule('extra_odor','default',level)??(level==='heavy'?350:250);
     return{manual:false,base,travel,price:base+travel};

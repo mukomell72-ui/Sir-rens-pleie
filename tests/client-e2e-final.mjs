@@ -169,11 +169,21 @@ await domNext('Что ещё заметно?');
 for (const [service, first] of [['sofa','Размер дивана'],['chair','Тип кресла'],['mattress','Матрас']]) {
   await loadRu();
   await openService(service, first);
+  await domNext(service==='mattress'?'Материал матраса':'Материал обивки');
+  await page.locator('input[name="material"]').first().check();
   await domNext('Степень загрязнения');
   await domNext('Что ещё заметно?');
   await domNext('Контакт и выезд');
   await contactToSummary();
 }
+
+await loadRu();
+await page.locator('[data-poster-menu]').click();
+await page.locator('[data-menu-service="rug"]').click();
+await expectTitle('Размер ковра');
+await domNext('Материал ковра');
+await page.locator('input[name="material"][value="wool"]').check();
+await domNext('Степень загрязнения');
 
 await page.goto('http://127.0.0.1:4173/index.html', {waitUntil:'domcontentloaded'});
 for (const lang of ['no','en','ru']) {
