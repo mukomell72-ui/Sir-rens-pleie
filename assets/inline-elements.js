@@ -1,6 +1,7 @@
 (()=>{
   const KEY='sir_inline_car_elements_v1';
   const CONDITION_KEY='sir_inline_condition_v1';
+  const NAV_KEY='sir_inline_nav_direction_v1';
   const defs=[
     ['el_seat','Сиденья','Seter','Seats'],
     ['el_ceiling','Потолок','Taktrekk','Headliner'],
@@ -159,13 +160,19 @@
     const card=document.querySelector('.service-card.open');if(!card)return;
     const title=card.querySelector('.step-title')?.textContent.trim();
     if(!['Выберите элементы','Velg områder','Choose areas'].includes(title))return;
-    const next=card.querySelector('#next');if(!next||next.dataset.inlineSkip==='1')return;
-    next.dataset.inlineSkip='1';
-    queueMicrotask(()=>{if(next.isConnected)next.click();});
+    const direction=sessionStorage.getItem(NAV_KEY)==='back'?'back':'next';
+    const button=card.querySelector(direction==='back'?'#prev':'#next');
+    if(!button||button.dataset.inlineSkip==='1')return;
+    button.dataset.inlineSkip='1';
+    queueMicrotask(()=>{if(button.isConnected)button.click();});
   }
   document.addEventListener('change',e=>{
     if(e.target.matches('input[name="seats"]:checked')){const s=load();s.seatsMax=Math.max(1,Number(e.target.value)||5);save(s);}
     if(e.target.matches('input[name="condition"]:checked'))sessionStorage.setItem(CONDITION_KEY,e.target.value||'medium');
+  },true);
+  document.addEventListener('click',e=>{
+    const nav=e.target.closest?.('#prev,#next');
+    if(nav)sessionStorage.setItem(NAV_KEY,nav.id==='prev'?'back':'next');
   },true);
   document.addEventListener('click',validateBeforeNext,true);
   document.addEventListener('click',e=>{if(e.target.closest?.('[data-lang]'))setTimeout(()=>{const p=document.querySelector('.inline-elements-panel');if(p)p.remove();enhancePackage()},30);setTimeout(()=>{enhancePackage();skipLegacyStep()},0)},true);
