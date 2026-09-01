@@ -66,7 +66,13 @@
     }catch(e){console.warn('SIR catalog fallback',e);}
   }
 
-  function openService(service){state.service=service;state.step=0;state.data={service};state.files=[];cards.forEach(c=>c.classList.toggle('open',c.dataset.service===service));render();document.querySelector(`.service-card[data-service="${service}"]`).scrollIntoView({behavior:'smooth',block:'start'});}
+  function openService(service){
+    let profile={};
+    try{profile=JSON.parse(sessionStorage.getItem('sir_clean_profile')||'{}');}catch{}
+    const useProfile=profile.service===service;
+    state.service=service;state.step=0;state.data={service,...(useProfile?{stains:profile.issues?.includes('stains'),odor:profile.issues?.includes('odor'),hair:profile.issues?.includes('hair'),comment:profile.issues?.includes('allergens')?'Prioritet: støv og allergener.':''}:{})};state.files=[];
+    if(useProfile)sessionStorage.removeItem('sir_clean_profile');
+    cards.forEach(c=>c.classList.toggle('open',c.dataset.service===service));render();document.querySelector(`.service-card[data-service="${service}"]`).scrollIntoView({behavior:'smooth',block:'start'});}
   function steps(){
     if(state.service==='car')return [carVehicle,carPackage,condition,...(state.data.package==='elements'?[carElements]:[]),issues,contact,summary];
     if(state.service==='sofa')return [sofaSize,condition,issues,contact,summary];
