@@ -154,9 +154,15 @@ await loadRu();
 await openService('car', 'Ваш автомобиль');
 await domNext('Что чистим?');
 await page.locator('input[name="package"][value="elements"]').check();
+await page.waitForSelector('.inline-elements-panel.open');
+await page.locator('label[for="inline-el_seat"]').click();
+await page.locator('[data-inline-qty="seat"] [data-inline-plus="seat"]').click();
+await page.locator('[data-inline-qty="seat"] [data-inline-plus="seat"]').click();
+assert.equal(await page.locator('.inline-elements-panel input[name="seat_qty"]').inputValue(),'3');
+await page.locator('label[for="inline-el_ceiling"]').click();
+assert.equal(await page.locator('.inline-elements-panel input[name="el_seat"]').isChecked(),true);
+assert.equal(await page.locator('.inline-elements-panel input[name="el_ceiling"]').isChecked(),true);
 await domNext('Степень загрязнения');
-await domNext('Выберите элементы');
-await page.locator('input[name="el_seat"]').check();
 await domNext('Что ещё заметно?');
 
 for (const [service, first] of [['sofa','Размер дивана'],['chair','Тип кресла'],['mattress','Матрас']]) {
