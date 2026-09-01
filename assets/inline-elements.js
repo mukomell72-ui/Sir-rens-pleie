@@ -63,15 +63,19 @@
     complete=add('el_child_seat','child_seat')&&complete;
     return{total,complete};
   }
+  function setPriceText(out,text,value=''){
+    if(out.textContent!==text)out.textContent=text;
+    const next=String(value);
+    if(out.dataset.value!==next)out.dataset.value=next;
+  }
   function refreshPrice(panel){
     const out=panel?.querySelector('[data-inline-price]');if(!out)return;
     const any=defs.some(([name])=>panel.querySelector(`input[name="${name}"]`)?.checked);
-    if(!any){out.textContent=tx('Выберите элементы — цена появится здесь','Velg områder – prisen vises her','Choose areas — the price will appear here');out.dataset.value='';return;}
+    if(!any){setPriceText(out,tx('Выберите элементы — цена появится здесь','Velg områder – prisen vises her','Choose areas — the price will appear here'));return;}
     const p=selectedPrice(panel);
-    if(!p.complete&&!priceRulesReady){out.textContent=tx('Рассчитываем цену…','Beregner pris…','Calculating price…');out.dataset.value='';return;}
-    if(!p.complete){out.textContent=tx('Цена уточняется по выбранным элементам','Prisen avklares for de valgte områdene','Price is being confirmed for the selected areas');out.dataset.value='';return;}
-    out.textContent=`${tx('Выбранные элементы','Valgte områder','Selected areas')}: ${money(p.total)}`;
-    out.dataset.value=String(p.total);
+    if(!p.complete&&!priceRulesReady){setPriceText(out,tx('Рассчитываем цену…','Beregner pris…','Calculating price…'));return;}
+    if(!p.complete){setPriceText(out,tx('Цена уточняется по выбранным элементам','Prisen avklares for de valgte områdene','Price is being confirmed for the selected areas'));return;}
+    setPriceText(out,`${tx('Выбранные элементы','Valgte områder','Selected areas')}: ${money(p.total)}`,p.total);
   }
   async function loadPriceRules(){
     const C=window.SIR_CONFIG;if(!C?.supabaseUrl||!C?.supabasePublishableKey){priceRulesReady=true;refreshPrice(document.querySelector('.inline-elements-panel.open'));return;}
@@ -128,7 +132,8 @@
     const step=packageRadio.closest('#step')||packageRadio.closest('.wizard');if(!step)return;
     const choice=packageRadio.closest('.choice');if(!choice)return;
     const packageTitle=choice.querySelector('label b');
-    if(packageTitle)packageTitle.textContent=tx('Отдельные элементы салона','Enkeltdeler i interiøret','Individual interior areas');
+    const wantedTitle=tx('Отдельные элементы салона','Enkeltdeler i interiøret','Individual interior areas');
+    if(packageTitle&&packageTitle.textContent!==wantedTitle)packageTitle.textContent=wantedTitle;
     let panel=step.querySelector('.inline-elements-panel');
     if(!panel){
       choice.insertAdjacentHTML('afterend',panelMarkup(load(),seatsMax()));
@@ -156,7 +161,7 @@
     if(!['Выберите элементы','Velg områder','Choose areas'].includes(title))return;
     const next=card.querySelector('#next');if(!next||next.dataset.inlineSkip==='1')return;
     next.dataset.inlineSkip='1';
-    next.click();
+    queueMicrotask(()=>{if(next.isConnected)next.click();});
   }
   document.addEventListener('change',e=>{
     if(e.target.matches('input[name="seats"]:checked')){const s=load();s.seatsMax=Math.max(1,Number(e.target.value)||5);save(s);}
