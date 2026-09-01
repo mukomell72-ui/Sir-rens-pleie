@@ -36,6 +36,7 @@
     select.replaceChildren(first,...MATERIALS.map(row=>{const o=document.createElement('option');o.value=row[0];o.textContent=text(row);return o;}));
     if(wanted&&MATERIALS.some(r=>r[0]===wanted))select.value=wanted;
     select.setAttribute('aria-label',label());
+    select.dataset.materialSignature=`${lang()}|${select.value||''}`;
   }
   function enhance(){
     const card=document.querySelector('.service-card.open');if(!card)return;
@@ -50,13 +51,14 @@
       row.append(select);
       select.addEventListener('change',()=>{
         input.value=select.value;
+        select.dataset.materialSignature=`${lang()}|${select.value||''}`;
         input.dispatchEvent(new Event('input',{bubbles:true}));
         input.dispatchEvent(new Event('change',{bubbles:true}));
       });
     }else{
       const current=select.value||input.value;
       const signature=`${lang()}|${current}`;
-      if(select.dataset.materialSignature!==signature){refresh(select,current);select.dataset.materialSignature=signature;}
+      if(select.dataset.materialSignature!==signature)refresh(select,current);
     }
   }
   document.addEventListener('click',e=>{if(e.target.closest?.('[data-lang]'))setTimeout(enhance,20);setTimeout(enhance,0)},true);
