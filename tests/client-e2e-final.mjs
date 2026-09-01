@@ -48,7 +48,7 @@ const loadRu = async () => {
   await page.goto('http://127.0.0.1:4173/index.html', { waitUntil:'domcontentloaded' });
   await page.evaluate(() => sessionStorage.clear());
   await page.reload({waitUntil:'domcontentloaded'});
-  await page.locator('[data-lang="ru"]').click();
+  await page.locator('[data-poster-lang="ru"]').click();
 };
 await loadRu();
 
@@ -175,6 +175,7 @@ for (const [service, first] of [['sofa','Размер дивана'],['chair','�
 }
 
 await page.goto('http://127.0.0.1:4173/index.html', {waitUntil:'domcontentloaded'});
+await page.locator('[data-poster-menu]').click();
 for (const lang of ['no','en','ru']) {
   await page.locator(`[data-lang="${lang}"]`).click();
   assert.ok((await page.locator(`[data-lang="${lang}"]`).getAttribute('class'))?.includes('active'));

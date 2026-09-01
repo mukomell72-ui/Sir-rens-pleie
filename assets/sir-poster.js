@@ -1,0 +1,12 @@
+(()=>{
+  const poster=document.querySelector('.sir-poster');if(!poster)return;
+  const reveal=()=>{document.body.classList.remove('sir-poster-active');window.scrollTo({top:0,behavior:'auto'});};
+  const openService=service=>{reveal();requestAnimationFrame(()=>{const card=document.querySelector(`.service-card[data-service="${service}"]`);card?.querySelector('.service-head')?.click();setTimeout(()=>card?.scrollIntoView({behavior:'smooth',block:'start'}),60);});};
+  const openProfile=need=>{reveal();requestAnimationFrame(()=>{const profile=document.querySelector('.sir-profile');profile?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>profile?.querySelector(`[data-profile-group="issues"] [data-value="${need}"]`)?.click(),250);});};
+  let note=document.querySelector('.sir-poster-info');if(!note){note=document.createElement('div');note.className='sir-poster-info';note.setAttribute('role','status');document.body.append(note);}
+  const notes={safe:'Vi tilpasser kjemi og metode til materiale, barn og dyr.',green:'Vi doserer riktig og bruker målrettede metoder med minst mulig belastning.',quality:'Vi dokumenterer behovet og avtaler pris før arbeidet starter.',time:'Velg ønsket tidspunkt i bestillingen — vi bekrefter hva som er ledig.'};
+  let noteTimer;const showNote=key=>{note.textContent=notes[key]||'';note.classList.add('show');clearTimeout(noteTimer);noteTimer=setTimeout(()=>note.classList.remove('show'),3200);};
+  poster.addEventListener('click',e=>{const service=e.target.closest('[data-poster-service]');if(service)return openService(service.dataset.posterService);const lang=e.target.closest('[data-poster-lang]');if(lang){document.querySelector(`[data-lang="${lang.dataset.posterLang}"]`)?.click();reveal();return;}if(e.target.closest('[data-poster-menu]')){reveal();return;}const section=e.target.closest('[data-poster-section]');if(section){reveal();setTimeout(()=>document.querySelector('.ad-final-grid')?.scrollIntoView({behavior:'smooth',block:'start'}),60);return;}const need=e.target.closest('[data-poster-need]');if(need)return openProfile(need.dataset.posterNeed);const info=e.target.closest('[data-poster-info]');if(info)return showNote(info.dataset.posterInfo);});
+  document.querySelector('.sir-skip')?.addEventListener('click',reveal);
+  addEventListener('pageshow',()=>{if(location.hash){reveal();document.querySelector(location.hash)?.scrollIntoView();}});
+})();

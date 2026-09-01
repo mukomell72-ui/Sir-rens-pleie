@@ -14,7 +14,7 @@ const priceRows=[
 await page.route(/\/rest\/v1\/price_rules/,async r=>{if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:cors,body:''});return r.fulfill({status:200,contentType:'application/json',headers:cors,body:JSON.stringify(priceRows)});});
 await page.route(/\/rest\/v1\/app_settings/,async r=>{if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:cors,body:''});return r.fulfill({status:200,contentType:'application/json',headers:cors,body:'[]'});});
 await page.goto('http://127.0.0.1:4173/index.html',{waitUntil:'domcontentloaded'});
-await page.locator('[data-lang="ru"]').click();
+await page.locator('[data-poster-lang="ru"]').click();
 await page.locator('.service-card[data-service="car"] .service-head').click();
 await page.waitForSelector('.service-card.open .step-title');
 const next=async()=>{await page.locator('.service-card.open #next').click();await page.waitForTimeout(120)};

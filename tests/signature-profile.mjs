@@ -5,6 +5,7 @@ const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.route(/\/rest\/v1\//,r=>r.fulfill({status:200,contentType:'application/json',body:'[]'}));
 await page.goto('http://127.0.0.1:4173/index.html',{waitUntil:'domcontentloaded'});
+await page.locator('[data-poster-menu]').click();
 assert.equal(await page.locator('[data-profile-start]').isDisabled(),true);
 await page.locator('[data-profile-group="service"] [data-value="sofa"]').click();
 await page.locator('[data-profile-group="issues"] [data-value="stains"]').click();

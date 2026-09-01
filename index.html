@@ -11,8 +11,41 @@
 <link rel="stylesheet" href="assets/inline-elements.css">
 <link rel="stylesheet" href="assets/advertising-redesign.css">
 <link rel="stylesheet" href="assets/sir-signature.css">
+<link rel="stylesheet" href="assets/sir-poster.css">
 </head>
-<body>
+<body class="sir-poster-active">
+<a class="sir-skip" href="#services">Gå til bestilling</a>
+<section class="sir-poster" aria-label="SIR Rens & Pleie hovedmeny">
+  <div class="sir-poster-frame">
+    <img src="assets/sir-home-poster.webp" width="1024" height="1536" alt="SIR Rens & Pleie — profesjonell rens i Kongsberg" fetchpriority="high">
+    <div class="sir-poster-hotspots" aria-label="Navigasjon">
+      <button class="sir-hotspot lang-no" type="button" data-poster-lang="no" aria-label="Norsk"></button>
+      <button class="sir-hotspot lang-en" type="button" data-poster-lang="en" aria-label="English"></button>
+      <button class="sir-hotspot lang-ru" type="button" data-poster-lang="ru" aria-label="Русский"></button>
+      <button class="sir-hotspot menu" type="button" data-poster-menu aria-label="Åpne hele nettstedet"></button>
+      <a class="sir-hotspot phone-main" href="tel:+4793953581" aria-label="Ring Slava på +47 93 95 35 81"></a>
+      <button class="sir-hotspot location" type="button" data-poster-section="contact" aria-label="Kongsberg og område opptil 40 kilometer"></button>
+      <button class="sir-hotspot service-car" type="button" data-poster-service="car" aria-label="Bestill rens av bilinteriør"></button>
+      <button class="sir-hotspot service-sofa" type="button" data-poster-service="sofa" aria-label="Bestill rens av sofa"></button>
+      <button class="sir-hotspot service-chair" type="button" data-poster-service="chair" aria-label="Bestill rens av lenestol"></button>
+      <button class="sir-hotspot service-mattress" type="button" data-poster-service="mattress" aria-label="Bestill rens av madrass"></button>
+      <button class="sir-hotspot proof-safe" type="button" data-poster-info="safe" aria-label="Trygge produkter for barn og dyr"></button>
+      <button class="sir-hotspot proof-green" type="button" data-poster-info="green" aria-label="Miljøvennlig rengjøring"></button>
+      <button class="sir-hotspot proof-quality" type="button" data-poster-info="quality" aria-label="Kvalitet og fornøyd kunde"></button>
+      <button class="sir-hotspot proof-time" type="button" data-poster-info="time" aria-label="Fleksible tider"></button>
+      <button class="sir-hotspot need-stains" type="button" data-poster-need="stains" aria-label="Jeg trenger hjelp med flekker"></button>
+      <button class="sir-hotspot need-odor" type="button" data-poster-need="odor" aria-label="Jeg trenger hjelp med lukt"></button>
+      <button class="sir-hotspot need-allergens" type="button" data-poster-need="allergens" aria-label="Jeg trenger hjelp med støv og allergener"></button>
+      <button class="sir-hotspot need-hair" type="button" data-poster-need="hair" aria-label="Jeg trenger hjelp med dyrehår"></button>
+      <button class="sir-hotspot need-dirt" type="button" data-poster-need="dirt" aria-label="Jeg trenger hjelp med søl og skitt"></button>
+      <a class="sir-hotspot advice" href="sms:+4793953581" aria-label="Send SMS for råd"></a>
+      <a class="sir-hotspot contact-slava" href="tel:+4793953581" aria-label="Ring Slava"></a>
+      <a class="sir-hotspot contact-ivan" href="tel:+4748689164" aria-label="Ring Ivan"></a>
+    </div>
+  </div>
+  <div class="sir-poster-hint" aria-hidden="true"><span>Trykk på en tjeneste</span><i></i></div>
+</section>
+<noscript><style>.sir-poster{display:none!important}.topbar,main,.footer,.fixed-actions{display:block!important}</style></noscript>
 <header class="topbar"><div class="shell"><div class="brand">SIR Rens & Pleie<small>Kongsberg · opptil 40 km</small></div><div class="top-actions"><div class="lang"><button data-lang="no" class="active">NO</button><button data-lang="en">EN</button><button data-lang="ru">RU</button></div><a class="ad-menu" href="#services" aria-label="Tjenester"><span></span><span></span><span></span></a></div></div></header>
 <main>
 <section class="hero"><div class="shell"><div class="hero-copy"><div class="eyebrow" data-ad-key="pro">PROFESJONELL</div><h1 data-ad-key="heroTitle">RENS &amp; PLEIE</h1><p class="hero-tagline" data-ad-key="heroTag">RENT · FRISKT · TRYGT</p><ul class="hero-benefits"><li data-ad-key="b1">Dyp rens som fjerner smuss og bakterier</li><li data-ad-key="b2">Fjerner flekker, lukt og allergener</li><li data-ad-key="b3">Skånsomme produkter – trygt for deg og miljøet</li><li data-ad-key="b4">Forlenger levetiden på møbler og interiør</li></ul><div class="hero-actions"><a class="hero-call" href="tel:+4793953581"><span class="hero-action-icon">☎</span><span><strong>+47 93 95 35 81</strong><small data-ad-key="call">RING ELLER SEND SMS</small></span></a><div class="hero-location"><span class="hero-action-icon">⌖</span><span><b data-ad-key="area">Kongsberg og omegn</b><em data-ad-key="radius">Opptil 40 km</em></span></div></div></div></div></section>
@@ -31,5 +64,5 @@
 </main>
 <footer class="footer"><div class="shell footer-grid"><div><b>SIR Rens & Pleie</b><br>Kongsberg · utrykning opptil 40 km<br><a href="privacy.html">Personvern</a></div><div><a href="tel:+4793953581">Slava +47 93 95 35 81</a><br><a href="tel:+4748689164">Ivan +47 48 68 91 64</a></div></div></footer>
 <div class="fixed-actions"><a class="btn" href="tel:+4793953581">Ring</a><a class="btn primary" href="#services">Bestill</a></div>
-<script src="assets/config.js"></script><script src="assets/referral.js"></script><script src="assets/privacy-consent.js"></script><script src="assets/status-link.js"></script><script src="assets/app.js"></script><script src="assets/minimum-order-ui.js"></script><script src="assets/vehicle.js"></script><script src="assets/vehicle-autocomplete.js"></script><script src="assets/vehicle-type.js"></script><script src="assets/vehicle-material.js"></script><script src="assets/elements-ui-fix.js"></script><script src="assets/inline-elements.js"></script><script src="assets/mobile-ux.js"></script><script src="assets/i18n-runtime-fixes.js"></script><script src="assets/i18n.js"></script><script src="assets/meta-i18n.js"></script><script src="assets/advertising-i18n.js"></script><script src="assets/sir-signature.js"></script><script src="assets/reference-ui.js"></script>
+<script src="assets/config.js"></script><script src="assets/referral.js"></script><script src="assets/privacy-consent.js"></script><script src="assets/status-link.js"></script><script src="assets/app.js"></script><script src="assets/minimum-order-ui.js"></script><script src="assets/vehicle.js"></script><script src="assets/vehicle-autocomplete.js"></script><script src="assets/vehicle-type.js"></script><script src="assets/vehicle-material.js"></script><script src="assets/elements-ui-fix.js"></script><script src="assets/inline-elements.js"></script><script src="assets/mobile-ux.js"></script><script src="assets/i18n-runtime-fixes.js"></script><script src="assets/i18n.js"></script><script src="assets/meta-i18n.js"></script><script src="assets/advertising-i18n.js"></script><script src="assets/sir-signature.js"></script><script src="assets/sir-poster.js"></script><script src="assets/reference-ui.js"></script>
 </body></html>
