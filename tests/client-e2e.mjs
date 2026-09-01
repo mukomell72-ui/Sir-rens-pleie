@@ -55,7 +55,7 @@ async function setup() {
   });
 
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-  await page.locator('[data-lang="ru"]').click();
+  await page.locator('[data-poster-lang="ru"]').click();
   return { context, page, dialogs, pageErrors, submitted };
 }
 

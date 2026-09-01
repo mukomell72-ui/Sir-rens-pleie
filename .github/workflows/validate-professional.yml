@@ -79,3 +79,8 @@ jobs:
         run: |
           set -euo pipefail
           timeout 60s node tests/signature-profile.mjs
+      - name: Run exact poster navigation regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s node tests/poster-navigation.mjs
