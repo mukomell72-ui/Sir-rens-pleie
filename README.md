@@ -1,15 +1,19 @@
-# SIR Rens & Pleie — мобильный справочник
+# SIR Rens & Pleie
 
-Восстановленный справочник по профессиональной автохимии и оборудованию.
+Professional website + admin system for SIR Rens & Pleie.
 
-## Файлы приложения
+Current redesign work is developed in the `professional-redesign` branch and reviewed through PR #8 before anything is merged into `main`.
 
-- `index.html` — мобильный интерфейс и база подтверждённых позиций;
-- `manifest.json` — установка как веб-приложения;
-- `sw.js` — базовая офлайн-работа.
+## Current state
 
-## Что уже восстановлено
+- Customer website with NO / EN / RU support.
+- Server-backed pricing, travel calculation and order flow.
+- Supabase-backed admin, calendar, payments, referrals and technology cards.
+- Statens vegvesen vehicle lookup through a server-side Edge Function.
+- OWNER / ADMIN / MANAGER / WORKER role model.
+- ENK / Regnskap module with private document storage, ledger, mileage, assets, VAT-threshold monitoring and printable invoice support.
+- **Pre-ENK mode is active:** the enterprise is not registered as an ENK yet, so preparation/internal records are available while official invoice issuance is blocked both in the UI and at database level until registration and legal identity are completed.
 
-Поиск по задаче и поверхности, категории, раскрывающиеся карточки, назначение, разведение, пошаговое применение, следующий этап и предупреждения.
+The current task is to finish and publish the site safely without inventing ENK details. When ENK is later registered, the owner can switch the accounting module from pre-ENK mode and enter the real legal identity.
 
-В первую восстановленную версию внесены только позиции, подтверждённые в истории SIR Rens & Pleie. Непроверенные цены, дозировки и магазинные ссылки не выдумываются — они будут добавляться после проверки.
+See `docs/ENK_ACCOUNTING.md` and PR #8 for implementation and launch notes.

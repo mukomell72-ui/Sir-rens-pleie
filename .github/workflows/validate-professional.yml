@@ -1,0 +1,76 @@
+name: Validate SIR professional redesign
+
+on:
+  push:
+    branches: [professional-redesign]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Static HTML and reference checks
+        run: python3 scripts/validate_static.py
+      - name: JavaScript syntax checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          find assets admin tests -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --check "$file"
+          done
+      - name: Safety regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n 'rskgbkqtrigtznnksbyp' assets admin supabase scripts index.html privacy.html order q 2>/dev/null; then
+            echo 'Old Supabase project reference found in runtime/migration files'
+            exit 1
+          fi
+          if grep -R --exclude='sir_rens_only_screenshot_functions-2.html' -n "PIN.*1234\|pin.*1234" assets admin supabase scripts index.html privacy.html order q 2>/dev/null; then
+            echo 'Shared legacy admin PIN found in professional files'
+            exit 1
+          fi
+          echo 'Safety regression checks OK'
+
+  browser-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Start local site
+        shell: bash
+        run: |
+          python3 -m http.server 4173 > /tmp/sir-http.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/index.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/sir-http.log
+          exit 1
+      - name: Run final mobile browser regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120s node tests/client-e2e-final.mjs
+      - name: Run individual elements regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s node tests/elements-ui-regression.mjs

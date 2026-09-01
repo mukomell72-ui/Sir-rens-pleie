@@ -1,0 +1,58 @@
+name: Test SIR public order flow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [professional-redesign]
+    paths:
+      - '.github/workflows/test-public-order-flow.yml'
+      - 'supabase/migrations/**'
+
+permissions:
+  contents: read
+
+jobs:
+  public-order:
+    runs-on: ubuntu-latest
+    env:
+      PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Verify valid public order is quoted, tokenized and privacy-stamped
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "host=aws-1-eu-west-1.pooler.supabase.com port=5432 user=postgres.fxdgeizhlhgvybclvmyo dbname=postgres sslmode=require" -v ON_ERROR_STOP=1 <<'SQL'
+          begin;
+          do $$
+          declare
+            v_result jsonb;
+            v_order public.orders;
+          begin
+            v_result := public.public_submit_order_v2(jsonb_build_object(
+              'customer_name','CI Public Valid',
+              'phone','99999876',
+              'service','car',
+              'package','full',
+              'seats','5',
+              'condition','light',
+              'distance_km','0',
+              'privacy_accepted',true,
+              'privacy_version','ci-test'
+            ));
+
+            if coalesce(v_result->>'order_no','') = '' then raise exception 'order_no_missing'; end if;
+            if coalesce(v_result->>'upload_token','') = '' then raise exception 'upload_token_missing'; end if;
+            if coalesce(v_result->>'status_token','') = '' then raise exception 'status_token_missing'; end if;
+            if coalesce((v_result->>'privacy_accepted')::boolean,false) is not true then raise exception 'privacy_result_missing'; end if;
+            if nullif(v_result->>'preliminary_price','')::numeric < 750 then raise exception 'minimum_quote_not_enforced'; end if;
+
+            select * into v_order from public.orders where order_no=v_result->>'order_no';
+            if v_order.id is null then raise exception 'created_order_missing'; end if;
+            if v_order.privacy_accepted_at is null then raise exception 'privacy_timestamp_missing'; end if;
+            if v_order.privacy_version <> 'ci-test' then raise exception 'privacy_version_wrong'; end if;
+            if v_order.status_token_hash is null or v_order.status_token_expires_at <= now() then raise exception 'status_token_not_persisted'; end if;
+            if v_order.public_token_hash is null or v_order.public_token_expires_at <= now() then raise exception 'upload_token_not_persisted'; end if;
+            if v_order.preliminary_price < 750 then raise exception 'stored_minimum_quote_not_enforced'; end if;
+          end $$;
+          rollback;
+          SQL

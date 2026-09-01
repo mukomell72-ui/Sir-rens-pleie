@@ -1,0 +1,171 @@
+name: Test SIR Supabase database
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [professional-redesign]
+    paths:
+      - '.github/workflows/test-supabase-db.yml'
+      - 'supabase/migrations/**'
+
+permissions:
+  contents: read
+
+jobs:
+  db-test:
+    runs-on: ubuntu-latest
+    env:
+      PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify database constraints, RLS, workflow guards and private storage
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "host=aws-1-eu-west-1.pooler.supabase.com port=5432 user=postgres.fxdgeizhlhgvybclvmyo dbname=postgres sslmode=require" -v ON_ERROR_STOP=1 <<'SQL'
+          begin;
+
+          do $$
+          declare
+            caught boolean;
+          begin
+            insert into public.orders(customer_name,phone,service_type,vehicle_seats,estimated_minutes,final_price,customer_comment)
+            values('CI Test','0000000000','car',5,60,750,'valid');
+
+            caught := false;
+            begin
+              insert into public.orders(customer_name,phone,service_type) values('CI Test','0000000001','boat');
+            exception when check_violation then caught := true;
+            end;
+            if not caught then raise exception 'invalid_service_not_blocked'; end if;
+
+            caught := false;
+            begin
+              insert into public.orders(customer_name,phone,service_type,vehicle_seats) values('CI Test','0000000002','car',8);
+            exception when check_violation then caught := true;
+            end;
+            if not caught then raise exception 'invalid_vehicle_seats_not_blocked'; end if;
+
+            caught := false;
+            begin
+              insert into public.orders(customer_name,phone,service_type,estimated_minutes) values('CI Test','0000000003','car',5);
+            exception when check_violation then caught := true;
+            end;
+            if not caught then raise exception 'invalid_estimated_minutes_not_blocked'; end if;
+
+            caught := false;
+            begin
+              insert into public.orders(customer_name,phone,service_type,final_price) values('CI Test','0000000004','car',-1);
+            exception when check_violation then caught := true;
+            end;
+            if not caught then raise exception 'negative_final_price_not_blocked'; end if;
+
+            caught := false;
+            begin
+              insert into public.orders(customer_name,phone,service_type,customer_comment) values('CI Test','0000000005','car',repeat('x',2001));
+            exception when check_violation then caught := true;
+            end;
+            if not caught then raise exception 'oversize_comment_not_blocked'; end if;
+          end $$;
+
+          do $$
+          declare
+            is_public boolean;
+            size_limit bigint;
+            rls_orders boolean;
+            rls_photos boolean;
+            caught boolean;
+          begin
+            select public, file_size_limit into is_public, size_limit
+              from storage.buckets where id='order-photos';
+            if not found then raise exception 'order_photos_bucket_missing'; end if;
+            if is_public then raise exception 'order_photos_bucket_is_public'; end if;
+            if size_limit <> 10485760 then raise exception 'order_photos_size_limit_wrong'; end if;
+
+            select relrowsecurity into rls_orders from pg_class where oid='public.orders'::regclass;
+            select relrowsecurity into rls_photos from pg_class where oid='public.order_photos'::regclass;
+            if not coalesce(rls_orders,false) then raise exception 'orders_rls_disabled'; end if;
+            if not coalesce(rls_photos,false) then raise exception 'order_photos_rls_disabled'; end if;
+
+            if has_table_privilege('anon','public.orders','INSERT') then raise exception 'anon_direct_order_insert_granted'; end if;
+            if has_table_privilege('anon','public.order_photos','SELECT') then raise exception 'anon_order_photos_select_granted'; end if;
+            if has_function_privilege('anon','public.internal_consume_vehicle_lookup_quota(text)','EXECUTE') then raise exception 'anon_vehicle_quota_execute_granted'; end if;
+            if has_function_privilege('authenticated','public.internal_consume_vehicle_lookup_quota(text)','EXECUTE') then raise exception 'authenticated_vehicle_quota_execute_granted'; end if;
+            if not has_function_privilege('service_role','public.internal_consume_vehicle_lookup_quota(text)','EXECUTE') then raise exception 'service_role_vehicle_quota_execute_missing'; end if;
+
+            if not has_function_privilege('anon','public.public_submit_order_v2(jsonb)','EXECUTE') then raise exception 'anon_public_submit_missing'; end if;
+            if has_function_privilege('authenticated','public.public_submit_order_v2(jsonb)','EXECUTE') then raise exception 'authenticated_public_submit_granted'; end if;
+
+            caught := false;
+            begin
+              perform public.public_submit_order_v2('{"customer_name":"CI Public","phone":"99999123","service":"car"}'::jsonb);
+            exception when others then
+              caught := position('privacy consent required' in SQLERRM) > 0;
+            end;
+            if not caught then raise exception 'public_order_privacy_guard_failed'; end if;
+          end $$;
+
+          do $$
+          declare
+            v_order uuid;
+            caught boolean;
+          begin
+            insert into public.orders(customer_name,phone,service_type)
+            values('CI Photo','9000000001','car') returning id into v_order;
+
+            insert into public.order_photos(order_id,storage_path,mime_type,size_bytes)
+            select v_order, 'ci/'||g::text||'.jpg', 'image/jpeg', 1
+            from generate_series(1,5) g;
+
+            caught := false;
+            begin
+              insert into public.order_photos(order_id,storage_path,mime_type,size_bytes)
+              values(v_order,'ci/6.jpg','image/jpeg',1);
+            exception when others then
+              caught := position('photo limit reached' in SQLERRM) > 0;
+            end;
+            if not caught then raise exception 'sixth_photo_not_blocked'; end if;
+          end $$;
+
+          do $$
+          declare
+            v_order_a uuid;
+            v_order_b uuid;
+            v_order_expired uuid;
+            v_order_after uuid;
+            caught boolean;
+            v_start timestamptz := date_trunc('hour',now()) + interval '3 days';
+            v_expired_start timestamptz := date_trunc('hour',now()) + interval '5 days';
+          begin
+            insert into public.orders(customer_name,phone,service_type,status)
+            values('CI Calendar A','9000000011','car','scheduled') returning id into v_order_a;
+            insert into public.orders(customer_name,phone,service_type,status)
+            values('CI Calendar B','9000000012','car','scheduled') returning id into v_order_b;
+
+            insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
+            values(v_order_a,v_start,v_start+interval '2 hours',false,0);
+
+            caught := false;
+            begin
+              insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
+              values(v_order_b,v_start+interval '1 hour',v_start+interval '3 hours',false,0);
+            exception when others then
+              caught := position('calendar conflict' in SQLERRM) > 0;
+            end;
+            if not caught then raise exception 'calendar_overlap_not_blocked'; end if;
+
+            insert into public.orders(customer_name,phone,service_type,status,confirmation_expires_at)
+            values('CI Expired Hold','9000000013','car','awaiting_confirmation',now()-interval '1 hour') returning id into v_order_expired;
+            insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
+            values(v_order_expired,v_expired_start,v_expired_start+interval '2 hours',true,0);
+
+            insert into public.orders(customer_name,phone,service_type,status)
+            values('CI After Expiry','9000000014','car','scheduled') returning id into v_order_after;
+            insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
+            values(v_order_after,v_expired_start+interval '30 minutes',v_expired_start+interval '90 minutes',false,0);
+          end $$;
+
+          rollback;
+          SQL
