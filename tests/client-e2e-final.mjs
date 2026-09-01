@@ -36,7 +36,7 @@ await page.route(/\/rest\/v1\/price_rules/, async r => { if (!(await maybePrefli
 await page.route(/\/rest\/v1\/app_settings/, async r => { if (!(await maybePreflight(r))) await json(r, []); });
 await page.route(/\/functions\/v1\/vehicle-lookup/, async r => {
   if (await maybePreflight(r)) return;
-  await json(r, {brand:'VOLKSWAGEN',model:'TRANSPORTER',year:2010,body:'Flerbruksbil (AF)'});
+  await json(r, {brand:'VOLKSWAGEN',model:'TRANSPORTER',year:2010,body:'Flerbruksbil (AF)',seats:8});
 });
 await page.route(/\/rest\/v1\/rpc\/public_submit_order_v2/, async r => {
   if (await maybePreflight(r)) return;
@@ -71,7 +71,7 @@ const domNext = async expected => {
   await waitTitle(expected);
 };
 const openService = async (service, expected) => {
-  await page.locator(`.service-card[data-service="${service}"] .service-head`).click();
+  await page.locator(`[data-poster-service="${service}"]`).click();
   await waitTitle(expected);
 };
 const contactToSummary = async () => {
@@ -135,6 +135,7 @@ await page.waitForFunction(() => document.querySelector('input[name="vehicle_bra
 assert.equal(await brandInput.inputValue(), 'VOLKSWAGEN');
 assert.equal(await modelInput.inputValue(), 'TRANSPORTER');
 assert.equal(await page.locator('input[name="vehicle_year"]').inputValue(), '2010');
+assert.equal(await page.locator('input[name="seats"][value="8"]').isChecked(), true);
 await page.waitForFunction(()=>document.querySelector('select[data-vehicle-type]')?.value==='mpv',null,{timeout:8000});
 assert.equal(await typeSelect.inputValue(), 'mpv');
 await page.waitForTimeout(100);
@@ -175,9 +176,8 @@ for (const [service, first] of [['sofa','Размер дивана'],['chair','�
 }
 
 await page.goto('http://127.0.0.1:4173/index.html', {waitUntil:'domcontentloaded'});
-await page.locator('[data-poster-menu]').click();
 for (const lang of ['no','en','ru']) {
-  await page.locator(`[data-lang="${lang}"]`).click();
+  await page.locator(`[data-poster-lang="${lang}"]`).click();
   assert.ok((await page.locator(`[data-lang="${lang}"]`).getAttribute('class'))?.includes('active'));
 }
 assert.equal(await page.locator('.service-card[data-service="sofa"] .service-title').evaluate(e=>getComputedStyle(e).display),'block');

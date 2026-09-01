@@ -81,7 +81,7 @@ async function next(page, expectedTitle) {
 
 async function open(page, service, expectedTitle) {
   console.log(`OPEN ${service}`);
-  await page.locator(`.service-card[data-service="${service}"] .service-head`).click();
+  await page.locator(`[data-poster-service="${service}"]`).click();
   await page.waitForSelector('.service-card.open #next');
   await settle(page);
   assert.equal(await title(page), expectedTitle);
@@ -176,11 +176,11 @@ async function testLanguageAndMobileLayout() {
   const { page, context } = run;
   try {
     console.log('LANG NO -> EN -> RU');
-    await page.locator('[data-lang="no"]').click();
+    await page.locator('[data-poster-lang="no"]').click();
     assert.equal(await page.locator('[data-lang="no"]').getAttribute('class').then(v => v?.includes('active')), true);
-    await page.locator('[data-lang="en"]').click();
+    await page.locator('[data-poster-lang="en"]').click();
     assert.equal(await page.locator('[data-lang="en"]').getAttribute('class').then(v => v?.includes('active')), true);
-    await page.locator('[data-lang="ru"]').click();
+    await page.locator('[data-poster-lang="ru"]').click();
     assert.equal(await page.locator('[data-lang="ru"]').getAttribute('class').then(v => v?.includes('active')), true);
 
     const sofaTitleDisplay = await page.locator('.service-card[data-service="sofa"] .service-title').evaluate(el => getComputedStyle(el).display);
@@ -188,8 +188,8 @@ async function testLanguageAndMobileLayout() {
     assert.equal(sofaTitleDisplay, 'block');
     assert.equal(sofaSubDisplay, 'block');
 
-    const fixed = await page.locator('.fixed-actions').boundingBox();
-    assert.ok(fixed && fixed.height > 0, 'Mobile fixed actions must be visible');
+    assert.equal(await page.locator('.sir-poster').isVisible(), true);
+    assert.equal(await page.locator('.fixed-actions').isVisible(), false);
     await assertClean(run);
   } finally {
     await context.close();

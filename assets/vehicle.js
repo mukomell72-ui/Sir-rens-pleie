@@ -130,6 +130,12 @@
       saved[key]=String(value);
       const input=box.querySelector(`[name="vehicle_${key}"]`);if(input)input.value=saved[key];
     }
+    const seats=Number.parseInt(String(data.seats??''),10);
+    const seatInput=box.closest('.service-card')?.querySelector(`input[name="seats"][value="${seats}"]`);
+    if(Number.isInteger(seats)&&seatInput){
+      seatInput.checked=true;
+      seatInput.dispatchEvent(new Event('change',{bubbles:true}));
+    }
     updateModelSuggestions(box);
   }
 

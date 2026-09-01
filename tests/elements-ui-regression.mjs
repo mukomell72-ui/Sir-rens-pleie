@@ -15,7 +15,7 @@ await page.route(/\/rest\/v1\/price_rules/,async r=>{if(r.request().method()==='
 await page.route(/\/rest\/v1\/app_settings/,async r=>{if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:cors,body:''});return r.fulfill({status:200,contentType:'application/json',headers:cors,body:'[]'});});
 await page.goto('http://127.0.0.1:4173/index.html',{waitUntil:'domcontentloaded'});
 await page.locator('[data-poster-lang="ru"]').click();
-await page.locator('.service-card[data-service="car"] .service-head').click();
+await page.locator('[data-poster-service="car"]').click();
 await page.waitForSelector('.service-card.open .step-title');
 const next=async()=>{await page.locator('.service-card.open #next').click();await page.waitForTimeout(120)};
 const back=async()=>{await page.locator('.service-card.open #prev').click();await page.waitForTimeout(120)};
@@ -23,6 +23,7 @@ const material=page.locator('select[data-vehicle-material]');
 await material.waitFor();
 const materials=await material.locator('option').allTextContents();
 assert.deepEqual(materials.slice(1),['Ткань','Велюр','Алькантара','Натуральная кожа','Искусственная кожа / экокожа','Комбинированный салон','Винил','Не знаю / не уверен']);
+assert.deepEqual(await page.locator('input[name="seats"]').evaluateAll(xs=>xs.map(x=>x.value)),['1','2','3','4','5','6','7','8','9']);
 await material.selectOption('leather');
 assert.equal(await page.locator('input[name="vehicle_material"]').inputValue(),'leather');
 await page.locator('input[name="seats"][value="5"]').check();

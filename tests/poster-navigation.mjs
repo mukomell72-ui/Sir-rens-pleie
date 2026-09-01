@@ -14,6 +14,9 @@ for(const service of ['car','sofa','chair','mattress'])assert.equal(await page.l
 await page.locator('[data-poster-service="car"]').click();
 await page.waitForSelector('.service-card[data-service="car"].open');
 assert.equal(await page.locator('.service-card[data-service="car"]').isVisible(),true);
+assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('sir-poster-active')),true);
+assert.equal(await page.locator('.sir-poster-drawer').evaluate(e=>e.classList.contains('open')),true);
+assert.equal(await page.locator('main').isVisible(),false);
 await load();
 await page.locator('[data-poster-lang="ru"]').click();
 assert.equal(await page.locator('[data-lang="ru"]').evaluate(e=>e.classList.contains('active')),true);
