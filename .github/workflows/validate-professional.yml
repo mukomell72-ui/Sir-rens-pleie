@@ -69,3 +69,8 @@ jobs:
         run: |
           set -euo pipefail
           timeout 120s node tests/client-e2e-final.mjs
+      - name: Run individual elements regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s node tests/elements-ui-regression.mjs
