@@ -36,7 +36,7 @@ await page.route(/\/rest\/v1\/price_rules/, async r => { if (!(await maybePrefli
 await page.route(/\/rest\/v1\/app_settings/, async r => { if (!(await maybePreflight(r))) await json(r, []); });
 await page.route(/\/functions\/v1\/vehicle-lookup/, async r => {
   if (await maybePreflight(r)) return;
-  await json(r, {brand:'VOLKSWAGEN',model:'TRANSPORTER',year:2010,body:'Flerbruksbil (AF)'});
+  await json(r, {brand:'VOLKSWAGEN',model:'TRANSPORTER',year:2010,body:'Flerbruksbil (AF)',seats:8});
 });
 await page.route(/\/rest\/v1\/rpc\/public_submit_order_v2/, async r => {
   if (await maybePreflight(r)) return;
@@ -135,6 +135,7 @@ await page.waitForFunction(() => document.querySelector('input[name="vehicle_bra
 assert.equal(await brandInput.inputValue(), 'VOLKSWAGEN');
 assert.equal(await modelInput.inputValue(), 'TRANSPORTER');
 assert.equal(await page.locator('input[name="vehicle_year"]').inputValue(), '2010');
+assert.equal(await page.locator('input[name="seats"][value="8"]').isChecked(), true);
 await page.waitForFunction(()=>document.querySelector('select[data-vehicle-type]')?.value==='mpv',null,{timeout:8000});
 assert.equal(await typeSelect.inputValue(), 'mpv');
 await page.waitForTimeout(100);

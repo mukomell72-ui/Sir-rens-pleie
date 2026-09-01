@@ -23,6 +23,7 @@ const material=page.locator('select[data-vehicle-material]');
 await material.waitFor();
 const materials=await material.locator('option').allTextContents();
 assert.deepEqual(materials.slice(1),['Ткань','Велюр','Алькантара','Натуральная кожа','Искусственная кожа / экокожа','Комбинированный салон','Винил','Не знаю / не уверен']);
+assert.deepEqual(await page.locator('input[name="seats"]').evaluateAll(xs=>xs.map(x=>x.value)),['1','2','3','4','5','6','7','8','9']);
 await material.selectOption('leather');
 assert.equal(await page.locator('input[name="vehicle_material"]').inputValue(),'leather');
 await page.locator('input[name="seats"][value="5"]').check();

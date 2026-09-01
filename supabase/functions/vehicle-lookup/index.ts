@@ -111,6 +111,7 @@ Deno.serve(async (req) => {
     const technical = k?.godkjenning?.tekniskGodkjenning?.tekniskeData ?? {};
     const general = technical?.generelt ?? {};
     const bodyData = technical?.karosseriOgLasteplan ?? {};
+    const passengerData = technical?.persontall ?? {};
 
     const brand = clean(general?.merke?.[0]?.merke);
     const model = clean(general?.handelsbetegnelse?.[0]) || clean(general?.typebetegnelse);
@@ -120,7 +121,12 @@ Deno.serve(async (req) => {
     const year = yearMatch ? yearMatch[1] : "";
     const bodyType = bodyData?.karosseritype;
     const vehicleBody = clean(bodyType?.kodeNavn) || clean(bodyType?.kodeBeskrivelse);
-    const vehicle = { plate: normalized, brand, model, year, body: vehicleBody };
+    const rawSeats = passengerData?.sitteplasserTotalt
+      ?? passengerData?.antallSitteplasser
+      ?? technical?.sitteplasserTotalt;
+    const parsedSeats = Number.parseInt(String(rawSeats ?? ""), 10);
+    const seats = Number.isInteger(parsedSeats) && parsedSeats >= 1 && parsedSeats <= 99 ? parsedSeats : null;
+    const vehicle = { plate: normalized, brand, model, year, body: vehicleBody, seats };
 
     return new Response(JSON.stringify({ ok: true, ...vehicle, vehicle }), { headers });
   } catch (error) {
