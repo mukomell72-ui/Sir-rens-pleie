@@ -71,7 +71,7 @@ const domNext = async expected => {
   await waitTitle(expected);
 };
 const openService = async (service, expected) => {
-  await page.locator(`.service-card[data-service="${service}"] .service-head`).click();
+  await page.locator(`[data-poster-service="${service}"]`).click();
   await waitTitle(expected);
 };
 const contactToSummary = async () => {
@@ -175,9 +175,8 @@ for (const [service, first] of [['sofa','Размер дивана'],['chair','�
 }
 
 await page.goto('http://127.0.0.1:4173/index.html', {waitUntil:'domcontentloaded'});
-await page.locator('[data-poster-menu]').click();
 for (const lang of ['no','en','ru']) {
-  await page.locator(`[data-lang="${lang}"]`).click();
+  await page.locator(`[data-poster-lang="${lang}"]`).click();
   assert.ok((await page.locator(`[data-lang="${lang}"]`).getAttribute('class'))?.includes('active'));
 }
 assert.equal(await page.locator('.service-card[data-service="sofa"] .service-title').evaluate(e=>getComputedStyle(e).display),'block');
