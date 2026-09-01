@@ -180,7 +180,7 @@ for (const [service, first] of [['sofa','Размер дивана'],['chair','�
 await loadRu();
 await page.locator('[data-poster-menu]').click();
 await page.locator('[data-menu-service="rug"]').click();
-await expectTitle('Размер ковра');
+await waitTitle('Размер ковра');
 await domNext('Материал ковра');
 await page.locator('input[name="material"][value="wool"]').check();
 await domNext('Степень загрязнения');
