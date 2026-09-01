@@ -1,15 +1,13 @@
 (()=>{
   const MATERIALS=[
-    ['unknown','Не знаю / не уверен','Not sure','Vet ikke / usikker'],
     ['fabric','Ткань','Fabric','Stoff'],
     ['velour','Велюр','Velour','Velur'],
     ['alcantara','Алькантара','Alcantara','Alcantara'],
     ['leather','Натуральная кожа','Genuine leather','Ekte skinn'],
     ['eco_leather','Искусственная кожа / экокожа','Synthetic / eco leather','Kunstskinn / eco-skinn'],
-    ['vinyl','Винил','Vinyl','Vinyl'],
-    ['suede','Замша','Suede','Semsket skinn'],
     ['combined','Комбинированный салон','Mixed materials','Kombinert interiør'],
-    ['other','Другой материал','Other material','Annet materiale']
+    ['vinyl','Винил','Vinyl','Vinyl'],
+    ['unknown','Не знаю / не уверен','Not sure','Vet ikke / usikker']
   ];
   const lang=()=>document.querySelector('[data-lang].active')?.dataset.lang||localStorage.getItem('sir_lang')||'no';
   const text=(row)=>lang()==='ru'?row[1]:lang()==='en'?row[2]:row[3];
@@ -23,18 +21,18 @@
       'велюр':'velour','velur':'velour','velour':'velour',
       'алькантара':'alcantara','alcantara':'alcantara',
       'натуральная кожа':'leather','кожа':'leather','ekte skinn':'leather','genuine leather':'leather','leather':'leather',
-      'экокожа':'eco_leather','искусственная кожа':'eco_leather','kunstskinn':'eco_leather','eco-skinn':'eco_leather','synthetic leather':'eco_leather','eco leather':'eco_leather',
-      'винил':'vinyl','vinyl':'vinyl','замша':'suede','suede':'suede','semsket skinn':'suede',
+      'экокожа':'eco_leather','искусственная кожа':'eco_leather','искусственная кожа / экокожа':'eco_leather','kunstskinn':'eco_leather','eco-skinn':'eco_leather','synthetic leather':'eco_leather','eco leather':'eco_leather',
       'комбинированный салон':'combined','kombinert interiør':'combined','mixed materials':'combined',
+      'винил':'vinyl','vinyl':'vinyl',
       'не знаю / не уверен':'unknown','vet ikke / usikker':'unknown','not sure':'unknown'
     };
     return aliases[v]||MATERIALS.find(r=>r[0]===v)?.[0]||'';
   };
   function refresh(select,current){
     const wanted=canonical(current)||select.value||'';
-    const first=document.createElement('option');first.value='';first.textContent=placeholder();
+    const first=document.createElement('option');first.value='';first.textContent=placeholder();first.disabled=true;
     select.replaceChildren(first,...MATERIALS.map(row=>{const o=document.createElement('option');o.value=row[0];o.textContent=text(row);return o;}));
-    if(wanted&&MATERIALS.some(r=>r[0]===wanted))select.value=wanted;
+    if(wanted&&MATERIALS.some(r=>r[0]===wanted))select.value=wanted;else select.value='';
     select.setAttribute('aria-label',label());
     select.dataset.materialSignature=`${lang()}|${select.value||''}`;
   }
