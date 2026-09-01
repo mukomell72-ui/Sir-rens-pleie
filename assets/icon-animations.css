@@ -1,0 +1,15 @@
+/* Lightweight animated icon layer for the premium advertising UI */
+@keyframes sirIconPulse{0%,100%{box-shadow:0 6px 18px #0008,0 0 0 4px #071420,0 0 0 0 #2b9cf600}50%{box-shadow:0 8px 22px #0009,0 0 0 4px #071420,0 0 24px 5px #2b9cf66b}}
+@keyframes sirIconFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-3px) scale(1.035)}}
+@keyframes sirSoftGlow{0%,100%{filter:drop-shadow(0 0 0 #2b9cf600)}50%{filter:drop-shadow(0 0 9px #2b9cf6a6)}}
+@keyframes sirCheckPing{0%,100%{transform:scale(1);box-shadow:0 4px 15px #0a72c65c}50%{transform:scale(1.08);box-shadow:0 4px 20px #1599ff99}}
+.service-badge{animation:sirIconPulse 2.8s ease-in-out infinite,sirIconFloat 3.4s ease-in-out infinite;will-change:transform,box-shadow}
+.service-badge svg{animation:sirSoftGlow 2.4s ease-in-out infinite}
+.service-card:nth-child(2) .service-badge{animation-delay:.22s,.18s}.service-card:nth-child(3) .service-badge{animation-delay:.44s,.36s}.service-card:nth-child(4) .service-badge{animation-delay:.66s,.54s}
+.service-card:not(.open) .service-head:hover .service-badge,.service-card:not(.open) .service-head:focus-visible .service-badge{transform:translateY(-4px) scale(1.09);box-shadow:0 8px 24px #0009,0 0 0 4px #071420,0 0 28px 7px #2b9cf68c}
+.ad-proof-icon,.ad-contact-icon,.ad-heart,.hero-action-icon{animation:sirSoftGlow 3s ease-in-out infinite}
+.ad-proof:nth-child(2) .ad-proof-icon,.ad-contact-row:nth-child(2) .ad-contact-icon{animation-delay:.45s}.ad-proof:nth-child(3) .ad-proof-icon{animation-delay:.9s}.ad-proof:nth-child(4) .ad-proof-icon{animation-delay:1.35s}
+.hero-benefits li::before,.ad-why-list li::before{animation:sirCheckPing 3.2s ease-in-out infinite}
+.ad-chip{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease,background .2s ease}.ad-chip:hover,.ad-chip:focus-within{transform:translateY(-2px);border-color:#3b98df;box-shadow:0 8px 24px #0005,0 0 14px #2b9cf633;background:#071a2a}
+@media(hover:none){.service-card:not(.open) .service-head:active .service-badge{transform:scale(.96)}.ad-chip:active{transform:scale(.98)}}
+@media(prefers-reduced-motion:reduce){.service-badge,.service-badge svg,.ad-proof-icon,.ad-contact-icon,.ad-heart,.hero-action-icon,.hero-benefits li::before,.ad-why-list li::before{animation:none!important}.service-card:not(.open) .service-head:hover .service-badge,.service-card:not(.open) .service-head:focus-visible .service-badge,.ad-chip:hover,.ad-chip:focus-within{transform:none}.ad-chip{transition:none}}
