@@ -34,8 +34,9 @@
     love:{no:'Vi tar vare på dine ting, som om det var våre egne!',en:'We care for your belongings as if they were our own!',ru:'Мы заботимся о ваших вещах, как о своих!'}
   };
   const lang=()=>document.querySelector('[data-lang].active')?.dataset.lang||'no';
+  function ensureAnimations(){if(document.querySelector('link[data-sir-icon-animations]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href='assets/icon-animations.css';l.dataset.sirIconAnimations='1';document.head.appendChild(l);}
   function apply(){const l=lang();document.querySelectorAll('[data-ad-key]').forEach(el=>{const row=D[el.dataset.adKey];if(!row)return;const v=row[l]||row.no;if(el.textContent!==v)el.textContent=v;});}
   document.addEventListener('click',e=>{if(e.target.closest?.('[data-lang]'))setTimeout(apply,0)},true);
   const obs=new MutationObserver(()=>apply());
-  addEventListener('DOMContentLoaded',()=>{apply();obs.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']})});
+  addEventListener('DOMContentLoaded',()=>{ensureAnimations();apply();obs.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']})});
 })();
