@@ -16,6 +16,18 @@
   .sir-drawer-menu button,.sir-drawer-menu a{min-height:66px;font-size:18px}
 }
 
+/* Visible 3D affordances for the interactive poster. */
+.sir-hotspot[data-poster-service]{overflow:visible;isolation:isolate;transform:translateZ(0);perspective:600px}
+.sir-hotspot[data-poster-service]::before{content:'';position:absolute;inset:2%;border:1px solid #55b8ff99;border-radius:clamp(8px,1.4vw,16px);background:linear-gradient(115deg,transparent 24%,#bce8ff22 43%,transparent 61%);box-shadow:inset 0 1px 0 #bde8ff66,inset 0 -8px 18px #00142666,0 8px 18px #0008,0 0 18px #168fe64f;transform:rotateX(1deg) translateZ(6px);animation:sirCardBreath 2.8s ease-in-out infinite;pointer-events:none}
+.sir-hotspot[data-poster-service]::after{content:attr(data-tap-label);position:absolute;right:6%;bottom:8%;min-width:clamp(42px,8vw,76px);height:clamp(24px,4.3vw,42px);padding:0 clamp(7px,1.4vw,14px);display:grid;place-items:center;border:1px solid #a6ddff;border-radius:999px;background:linear-gradient(180deg,#57bdff 0%,#1688e4 48%,#0758ab 100%);box-shadow:inset 0 2px 1px #fff9,inset 0 -5px 9px #003c7d99,0 7px 0 #003866,0 11px 20px #000b,0 0 24px #31a8ff;color:#fff;text-shadow:0 1px 2px #00325f;font-size:clamp(7px,1.25vw,13px);font-weight:950;letter-spacing:.07em;transform:translateY(-5px) rotateX(-8deg) translateZ(14px);animation:sirTapFloat 1.55s ease-in-out infinite;pointer-events:none}
+.sir-hotspot[data-poster-service]:hover::before,.sir-hotspot[data-poster-service]:focus-visible::before{border-color:#c9edff;box-shadow:inset 0 1px 0 #fff,0 12px 28px #000a,0 0 30px #2ea8ffb3}
+.sir-hotspot[data-poster-service]:active::after{transform:translateY(2px) rotateX(-2deg);box-shadow:inset 0 2px 4px #003b76,0 2px 0 #003866,0 4px 9px #0009}
+.sir-hotspot.phone-main,.sir-hotspot.location,.sir-hotspot.menu,.sir-hotspot.advice{box-shadow:inset 0 0 0 1px #60bdff66,0 0 16px #168fe638;animation:sirControlGlow 3s ease-in-out infinite}
+@keyframes sirCardBreath{50%{border-color:#8bd2ffdd;box-shadow:inset 0 1px 0 #dff4ff99,inset 0 -8px 18px #00142666,0 10px 22px #0009,0 0 28px #168fe680}}
+@keyframes sirTapFloat{0%,100%{transform:translateY(-5px) rotateX(-8deg) translateZ(14px)}50%{transform:translateY(-11px) rotateX(-3deg) translateZ(20px);filter:brightness(1.18)}}
+@keyframes sirControlGlow{50%{box-shadow:inset 0 0 0 2px #88d3ffaa,0 0 25px #168fe66b}}
+@media(prefers-reduced-motion:reduce){.sir-hotspot[data-poster-service]::before,.sir-hotspot[data-poster-service]::after,.sir-hotspot.phone-main,.sir-hotspot.location,.sir-hotspot.menu,.sir-hotspot.advice{animation:none!important}}
+
 /* Mobile poster and booking drawer: no artificial gap and no controls over fields. */
 @media(max-width:600px){
   .sir-poster{display:block!important;width:100vw;height:100dvh;min-height:100svh!important;overflow:hidden!important}

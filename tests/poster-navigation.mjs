@@ -14,6 +14,8 @@ assert.equal(await page.locator('.sir-poster').evaluate(e=>Math.round(e.getBound
 assert.equal(await page.locator('.sir-poster-hint').isVisible(),false);
 assert.equal(await page.locator('.service-card').first().isVisible(),false);
 for(const service of ['car','sofa','chair','mattress'])assert.equal(await page.locator(`[data-poster-service="${service}"]`).count(),1);
+assert.equal(await page.locator('[data-poster-service="car"]').getAttribute('data-tap-label'),'TRYKK');
+assert.notEqual(await page.locator('[data-poster-service="car"]').evaluate(e=>getComputedStyle(e,'::after').animationName),'none');
 await page.locator('[data-poster-service="car"]').click();
 await page.waitForSelector('.service-card[data-service="car"].open');
 assert.equal(await page.locator('.service-card[data-service="car"]').isVisible(),true);
@@ -35,6 +37,7 @@ assert.ok(!fieldBox||!actionsBox||fieldBox.y+fieldBox.height<=actionsBox.y,'navi
 await load();
 await page.locator('[data-poster-lang="ru"]').click();
 assert.equal(await page.locator('[data-lang="ru"]').evaluate(e=>e.classList.contains('active')),true);
+assert.equal(await page.locator('[data-poster-service="car"]').getAttribute('data-tap-label'),'НАЖАТЬ');
 await load();
 await page.locator('[data-poster-need="odor"]').click();
 await page.waitForSelector('.sir-profile [data-value="odor"].selected');
