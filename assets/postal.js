@@ -1,5 +1,5 @@
 (()=>{
-  const endpoint=()=>String(window.SIR_CONFIG?.postalLookupUrl||'').trim();
+  const endpoint=()=>String(window.SIR_CONFIG?.postalLookupUrl||'https://fxdgeizhlhgvybclvmyo.supabase.co/functions/v1/postal-distance').trim();
   const copy={
     ru:{postal:'Почтовый индекс',city:'Город',distance:'Расстояние до Kongsberg, км',loading:'Проверяем индекс…',found:(city,km)=>`${city} подтверждён · около ${km} км по дороге до Kongsberg`,invalid:'Введите норвежский индекс из 4 цифр.',missing:'Индекс не найден. Проверьте цифры.',failed:'Не удалось проверить индекс. Расстояние можно указать вручную.'},
     en:{postal:'Postal code',city:'City',distance:'Distance to Kongsberg, km',loading:'Checking postal code…',found:(city,km)=>`${city} confirmed · about ${km} km by road to Kongsberg`,invalid:'Enter a 4-digit Norwegian postal code.',missing:'Postal code not found. Check the digits.',failed:'Could not check the postal code. Enter the distance manually.'},
@@ -8,8 +8,15 @@
   const language=()=>document.querySelector('[data-lang].active')?.dataset.lang||localStorage.getItem('sir_lang')||'no';
   let timer=0,controller=null;
   function enhance(){
-    const root=document.querySelector('.service-card.open .service-body'),postal=root?.querySelector('input[name="postal_code"]');
-    if(!postal||postal.dataset.enhanced)return;
+    const root=document.querySelector('.service-card.open .service-body');if(!root)return;
+    let postal=root.querySelector('input[name="postal_code"]');
+    if(!postal){
+      const distanceInput=root.querySelector('input[name="distance_km"]'),addressInput=root.querySelector('input[name="address"]');if(!distanceInput||!addressInput)return;
+      const postalField=document.createElement('div');postalField.className='field';postalField.innerHTML='<label data-postal-label>Почтовый индекс</label><input name="postal_code" inputmode="numeric" autocomplete="postal-code" maxlength="4" pattern="[0-9]{4}" placeholder="3616"><div class="status-line" data-postal-status aria-live="polite"></div>';
+      const cityField=document.createElement('div');cityField.className='field';cityField.innerHTML='<label data-city-label>Город</label><input name="city" readonly>';
+      addressInput.closest('.field').before(postalField,cityField);distanceInput.closest('.field').querySelector('label').setAttribute('data-distance-label','');postal=postalField.querySelector('input');
+    }
+    if(postal.dataset.enhanced)return;
     postal.dataset.enhanced='1';
     const city=root.querySelector('input[name="city"]'),distance=root.querySelector('input[name="distance_km"]'),status=root.querySelector('[data-postal-status]');
     const translate=()=>{const t=copy[language()]||copy.no;root.querySelector('[data-postal-label]').textContent=t.postal;root.querySelector('[data-city-label]').textContent=t.city;root.querySelector('[data-distance-label]').textContent=t.distance;};
