@@ -19,6 +19,8 @@ await page.locator('[data-drawer-close]').click();
 await page.locator('[data-poster-lang="ru"]').click();
 await page.waitForTimeout(100);
 await page.locator('[data-poster-menu]').click();
+await page.waitForFunction(()=>document.querySelector('.sir-poster-drawer')?.classList.contains('open'));
+await page.waitForTimeout(300);
 await page.locator('[data-menu-profile]').click();
 assert.equal((await page.locator('#sir-profile-title').textContent())?.trim(),'Создайте профиль чистоты');
 assert.deepEqual(errors,[]);
