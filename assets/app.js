@@ -78,7 +78,7 @@
     if(drawerContent)drawerContent.scrollTo({top:0,behavior:'auto'});
     else card?.scrollIntoView({behavior:'smooth',block:'start'});}
   function steps(){
-    if(state.service==='car')return [carVehicle,carPackage,condition,...(state.data.package==='elements'?[carElements]:[]),issues,contact,summary];
+    if(state.service==='car')return [carVehicle,carPackage,condition,issues,contact,summary];
     if(state.service==='sofa')return [sofaSize,furnitureMaterial,condition,issues,contact,summary];
     if(state.service==='chair')return [chairType,furnitureMaterial,condition,issues,contact,summary];
     if(state.service==='mattress')return [mattressType,mattressMaterial,condition,issues,contact,summary];
@@ -100,7 +100,15 @@
     if(validate){for(const el of root.querySelectorAll('[required]')){if(el.type==='radio'){if(!root.querySelector(`[name="${el.name}"]:checked`)){alert('Заполните обязательный выбор');return false;}}else if(!String(el.value||'').trim()){el.focus();return false;}}}
     return true;
   }
-  function validateCurrent(fn){if(fn===carElements&&buildItems().length===0){alert('Выберите хотя бы один элемент салона.');return false;}return true;}
+  function validateCurrent(fn){
+    if(fn===carPackage&&state.data.package==='elements'&&buildItems().length===0){
+      const error=currentRoot()?.querySelector('.inline-elements-error');
+      error?.classList.add('show');
+      error?.scrollIntoView({behavior:'smooth',block:'center'});
+      return false;
+    }
+    return true;
+  }
   const choice=(name,value,title,sub,checked=false)=>`<div class="choice"><input type="radio" id="${name}-${value}" name="${name}" value="${value}" ${checked?'checked':''} required><label for="${name}-${value}"><b>${title}</b><small>${sub||''}</small></label></div>`;
   const check=(name,title,sub,checked=false)=>`<div class="choice"><input type="checkbox" id="${name}" name="${name}" ${checked?'checked':''}><label for="${name}"><b>${title}</b><small>${sub||''}</small></label></div>`;
   const seatClass=value=>{const n=Math.max(1,+value||5);return n<=5?'5':n<=7?'7':'9';};
@@ -108,15 +116,48 @@
   function carVehicle(el){el.innerHTML=`<div class="step-title">Ваш автомобиль</div><div class="step-help">Укажите регномер. Тип кузова и количество мест заполняются из Statens vegvesen, но их можно исправить вручную.</div><div class="field"><label>Регистрационный номер</label><input name="plate" value="${esc(state.data.plate||'')}" placeholder="AB12345" autocomplete="off"></div><div class="choice-grid">${[1,2,3,4,5,6,7,8,9].map(n=>choice('seats',n,`${n} мест`,'Количество зарегистрированных мест',String(state.data.seats||'5')===String(n))).join('')}</div>`;}
   function carPackage(el){
     const p=state.data.package||'full';
-    el.innerHTML=`<div class="step-title">Что чистим?</div><div class="step-help">Полный салон специально выгоднее суммы отдельных зон.</div><div class="choice-grid">${choice('package','full','Полный салон','Сиденья, потолок, пол, багажник, двери, пластик, коврики и стекла',p==='full')}${choice('package','seats','Все сиденья','Расчёт по количеству мест',p==='seats')}${choice('package','elements','Выбрать отдельные элементы','Соберите только нужные зоны',p==='elements')}</div>`;
+    el.innerHTML=`<div class="step-title">Что чистим?</div><div class="step-help">Выберите один вариант.</div><div class="choice-grid">${choice('package','full','Полный салон','Сиденья, потолок, пол, багажник, двери, пластик, коврики и стекла',p==='full')}${choice('package','seats','Только все сиденья','Все зарегистрированные места автомобиля',p==='seats')}<div class="package-elements-choice" style="grid-column:1/-1;min-width:0">${choice('package','elements','Отдельные элементы салона','Выберите только нужные зоны',p==='elements')}${carElementsMarkup()}</div></div>`;
+    const panel=el.querySelector('.inline-elements-panel');
+    const syncPanel=()=>{
+      const open=el.querySelector('input[name="package"][value="elements"]')?.checked;
+      panel.classList.toggle('open',!!open);
+      if(open)refreshCarElements(panel);
+    };
+    el.querySelectorAll('input[name="package"]').forEach(input=>input.addEventListener('change',()=>{capture();syncPanel();}));
+    bindCarElements(panel);syncPanel();
   }
   function condition(el){const cur=state.data.condition||'medium';el.innerHTML=`<div class="step-title">Степень загрязнения</div><div class="step-help">Минимальная цена — один полноценный щадящий цикл. Чем сложнее состояние, тем больше этапов и времени.</div><div class="choice-grid">${choice('condition','light',t('light'),'Один щадящий основной цикл',cur==='light')}${choice('condition','medium',t('medium'),'Предобработка + основной проход + локальный повтор',cur==='medium')}${choice('condition','heavy',t('heavy'),'Многоэтапная глубокая очистка',cur==='heavy')}${choice('condition','special',t('special'),'Сначала фото и оценка риска',cur==='special')}</div>`;}
-  function carElements(el){
+  function carElementsMarkup(){
     const level=state.data.condition||'medium',seats=seatClass(state.data.seats||5),seatMax=+(state.data.seats||5);
     const price=(code,size='default')=>fmt(rule(code,size,level));
-    el.innerHTML=`<div class="step-title">Выберите элементы</div><div class="step-help">Цены ниже уже учитывают выбранную степень загрязнения. Итог ещё проверит менеджер по фото.</div><div class="choice-grid">${check('el_seat','Сиденья',`от ${price('seat')} / место`,state.data.el_seat)}${check('el_ceiling','Потолок',price('ceiling',seats),state.data.el_ceiling)}${check('el_floor_carpet','Пол / ковролин',price('floor_carpet',seats),state.data.el_floor_carpet)}${check('el_trunk','Багажник',price('trunk',seatMax>=9?'large':'standard'),state.data.el_trunk)}${check('el_door_cards','4 дверные карты',price('door_cards','4'),state.data.el_door_cards)}${check('el_dashboard_console','Панель + консоль',price('dashboard_console'),state.data.el_dashboard_console)}${check('el_interior_plastic','Весь внутренний пластик',price('interior_plastic'),state.data.el_interior_plastic)}${check('el_textile_mats','4 текстильных коврика',price('textile_mats','4'),state.data.el_textile_mats)}${check('el_seat_belt','Ремни безопасности',`${price('seat_belt','1')} / шт.`,state.data.el_seat_belt)}${check('el_interior_glass','Стёкла внутри',price('interior_glass'),state.data.el_interior_glass)}${check('el_child_seat','Детское кресло',price('child_seat'),state.data.el_child_seat)}</div><div class="settings-grid"><div class="field"><label>Сколько сидений чистим</label><input name="seat_qty" type="number" min="1" max="${seatMax}" value="${Math.min(seatMax,Math.max(1,+state.data.seat_qty||1))}"></div><div class="field"><label>Сколько ремней</label><input name="belt_qty" type="number" min="1" max="${seatMax}" value="${Math.min(seatMax,Math.max(1,+state.data.belt_qty||1))}"></div></div><div id="element-live" class="notice safe"></div>`;
-    const refresh=()=>{capture();const c=calc();const full=rule('full_interior',seats,level);let text=c.manual?'Цена после фото':`Выбранные элементы: ${fmt(c.base)}`;if(!c.manual&&full!=null&&c.base>=full-300){const diff=c.base-full;text+=diff>=0?` · Полный салон дешевле на ${fmt(diff)}`:` · Полный салон всего на ${fmt(-diff)} дороже`; }el.querySelector('#element-live').textContent=text;};
-    el.querySelectorAll('input').forEach(i=>i.addEventListener('change',refresh));refresh();
+    const defs=elementDefs.map(([code,title])=>{
+      const name=`el_${code}`,qty=code==='seat'?qtyMarkup('seat',state.data.seat_qty,seatMax):code==='seat_belt'?qtyMarkup('belt',state.data.belt_qty,seatMax):'';
+      const sub=code==='seat'?`от ${price('seat')} / место`:code==='seat_belt'?`${price('seat_belt','1')} / шт.`:'Нажмите, чтобы добавить';
+      return `<div class="inline-element-block"><div class="inline-element"><input type="checkbox" id="inline-${name}" name="${name}" ${state.data[name]?'checked':''}><label for="inline-${name}"><b>${title.replace(/^4 /,'')}</b><small>${sub}</small><span class="inline-element-mark">✓</span></label></div>${qty}</div>`;
+    }).join('');
+    return `<div class="inline-elements-panel"><div class="inline-elements-title">Выберите элементы салона</div><div class="inline-elements-help">Количество сидений и ремней указывается рядом с выбранным элементом.</div><div class="inline-elements-price" data-inline-price></div><div class="inline-elements-grid">${defs}</div><div class="inline-elements-error">Выберите хотя бы один элемент салона.</div></div>`;
+  }
+  function qtyMarkup(type,value,max){
+    const isSeat=type==='seat',name=isSeat?'seat_qty':'belt_qty',title=isSeat?'Количество сидений':'Количество ремней';
+    return `<div class="inline-qty" data-inline-qty="${type}"><span class="inline-qty-title">${title}</span><div class="qty-stepper"><button type="button" data-qty-minus="${type}" data-inline-minus="${type}" aria-label="Уменьшить">−</button><input name="${name}" type="number" inputmode="numeric" min="1" max="${max}" value="${Math.min(max,Math.max(1,+value||1))}" aria-label="${title}"><button type="button" data-qty-plus="${type}" data-inline-plus="${type}" aria-label="Увеличить">+</button></div></div>`;
+  }
+  function syncCarElementQty(panel){
+    for(const [flag,type,name] of [['el_seat','seat','seat_qty'],['el_seat_belt','belt','belt_qty']]){
+      panel.querySelector(`[data-inline-qty="${type}"]`)?.classList.toggle('open',!!panel.querySelector(`[name="${flag}"]`)?.checked);
+      const input=panel.querySelector(`[name="${name}"]`);if(input){const max=+(state.data.seats||5);input.max=String(max);input.value=String(Math.min(max,Math.max(1,+input.value||1)));}
+    }
+  }
+  function refreshCarElements(panel){
+    capture();syncCarElementQty(panel);panel.querySelector('.inline-elements-error')?.classList.remove('show');
+    const c=calc(),out=panel.querySelector('[data-inline-price]'),any=buildItems().length>0;
+    out.textContent=!any?'Выберите элементы — цена появится здесь':c.manual?'Цена после фото':`Выбранные элементы: ${fmt(c.base)}`;
+    out.dataset.value=!any||c.manual?'':String(c.base);
+  }
+  function bindCarElements(panel){
+    panel.addEventListener('change',()=>refreshCarElements(panel));
+    panel.addEventListener('input',e=>{if(e.target.matches('input[type="number"]'))refreshCarElements(panel);});
+    panel.addEventListener('click',e=>{const type=e.target.dataset.qtyPlus||e.target.dataset.qtyMinus;if(!type)return;const input=panel.querySelector(`[name="${type==='seat'?'seat_qty':'belt_qty'}"]`),delta=e.target.dataset.qtyPlus?1:-1,max=+input.max;input.value=String(Math.min(max,Math.max(1,+input.value+delta)));input.dispatchEvent(new Event('change',{bubbles:true}));});
+    syncCarElementQty(panel);
   }
   function issues(el){
     el.innerHTML=`<div class="step-title">Что ещё заметно?</div><div class="step-help">Пятна входят в обычную работу соответствующей зоны. Сильная шерсть и запах увеличивают время и могут изменить цену.</div><div class="choice-grid">${check('stains','Пятна','Старые или заметные',state.data.stains)}${check('hair','Шерсть','Домашние животные',state.data.hair)}${check('odor','Запах','Нужно работать с источником, а не маскировать',state.data.odor)}</div><div class="field"><label>Комментарий</label><textarea name="comment" placeholder="Опишите сложные места">${esc(state.data.comment||'')}</textarea></div><div class="field"><label>Фото — до 5 шт.</label><input id="photos-input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple><div id="photo-status" class="status-line">${state.files.length?`Выбрано: ${state.files.length}`:'Фото хранятся приватно и видны только сотрудникам SIR.'}</div></div>`;
@@ -151,7 +192,7 @@
     if(state.service==='car'){
       const seats=seatClass(d.seats||5),pkg=d.package||'full';
       if(pkg==='full')base=rule('full_interior',seats,level)||0;
-      else if(pkg==='seats')base=seatTotal(+seats,level);
+      else if(pkg==='seats')base=seatTotal(Math.max(1,+d.seats||5),level);
       else for(const it of buildItems()){base+=it.code==='seat'?seatTotal(it.quantity,level):(rule(it.code,it.size_key,level)||0)*it.quantity;}
     }else if(state.service==='sofa')base=rule('sofa',String(d.size||3),level)||0;
     else if(state.service==='chair')base=rule('armchair','default',level)||0;
