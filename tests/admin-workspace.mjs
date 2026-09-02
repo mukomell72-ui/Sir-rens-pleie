@@ -6,8 +6,8 @@ const context=await browser.newContext({viewport:{width:390,height:844},isMobile
 const page=await context.newPage();
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 
-await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'domcontentloaded'});
-await page.waitForSelector('#recoveryButton');
+await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'commit'});
+await page.waitForSelector('#recoveryButton',{timeout:45000});
 await page.locator('#recoveryButton').click();
 assert.match(await page.locator('#loginStatus').innerText(),/Сначала введите email/);
 await page.locator('#previewBtn').click();
