@@ -22,6 +22,12 @@ assert.deepEqual(siteLink,{text:'Открыть сайт',href:'../',target:'_bl
 await page.locator('[data-view="orders"]').click();
 await page.waitForSelector('#orderSearch');
 assert.equal(await page.locator('#orderStatus').count(),1);
+assert.equal(await page.locator('.order-row').count(),3);
+
+await page.locator('.nav-more summary').click();
+await page.locator('[data-view="finance"]').click();
+await page.waitForSelector('.demo-purchases');
+assert.equal(await page.locator('.demo-purchases tbody tr').count(),3);
 
 await page.locator('[data-view="guide"]').click();
 await page.waitForSelector('.guide-rules');
