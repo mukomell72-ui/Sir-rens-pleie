@@ -133,7 +133,8 @@
     const defs=elementDefs.map(([code,title])=>{
       const name=`el_${code}`,qty=code==='seat'?qtyMarkup('seat',state.data.seat_qty,seatMax):code==='seat_belt'?qtyMarkup('belt',state.data.belt_qty,seatMax):'';
       const sub=code==='seat'?`от ${price('seat')} / место`:code==='seat_belt'?`${price('seat_belt','1')} / шт.`:'Нажмите, чтобы добавить';
-      return `<div class="inline-element-block"><div class="inline-element"><input type="checkbox" id="inline-${name}" name="${name}" ${state.data[name]?'checked':''}><label for="inline-${name}"><b>${title.replace(/^4 /,'')}</b><small>${sub}</small><span class="inline-element-mark">✓</span></label></div>${qty}</div>`;
+      const displayTitle=code==='door_cards'?(state.language==='no'?'Dørpaneler':state.language==='en'?'Door cards':'Дверные карты'):code==='textile_mats'?(state.language==='no'?'Tekstilmatter':state.language==='en'?'Textile mats':'Текстильные коврики'):title;
+      return `<div class="inline-element-block"><div class="inline-element"><input type="checkbox" id="inline-${name}" name="${name}" ${state.data[name]?'checked':''}><label for="inline-${name}"><b>${displayTitle}</b><small>${sub}</small><span class="inline-element-mark">✓</span></label></div>${qty}</div>`;
     }).join('');
     return `<div class="inline-elements-panel"><div class="inline-elements-title">Выберите элементы салона</div><div class="inline-elements-help">Количество сидений и ремней указывается рядом с выбранным элементом.</div><div class="inline-elements-price" data-inline-price></div><div class="inline-elements-grid">${defs}</div><div class="inline-elements-error">Выберите хотя бы один элемент салона.</div></div>`;
   }
