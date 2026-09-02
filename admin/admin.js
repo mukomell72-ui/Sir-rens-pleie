@@ -19,7 +19,7 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
   if(!sb){alert('База SIR не подключена.');return;}
   const email=document.getElementById('email').value,password=document.getElementById('password').value;
   const {data,error}=await sb.auth.signInWithPassword({email,password});
-  if(error){alert(error.message);return;}
+  if(error){const status=document.getElementById('loginStatus');if(status){status.textContent='Email или пароль неверны. Проверьте раскладку либо восстановите пароль.';status.classList.remove('hidden');}else alert('Email или пароль неверны.');return;}
   const {data:profile,error:pe}=await sb.from('profiles').select('role,display_name,active').eq('id',data.user.id).single();
   if(pe||!profile?.active){await sb.auth.signOut();alert('Доступ к SIR Admin не активирован.');return;}
   currentRole=(profile.role||'worker').toUpperCase();enter(currentRole);
