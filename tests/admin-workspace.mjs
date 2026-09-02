@@ -9,7 +9,7 @@ const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'domcontentloaded'});
 await page.locator('#previewBtn').click();
 await page.waitForSelector('#app:not(.hidden)');
-assert.equal((await page.locator('h1').first().textContent()).trim(),'Сегодня');
+assert.equal((await page.locator('#main h1').first().textContent()).trim(),'Сегодня');
 assert.equal(await page.getByText('Только то, что требует решения или действия').count(),1);
 assert.equal(await page.locator('[data-view="orders"]').count(),1);
 assert.equal(await page.locator('[data-view="guide"]').count(),1);
