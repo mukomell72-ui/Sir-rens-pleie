@@ -20,6 +20,7 @@ assert.equal(await page.locator('.service-card[data-service="car"]').isVisible()
 assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('sir-poster-active')),true);
 assert.equal(await page.locator('.sir-poster-drawer').evaluate(e=>e.classList.contains('open')),true);
 assert.equal(await page.locator('main').isVisible(),false);
+await page.waitForTimeout(350);
 assert.equal(await page.locator('.sir-drawer-content').evaluate(e=>e.scrollTop),0);
 const barBottom=await page.locator('.sir-drawer-bar').evaluate(e=>e.getBoundingClientRect().bottom);
 const cardTop=await page.locator('.sir-drawer-content>.service-card').evaluate(e=>e.getBoundingClientRect().top);
