@@ -1,11 +1,11 @@
 (()=>{
   const poster=document.querySelector('.sir-poster');if(!poster)return;
-  let moved=null,origin=null,lastFocus=null;
+  let moved=null,origin=null,lastFocus=null,restoreTimer=null;
   const drawer=document.createElement('section');drawer.className='sir-poster-drawer';drawer.setAttribute('role','dialog');drawer.setAttribute('aria-modal','true');drawer.setAttribute('aria-hidden','true');drawer.innerHTML='<div class="sir-drawer-bar"><div><small>SIR RENS &amp; PLEIE</small><strong data-drawer-title></strong></div><button type="button" data-drawer-close aria-label="Lukk">×</button></div><div class="sir-drawer-content"></div>';
   document.body.append(drawer);const content=drawer.querySelector('.sir-drawer-content'),title=drawer.querySelector('[data-drawer-title]');
   const restore=()=>{if(moved&&origin?.parent)origin.parent.insertBefore(moved,origin.next?.parentNode===origin.parent?origin.next:null);moved=origin=null;content.replaceChildren();};
-  const close=()=>{drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');document.body.classList.remove('sir-drawer-open');setTimeout(restore,180);lastFocus?.focus?.();};
-  const open=(heading,node=null)=>{restore();lastFocus=document.activeElement;title.textContent=heading;content.replaceChildren();if(node){moved=node;origin={parent:node.parentNode,next:node.nextSibling};content.append(node);}drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');document.body.classList.add('sir-drawer-open');drawer.querySelector('[data-drawer-close]').focus();};
+  const close=()=>{drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');document.body.classList.remove('sir-drawer-open');clearTimeout(restoreTimer);restoreTimer=setTimeout(()=>{restoreTimer=null;restore();},180);lastFocus?.focus?.();};
+  const open=(heading,node=null)=>{clearTimeout(restoreTimer);restoreTimer=null;restore();lastFocus=document.activeElement;title.textContent=heading;content.replaceChildren();if(node){moved=node;origin={parent:node.parentNode,next:node.nextSibling};content.append(node);}drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');document.body.classList.add('sir-drawer-open');drawer.querySelector('[data-drawer-close]').focus();};
   const serviceNames={car:'Bilinteriør',sofa:'Sofa',chair:'Lenestol',mattress:'Madrass',rug:'Tepper'};
   const openService=service=>{const card=document.querySelector(`.service-card[data-service="${service}"]`);if(!card)return;open(serviceNames[service],card);requestAnimationFrame(()=>card.querySelector('.service-head')?.click());};
   const openProfile=need=>{const profile=document.querySelector('.sir-profile');if(!profile)return;open('SIR Renhetsprofil',profile);if(need)setTimeout(()=>{const b=profile.querySelector(`[data-profile-group="issues"] [data-value="${need}"]`);if(b&&!b.classList.contains('selected'))b.click();},80);};
