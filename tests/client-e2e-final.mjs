@@ -38,6 +38,11 @@ await page.route(/\/functions\/v1\/vehicle-lookup/, async r => {
   if (await maybePreflight(r)) return;
   await json(r, {brand:'VOLKSWAGEN',model:'TRANSPORTER',year:2010,body:'Flerbruksbil (AF)',seats:8});
 });
+await page.route(/\/functions\/v1\/postal-distance/, async r => {
+  if (await maybePreflight(r)) return;
+  assert.deepEqual(r.request().postDataJSON(), {postalCode:'3616'});
+  await json(r, {postalCode:'3616',city:'KONGSBERG',municipality:'KONGSBERG',distanceKm:2,method:'road',approximate:true});
+});
 await page.route(/\/rest\/v1\/rpc\/public_submit_order_v2/, async r => {
   if (await maybePreflight(r)) return;
   submissions.push(r.request().postDataJSON());
@@ -77,7 +82,10 @@ const openService = async (service, expected) => {
 const contactToSummary = async () => {
   await page.locator('input[name="customer_name"]').fill('Тест SIR');
   await page.locator('input[name="phone"]').fill('99999999');
-  await page.locator('input[name="distance_km"]').fill('5');
+  await page.locator('input[name="postal_code"]').fill('3616');
+  await page.waitForFunction(()=>document.querySelector('input[name="city"]')?.value==='KONGSBERG');
+  assert.equal(await page.locator('input[name="distance_km"]').inputValue(),'2');
+  assert.match(await page.locator('[data-postal-status]').textContent(),/KONGSBERG.*2 км/);
   await page.waitForSelector('#sirPrivacyConsent');
   await page.waitForTimeout(100);
   await page.locator('.service-card.open #next').click();
