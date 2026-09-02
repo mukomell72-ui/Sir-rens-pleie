@@ -17,6 +17,17 @@ assert.equal(await page.locator('.service-card[data-service="car"]').isVisible()
 assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('sir-poster-active')),true);
 assert.equal(await page.locator('.sir-poster-drawer').evaluate(e=>e.classList.contains('open')),true);
 assert.equal(await page.locator('main').isVisible(),false);
+assert.equal(await page.locator('.sir-drawer-content').evaluate(e=>e.scrollTop),0);
+const barBottom=await page.locator('.sir-drawer-bar').evaluate(e=>e.getBoundingClientRect().bottom);
+const cardTop=await page.locator('.sir-drawer-content>.service-card').evaluate(e=>e.getBoundingClientRect().top);
+assert.ok(cardTop>=barBottom,`service card starts under drawer bar: ${cardTop} >= ${barBottom}`);
+const actionsPosition=await page.locator('.sir-drawer-content .wizard-actions').evaluate(e=>getComputedStyle(e).position);
+assert.equal(actionsPosition,'static');
+const firstField=page.locator('.sir-drawer-content #step input').first();
+const actions=page.locator('.sir-drawer-content .wizard-actions');
+const fieldBox=await firstField.boundingBox();
+const actionsBox=await actions.boundingBox();
+assert.ok(!fieldBox||!actionsBox||fieldBox.y+fieldBox.height<=actionsBox.y,'navigation controls must not cover a form field');
 await load();
 await page.locator('[data-poster-lang="ru"]').click();
 assert.equal(await page.locator('[data-lang="ru"]').evaluate(e=>e.classList.contains('active')),true);
