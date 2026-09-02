@@ -84,3 +84,8 @@ jobs:
         run: |
           set -euo pipefail
           timeout 60s node tests/poster-navigation.mjs
+      - name: Run admin mobile workspace regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s node tests/admin-workspace.mjs
