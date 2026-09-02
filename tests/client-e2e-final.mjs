@@ -87,12 +87,14 @@ const contactToSummary = async () => {
   assert.equal(await page.locator('input[name="distance_km"]').inputValue(),'2');
   assert.match(await page.locator('[data-postal-status]').textContent(),/KONGSBERG.*2 км/);
   await page.waitForSelector('#sirPrivacyConsent');
+  await page.waitForSelector('#sirTermsAcknowledgement');
   await page.waitForTimeout(100);
   await page.locator('.service-card.open #next').click();
   assert.equal(await title(), 'Контакт и выезд');
   await page.waitForSelector('.privacy-consent-error:not([hidden])');
   assert.equal(await page.locator('#sirPrivacyConsent').isChecked(), false);
   await page.locator('#sirPrivacyConsent').check();
+  await page.locator('#sirTermsAcknowledgement').check();
   assert.equal(await page.locator('#sirPrivacyConsent').isChecked(), true);
   await domNext('План и предварительный расчёт');
 };
@@ -158,6 +160,9 @@ await page.waitForFunction(() => document.querySelector('.service-card.open .ste
 assert.equal(submissions.length, 1);
 assert.equal(submissions[0]?.p_payload?.privacy_accepted, true);
 assert.ok(submissions[0]?.p_payload?.privacy_version);
+assert.equal(submissions[0]?.p_payload?.terms_acknowledged, true);
+assert.ok(submissions[0]?.p_payload?.terms_version);
+assert.equal(submissions[0]?.p_payload?.request_not_contract, true);
 
 await loadRu();
 await openService('car', 'Ваш автомобиль');
