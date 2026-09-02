@@ -93,12 +93,14 @@ async function fillContactAndConsent(page) {
   await page.locator('input[name="phone"]').fill('99999999');
   await page.locator('input[name="distance_km"]').fill('5');
   await page.waitForSelector('#sirPrivacyConsent');
+  await page.waitForSelector('#sirTermsAcknowledgement');
 
   await settle(page);
   await page.locator('.service-card.open #next').click();
   assert.equal(await title(page), 'Контакт и выезд');
   await page.waitForSelector('.privacy-consent-error:not([hidden])');
   await page.locator('#sirPrivacyConsent').check();
+  await page.locator('#sirTermsAcknowledgement').check();
   await next(page, 'План и предварительный расчёт');
 }
 
@@ -133,6 +135,8 @@ async function testCarFull() {
     assert.equal(submitted.length, 1);
     assert.equal(submitted[0]?.p_payload?.privacy_accepted, true);
     assert.ok(submitted[0]?.p_payload?.privacy_version);
+    assert.equal(submitted[0]?.p_payload?.terms_acknowledged, true);
+    assert.equal(submitted[0]?.p_payload?.request_not_contract, true);
     await assertClean(run);
   } finally {
     await context.close();
