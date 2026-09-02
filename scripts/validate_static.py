@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HTML_FILES = [
     ROOT / "index.html",
     ROOT / "privacy.html",
+    ROOT / "terms.html",
     ROOT / "admin" / "index.html",
     ROOT / "admin" / "calendar.html",
     ROOT / "admin" / "technology.html",
@@ -97,10 +98,24 @@ def main() -> int:
         errors.append("Dynamic translation completion must load before the main i18n and metadata layers")
     if 'data-lang="no" class="active"' not in index or '<html lang="nb">' not in index:
         errors.append("Norwegian must remain the default public storefront language")
+    for marker in ('content="no-referrer"', "object-src 'none'", 'href="terms.html"'):
+        if marker not in index:
+            errors.append(f"Public site security/legal marker is missing: {marker}")
 
     privacy = (ROOT / "assets" / "privacy-consent.js").read_text(encoding="utf-8")
     if "public_submit_order_v2" not in privacy or "privacy_accepted=true" not in privacy.replace(" ", ""):
         errors.append("Privacy wrapper must route public orders through v2 with explicit consent")
+    for marker in ("sirTermsAcknowledgement", "terms_acknowledged", "terms_version"):
+        if marker not in privacy:
+            errors.append(f"Terms acknowledgement is missing marker: {marker}")
+
+    terms = (ROOT / "terms.html").read_text(encoding="utf-8")
+    for marker in ("Veiledende pris", "Indicative price", "Ориентировочная цена", "ENK"):
+        if marker not in terms:
+            errors.append(f"Terms page is missing marker: {marker}")
+    for marker in ("request_not_contract", "priceNotice", "requestNotice"):
+        if marker not in app:
+            errors.append(f"Public request/price protection is missing marker: {marker}")
 
     status_link = (ROOT / "assets" / "status-link.js").read_text(encoding="utf-8")
     if "'/rest/v1/rpc/public_submit_order'" not in status_link or "status_token" not in status_link:
