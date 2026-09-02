@@ -72,7 +72,11 @@
     const useProfile=profile.service===service;
     state.service=service;state.step=0;state.data={service,...(useProfile?{stains:profile.issues?.includes('stains'),odor:profile.issues?.includes('odor'),hair:profile.issues?.includes('hair'),comment:profile.issues?.includes('allergens')?'Prioritet: støv og allergener.':''}:{})};state.files=[];
     if(useProfile)sessionStorage.removeItem('sir_clean_profile');
-    cards.forEach(c=>c.classList.toggle('open',c.dataset.service===service));render();document.querySelector(`.service-card[data-service="${service}"]`).scrollIntoView({behavior:'smooth',block:'start'});}
+    cards.forEach(c=>c.classList.toggle('open',c.dataset.service===service));render();
+    const card=document.querySelector(`.service-card[data-service="${service}"]`);
+    const drawerContent=card?.closest('.sir-drawer-content');
+    if(drawerContent)drawerContent.scrollTo({top:0,behavior:'auto'});
+    else card?.scrollIntoView({behavior:'smooth',block:'start'});}
   function steps(){
     if(state.service==='car')return [carVehicle,carPackage,condition,...(state.data.package==='elements'?[carElements]:[]),issues,contact,summary];
     if(state.service==='sofa')return [sofaSize,furnitureMaterial,condition,issues,contact,summary];
@@ -86,6 +90,8 @@
     s[state.step](root.querySelector('#step'));
     root.querySelector('#prev').addEventListener('click',()=>{capture();state.step--;render();});
     root.querySelector('#next').addEventListener('click',async()=>{if(!capture(true)||!validateCurrent(s[state.step]))return;if(state.step===s.length-1)await submit();else{state.step++;render();}});
+    const drawerContent=root.closest('.sir-drawer-content');
+    if(drawerContent)requestAnimationFrame(()=>drawerContent.scrollTo({top:0,behavior:'auto'}));
   }
   function currentRoot(){return document.querySelector(`.service-card[data-service="${state.service}"] .service-body`);}
   function capture(validate=false){

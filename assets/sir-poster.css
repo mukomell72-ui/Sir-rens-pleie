@@ -15,3 +15,12 @@
   .sir-drawer-content>.service-card .choice label{min-height:88px;padding:17px 15px}
   .sir-drawer-menu button,.sir-drawer-menu a{min-height:66px;font-size:18px}
 }
+
+/* Mobile poster and booking drawer: no artificial gap and no controls over fields. */
+@media(max-width:600px){
+  .sir-poster{display:block!important;min-height:0!important}
+  .sir-poster-hint{position:relative!important;left:auto!important;bottom:auto!important;transform:none!important;width:max-content;max-width:calc(100% - 24px);margin:12px auto calc(16px + env(safe-area-inset-bottom))!important;font-size:14px;padding:11px 18px}
+  .sir-drawer-content{scroll-padding-top:12px;padding-bottom:calc(18px + env(safe-area-inset-bottom))!important}
+  .sir-drawer-content>.service-card{overflow:hidden}
+  .sir-drawer-content>.service-card .wizard-actions{position:static!important;bottom:auto!important;z-index:auto!important;margin-top:24px!important;padding:12px 0 calc(4px + env(safe-area-inset-bottom))!important;background:transparent!important;backdrop-filter:none!important}
+}
