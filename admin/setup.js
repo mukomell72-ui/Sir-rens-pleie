@@ -1,7 +1,7 @@
 (() => {
   const C=window.SIR_CONFIG;
-  if(!C?.supabaseUrl||!C?.supabasePublishableKey||!window.supabase)return;
-  const client=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey,{auth:{persistSession:true}});
+  if(!C?.supabaseUrl||!C?.supabasePublishableKey)return;
+  const client=window.supabase?.createClient?.(C.supabaseUrl,C.supabasePublishableKey,{auth:{persistSession:true}})||null;
   const loginForm=document.getElementById('loginForm');
   const signupForm=document.getElementById('signupForm');
   const loginStatus=document.createElement('div');loginStatus.id='loginStatus';loginStatus.className='notice hidden';loginForm?.appendChild(loginStatus);
@@ -14,6 +14,7 @@
   recoveryButton?.addEventListener('click',async()=>{
     const email=document.getElementById('email').value.trim();
     if(!email){document.getElementById('email').focus();showLoginStatus('Сначала введите email аккаунта OWNER.');return;}
+    if(!client){showLoginStatus('Сервис входа временно недоступен. Обновите страницу и повторите.');return;}
     recoveryButton.disabled=true;recoveryButton.textContent='Отправляем…';
     const redirectTo=`${location.origin}${location.pathname}`;
     const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo});
@@ -22,13 +23,14 @@
     showLoginStatus('Если аккаунт с таким email существует, Supabase отправит защищённую ссылку. Проверьте также папку «Спам».',true);
   });
 
-  client.auth.onAuthStateChange((event)=>{
+  client?.auth.onAuthStateChange((event)=>{
     if(event!=='PASSWORD_RECOVERY')return;
     loginForm?.classList.add('hidden');signupForm?.closest('details')?.classList.add('hidden');recoveryBox.classList.remove('hidden');
   });
 
   recoveryBox.addEventListener('submit',async e=>{
     e.preventDefault();const status=document.getElementById('recoveryStatus'),password=document.getElementById('recoveryPassword').value,again=document.getElementById('recoveryPasswordAgain').value;
+    if(!client){status.textContent='Сервис входа временно недоступен. Обновите страницу.';return;}
     if(password!==again){status.textContent='Пароли не совпадают.';return;}
     if(password.length<12){status.textContent='Используйте не менее 12 символов.';return;}
     status.textContent='Сохраняем…';const {error}=await client.auth.updateUser({password});
@@ -40,6 +42,7 @@
     const code=String(document.getElementById('ownerCode')?.value||'').trim();
     if(!code)return;
     e.preventDefault();e.stopImmediatePropagation();
+    if(!client){showLoginStatus('Сервис входа временно недоступен. Обновите страницу.');return;}
     const email=document.getElementById('email').value,password=document.getElementById('password').value;
     const {error}=await client.auth.signInWithPassword({email,password});
     if(error){showLoginStatus('Email или пароль неверны. Проверьте раскладку либо восстановите пароль.');return;}
@@ -51,6 +54,7 @@
   signupForm?.addEventListener('submit',async e=>{
     e.preventDefault();
     const status=document.getElementById('signupStatus');
+    if(!client){status.textContent='Сервис входа временно недоступен. Обновите страницу.';return;}
     status.textContent='Создаём защищённый аккаунт…';
     const display_name=document.getElementById('signupName').value.trim();
     const email=document.getElementById('signupEmail').value.trim();

@@ -3,7 +3,7 @@ const workspaceCss=document.createElement('link');workspaceCss.rel='stylesheet';
 const C=window.SIR_CONFIG;
 let sb=null,preview=false,currentRole='PREVIEW',calendarCursor=new Date();
 const login=document.getElementById('login'),app=document.getElementById('app'),main=document.getElementById('main');
-const connected=!!(C.supabaseUrl&&C.supabasePublishableKey);
+const connected=!!(C.supabaseUrl&&C.supabasePublishableKey&&window.supabase?.createClient);
 if(connected){sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);document.getElementById('setupNotice').classList.add('hidden');}
 const canAdmin=()=>['OWNER','ADMIN'].includes(currentRole);
 const canManage=()=>['OWNER','ADMIN','MANAGER'].includes(currentRole);

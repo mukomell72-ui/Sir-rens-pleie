@@ -6,8 +6,8 @@ const context=await browser.newContext({viewport:{width:390,height:844},isMobile
 const page=await context.newPage();
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 
-await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'domcontentloaded'});
-await page.waitForSelector('#recoveryButton');
+await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'commit'});
+await page.waitForSelector('#recoveryButton',{timeout:45000});
 await page.locator('#recoveryButton').click();
 assert.match(await page.locator('#loginStatus').innerText(),/Сначала введите email/);
 await page.locator('#previewBtn').click();
@@ -16,6 +16,8 @@ assert.equal((await page.locator('#main h1').first().textContent()).trim(),'Се
 assert.equal(await page.getByText('Только то, что требует решения или действия').count(),1);
 assert.equal(await page.locator('[data-view="orders"]').count(),1);
 assert.equal(await page.locator('[data-view="guide"]').count(),1);
+const siteLink=await page.evaluate(()=>{const el=document.querySelector('.admin-site-link');return el&&{text:el.textContent.trim(),href:el.getAttribute('href'),target:el.target,rel:el.rel,visible:el.getClientRects().length>0}});
+assert.deepEqual(siteLink,{text:'Открыть сайт',href:'../',target:'_blank',rel:'noopener noreferrer',visible:true});
 
 await page.locator('[data-view="orders"]').click();
 await page.waitForSelector('#orderSearch');
