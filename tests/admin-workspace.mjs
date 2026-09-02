@@ -16,13 +16,8 @@ assert.equal((await page.locator('#main h1').first().textContent()).trim(),'Се
 assert.equal(await page.getByText('Только то, что требует решения или действия').count(),1);
 assert.equal(await page.locator('[data-view="orders"]').count(),1);
 assert.equal(await page.locator('[data-view="guide"]').count(),1);
-const siteLink=page.locator('.admin-site-link');
-assert.equal((await siteLink.textContent()).trim(),'Открыть сайт');
-assert.equal(await siteLink.isVisible(),true);
-assert.equal(await siteLink.getAttribute('href'),'../');
-assert.equal(await siteLink.getAttribute('target'),'_blank');
-assert.match(await siteLink.getAttribute('rel'),/noopener/);
-assert.match(await siteLink.getAttribute('rel'),/noreferrer/);
+const siteLink=await page.evaluate(()=>{const el=document.querySelector('.admin-site-link');return el&&{text:el.textContent.trim(),href:el.getAttribute('href'),target:el.target,rel:el.rel,visible:el.getClientRects().length>0}});
+assert.deepEqual(siteLink,{text:'Открыть сайт',href:'../',target:'_blank',rel:'noopener noreferrer',visible:true});
 
 await page.locator('[data-view="orders"]').click();
 await page.waitForSelector('#orderSearch');
