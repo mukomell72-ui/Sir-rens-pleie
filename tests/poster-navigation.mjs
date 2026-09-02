@@ -23,5 +23,8 @@ assert.equal(await page.locator('[data-lang="ru"]').evaluate(e=>e.classList.cont
 await load();
 await page.locator('[data-poster-need="odor"]').click();
 await page.waitForSelector('.sir-profile [data-value="odor"].selected');
+await load();
+await page.locator('[data-poster-menu]').click();
+assert.equal(await page.locator('[data-menu-service="rug"]').isVisible(),true);
 assert.deepEqual(errors,[]);
 await browser.close();console.log('POSTER NAVIGATION PASS');
