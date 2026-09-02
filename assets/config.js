@@ -7,6 +7,7 @@ window.SIR_CONFIG = {
   supabaseUrl: "https://fxdgeizhlhgvybclvmyo.supabase.co",
   supabasePublishableKey: "sb_publishable_GvTM9nV_6kp1Vsfd1PajPg_q-Js5dzF",
   vehicleLookupUrl: "https://fxdgeizhlhgvybclvmyo.supabase.co/functions/v1/vehicle-lookup",
+  postalLookupUrl: "https://fxdgeizhlhgvybclvmyo.supabase.co/functions/v1/postal-distance",
   photoUploadUrl: "https://fxdgeizhlhgvybclvmyo.supabase.co/functions/v1/order-photo-upload",
   masterQrPath: "./q/",
   reviewUrl: "",
