@@ -23,6 +23,16 @@ await page.locator('[data-view="orders"]').click();
 await page.waitForSelector('#orderSearch');
 assert.equal(await page.locator('#orderStatus').count(),1);
 assert.equal(await page.locator('.order-row').count(),3);
+await page.locator('.order-row').first().click();
+await page.waitForSelector('#demoOrderForm');
+assert.match(await page.locator('#main').innerText(),/5 сидений, ремни безопасности/);
+assert.match(await page.locator('#main').innerText(),/Повторный проход/);
+await page.locator('#demoOrderForm select[name="status"]').selectOption('scheduled');
+await page.locator('#demoOrderForm input[name="price"]').fill('2600');
+await page.locator('#demoOrderForm').locator('button[type="submit"]').click();
+assert.match(await page.locator('#demoSaveStatus').innerText(),/Сохранено/);
+await page.locator('#backOrders').click();
+assert.equal(await page.locator('.order-row').count(),3);
 
 await page.locator('.nav-more summary').click();
 await page.locator('[data-view="finance"]').click();
