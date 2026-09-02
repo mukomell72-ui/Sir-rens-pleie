@@ -17,7 +17,8 @@ assert.equal(await page.getByText('Только то, что требует ре
 assert.equal(await page.locator('[data-view="orders"]').count(),1);
 assert.equal(await page.locator('[data-view="guide"]').count(),1);
 const siteLink=page.locator('.admin-site-link');
-assert.equal(await siteLink.innerText(),'Открыть сайт');
+assert.equal((await siteLink.textContent()).trim(),'Открыть сайт');
+assert.equal(await siteLink.isVisible(),true);
 assert.equal(await siteLink.getAttribute('href'),'../');
 assert.equal(await siteLink.getAttribute('target'),'_blank');
 assert.match(await siteLink.getAttribute('rel'),/noopener/);
