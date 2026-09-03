@@ -51,6 +51,11 @@ assert.equal(await page.locator('.demo-purchases tbody tr').count(),3);
 await page.locator('[data-view="guide"]').click();
 await page.waitForSelector('.guide-rules');
 assert.equal(await page.locator('.guide-frame').count(),1);
+assert.match(await page.locator('.guide-frame').getAttribute('src'),/guide-app\/index-v13\.html\?embedded=admin/);
+const guideFrame=page.frameLocator('.guide-frame');
+await guideFrame.locator('#q').waitFor();
+assert.match(await guideFrame.locator('.sub').innerText(),/Фактический арсенал/);
+assert.ok(await guideFrame.locator('.card').count()>20);
 assert.match(await page.locator('.guide-rules').innerText(),/spot-test либо STOP/);
 
 const layout=await page.evaluate(()=>({doc:document.documentElement.scrollWidth,viewport:innerWidth,top:document.querySelector('.admin-top').getBoundingClientRect(),main:document.querySelector('.main').getBoundingClientRect()}));
