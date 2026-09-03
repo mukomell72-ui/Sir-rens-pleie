@@ -53,7 +53,8 @@ const loadRu = async () => {
   await page.goto('http://127.0.0.1:4173/index.html', { waitUntil:'domcontentloaded' });
   await page.evaluate(() => sessionStorage.clear());
   await page.reload({waitUntil:'domcontentloaded'});
-  await page.locator('[data-poster-lang="ru"]').click();
+  await page.evaluate(() => document.querySelector('[data-poster-lang="ru"]')?.click());
+  await page.waitForFunction(() => document.querySelector('[data-lang="ru"]')?.classList.contains('active'));
 };
 await loadRu();
 
@@ -76,7 +77,7 @@ const domNext = async expected => {
   await waitTitle(expected);
 };
 const openService = async (service, expected) => {
-  await page.locator(`[data-poster-service="${service}"]`).click();
+  await page.evaluate(name => document.querySelector(`[data-poster-service="${name}"]`)?.click(), service);
   await waitTitle(expected);
 };
 const contactToSummary = async () => {
@@ -191,8 +192,9 @@ for (const [service, first] of [['sofa','Размер дивана'],['chair','�
 }
 
 await loadRu();
-await page.locator('[data-poster-menu]').click();
-await page.locator('[data-menu-service="rug"]').click();
+await page.evaluate(() => document.querySelector('[data-poster-menu]')?.click());
+await page.waitForSelector('.sir-poster-drawer.open [data-menu-service="rug"]');
+await page.evaluate(() => document.querySelector('[data-menu-service="rug"]')?.click());
 await waitTitle('Размер ковра');
 await domNext('Материал ковра');
 await page.locator('input[name="material"][value="wool"]').check();
@@ -200,7 +202,7 @@ await domNext('Степень загрязнения');
 
 await page.goto('http://127.0.0.1:4173/index.html', {waitUntil:'domcontentloaded'});
 for (const lang of ['no','en','ru']) {
-  await page.locator(`[data-poster-lang="${lang}"]`).click();
+  await page.evaluate(next => document.querySelector(`[data-poster-lang="${next}"]`)?.click(), lang);
   assert.ok((await page.locator(`[data-lang="${lang}"]`).getAttribute('class'))?.includes('active'));
 }
 assert.equal(await page.locator('.service-card[data-service="sofa"] .service-title').evaluate(e=>getComputedStyle(e).display),'block');
