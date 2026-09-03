@@ -9,7 +9,7 @@
   const serviceNames={car:'Bilinteriør',sofa:'Sofa',chair:'Lenestol',mattress:'Madrass',rug:'Tepper'};
   const tapLabels={no:'TRYKK',en:'OPEN',ru:'НАЖАТЬ'};
   const updateTapLabels=lang=>poster.querySelectorAll('[data-poster-service]').forEach(button=>button.dataset.tapLabel=tapLabels[lang]||tapLabels.no);
-  const showFullSite=()=>{poster.style.display='none';document.body.classList.remove('sir-poster-active');window.scrollTo({top:0,behavior:'auto'});};
+  const showFullSite=()=>{poster.style.setProperty('display','none','important');document.body.classList.remove('sir-poster-active');document.body.classList.add('sir-full-site');window.scrollTo({top:0,behavior:'auto'});};
   const savedLang=localStorage.getItem('sir_lang')||'no';
   updateTapLabels(savedLang);
   if(savedLang==='en'||savedLang==='ru')showFullSite();
