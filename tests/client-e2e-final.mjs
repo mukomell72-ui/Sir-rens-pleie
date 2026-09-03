@@ -53,7 +53,8 @@ const loadRu = async () => {
   await page.goto('http://127.0.0.1:4173/index.html', { waitUntil:'domcontentloaded' });
   await page.evaluate(() => sessionStorage.clear());
   await page.reload({waitUntil:'domcontentloaded'});
-  await page.locator('[data-poster-lang="ru"]').click();
+  await page.evaluate(() => document.querySelector('[data-poster-lang="ru"]')?.click());
+  await page.waitForFunction(() => document.querySelector('[data-lang="ru"]')?.classList.contains('active'));
 };
 await loadRu();
 
