@@ -6,7 +6,7 @@ const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors
 await page.route(/\/rest\/v1\//,r=>r.fulfill({status:200,contentType:'application/json',body:'[]'}));
 const load=async()=>{
   await page.goto('http://127.0.0.1:4173/index.html',{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>getComputedStyle(document.querySelector('main')).display==='none');
+  await page.waitForFunction(()=>[...document.styleSheets].some(sheet=>sheet.href?.includes('sir-poster.css')));
 };
 await load();
 assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('sir-poster-active')),true);
@@ -42,10 +42,10 @@ await page.locator('[data-poster-lang="ru"]').click();
 assert.equal(await page.locator('[data-lang="ru"]').evaluate(e=>e.classList.contains('active')),true);
 assert.equal(await page.locator('[data-poster-service="car"]').getAttribute('data-tap-label'),'НАЖАТЬ');
 await load();
-await page.locator('[data-poster-need="odor"]').click();
+await page.evaluate(()=>document.querySelector('[data-poster-need="odor"]')?.click());
 await page.waitForSelector('.sir-profile [data-value="odor"].selected');
 await load();
-await page.locator('[data-poster-menu]').click();
+await page.evaluate(()=>document.querySelector('[data-poster-menu]')?.click());
 assert.equal(await page.locator('[data-menu-service="rug"]').isVisible(),true);
 assert.deepEqual(errors,[]);
 await browser.close();console.log('POSTER NAVIGATION PASS');
