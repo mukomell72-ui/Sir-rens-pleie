@@ -4,7 +4,10 @@ const browser=await chromium.launch({headless:true});
 const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,locale:'nb-NO'});
 const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.route(/\/rest\/v1\//,r=>r.fulfill({status:200,contentType:'application/json',body:'[]'}));
-const load=()=>page.goto('http://127.0.0.1:4173/index.html',{waitUntil:'domcontentloaded'});
+const load=async()=>{
+  await page.goto('http://127.0.0.1:4173/index.html',{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>getComputedStyle(document.querySelector('main')).display==='none');
+};
 await load();
 assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('sir-poster-active')),true);
 assert.equal(await page.locator('.sir-poster-frame>img').getAttribute('src'),'assets/sir-home-poster.webp');
