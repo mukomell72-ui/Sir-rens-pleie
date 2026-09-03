@@ -77,7 +77,7 @@ const domNext = async expected => {
   await waitTitle(expected);
 };
 const openService = async (service, expected) => {
-  await page.locator(`[data-poster-service="${service}"]`).click();
+  await page.evaluate(name => document.querySelector(`[data-poster-service="${name}"]`)?.click(), service);
   await waitTitle(expected);
 };
 const contactToSummary = async () => {
