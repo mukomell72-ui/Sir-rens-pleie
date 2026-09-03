@@ -131,10 +131,13 @@ async function customers(){
   const {data=[]}=await sb.from('customers').select('*').order('created_at',{ascending:false}).limit(200);
   main.innerHTML=`<div class="section-title"><div><h1>Клиенты</h1><p>${data.length} записей</p></div></div><div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Имя</th><th>Телефон</th><th>Реф. код</th><th>Бонус</th></tr></thead><tbody>${data.map(x=>`<tr><td>${esc(x.name)}</td><td><a href="tel:${esc(x.phone)}">${esc(x.phone)}</a></td><td>${esc(x.referral_code||'—')}</td><td>${money(x.credit_balance)}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
-function guide(){
+async function guide(){
   main.innerHTML=`<div class="section-title"><div><h1>Справочник SIR</h1><p>Наш полный рабочий справочник теперь находится прямо в админке</p></div><div class="toolbar"><a class="btn" target="_blank" rel="noopener noreferrer" href="../guide-app/index-v13.html">Открыть отдельно</a><a class="btn primary" href="guide-editor.html">Редактировать знания</a></div></div><div class="guide-rules"><div><b>Один интерфейс</b><span>Полные карточки арсенала, цветовая маркировка и наличие показаны без упрощённой копии.</span></div><div><b>В конкретном заказе</b><span>Рабочая карта использует подтверждённые процедуры и химию из базы.</span></div><div><b>Безопасность</b><span>Неизвестный материал или несовместимость → spot-test либо STOP.</span></div></div><iframe class="guide-frame guide-frame-primary" src="../guide-app/index-v13.html?embedded=admin" scrolling="no" title="Справочник SIR: химия, оборудование и расходники"></iframe>`;
   const frame=main.querySelector('.guide-frame-primary');
+  let liveChemicals=[];
+  if(!preview&&sb){const {data,error}=await sb.from('chemicals').select('*').eq('active',true).order('brand').order('name');if(!error)liveChemicals=data||[];}
   frame.addEventListener('load',()=>{
+    if(liveChemicals.length)frame.contentWindow?.postMessage({type:'sir-guide-chemicals',items:liveChemicals},location.origin);
     const fit=()=>{const doc=frame.contentDocument;if(doc)frame.style.height=`${Math.ceil(doc.documentElement.scrollHeight)}px`;};
     fit();
     if(frame.contentDocument?.body&&window.ResizeObserver){const observer=new ResizeObserver(fit);observer.observe(frame.contentDocument.body);frame._guideObserver=observer;}
