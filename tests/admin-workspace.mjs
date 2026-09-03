@@ -56,6 +56,11 @@ const guideFrame=page.frameLocator('.guide-frame');
 await guideFrame.locator('#q').waitFor();
 assert.match(await guideFrame.locator('.sub').innerText(),/Фактический арсенал/);
 assert.ok(await guideFrame.locator('.card').count()>20);
+assert.ok(await guideFrame.locator('.thumb img').count()>=12);
+await guideFrame.locator('.thumb img').first().waitFor();
+assert.ok(await guideFrame.locator('.thumb img').first().evaluate(img=>img.complete&&img.naturalWidth>0));
+assert.equal(await page.locator('.guide-frame').getAttribute('scrolling'),'no');
+await page.waitForFunction(()=>document.querySelector('.guide-frame')?.getBoundingClientRect().height>3000);
 assert.match(await page.locator('.guide-rules').innerText(),/spot-test либо STOP/);
 
 const layout=await page.evaluate(()=>({doc:document.documentElement.scrollWidth,viewport:innerWidth,top:document.querySelector('.admin-top').getBoundingClientRect(),main:document.querySelector('.main').getBoundingClientRect()}));
