@@ -1,0 +1,34 @@
+name: Deploy Vonuchkaa chat bot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/vonuchkaa-chat-bot/**'
+      - '.github/workflows/deploy-vonuchkaa-chat-bot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy vonuchkaa-chat-bot
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy vonuchkaa-chat-bot --project-ref wbqxposidtecxjioqufk --no-verify-jwt
+
+      - name: Configure Telegram webhook
+        run: |
+          sleep 5
+          curl --fail --silent --show-error "https://wbqxposidtecxjioqufk.supabase.co/functions/v1/vonuchkaa-chat-bot?setup=1"
