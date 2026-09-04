@@ -9,7 +9,7 @@ const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") ?? "").trim();
 const SERVICE_KEY = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();
 const TG = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/vonuchkaa-ai-bot`;
-const AI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+const AI_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite"];
 const AI_TOTAL_TIMEOUT_MS = 6500;
 
 type MemoryRow = { role: "user" | "model"; content: string; created_at?: string };
@@ -230,7 +230,7 @@ Deno.serve(async (req: Request) => {
       ok: true,
       bot_token: !!BOT_TOKEN,
       ai_key: !!GEMINI_KEY,
-      ai_key_format: /^AIza[0-9A-Za-z_-]{20,}$/.test(GEMINI_KEY),
+      ai_key_format: GEMINI_KEY.length >= 30,
       ai_key_length: GEMINI_KEY.length,
       memory: !!SERVICE_KEY,
       bot: EXPECTED_BOT,
@@ -261,7 +261,7 @@ Deno.serve(async (req: Request) => {
       gemini: ai.ok,
       model: ai.model,
       diagnostics: ai.diagnostics,
-      ai_key_format: /^AIza[0-9A-Za-z_-]{20,}$/.test(GEMINI_KEY),
+      ai_key_format: GEMINI_KEY.length >= 30,
       ai_key_length: GEMINI_KEY.length,
       memory: !!SERVICE_KEY,
       webhook: hook?.description ?? null,
