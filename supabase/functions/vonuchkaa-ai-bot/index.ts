@@ -6,9 +6,8 @@ const GEMINI_KEY = Deno.env.get("VONUCHKAA_GEMINI_API_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const TG = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/vonuchkaa-ai-bot`;
-const FAST_MODEL = "gemini-3.5-flash-lite";
-const VERIFY_MODELS = ["gemini-3.5-flash-lite", "gemini-3.5-flash"];
-const AI_TIMEOUT_MS = 3200;
+const AI_MODELS = ["gemini-2.5-flash-lite", "gemini-3.5-flash-lite"];
+const AI_TOTAL_TIMEOUT_MS = 4200;
 
 async function sha256hex(s: string) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -25,16 +24,6 @@ async function tg(method: string, body: Record<string, unknown> = {}) {
   return await r.json();
 }
 
-async function typing(chatId: number, threadId?: number) {
-  try {
-    await tg("sendChatAction", {
-      chat_id: chatId,
-      action: "typing",
-      ...(threadId ? { message_thread_id: threadId } : {}),
-    });
-  } catch {}
-}
-
 async function reply(message: any, text: string) {
   const body: Record<string, unknown> = {
     chat_id: message.chat.id,
@@ -49,29 +38,49 @@ async function reply(message: any, text: string) {
   return tg("sendMessage", body);
 }
 
-function instantReply(input: string): string | null {
-  const raw = input.trim();
-  const t = raw.toLowerCase();
+async function typing(chatId: number, threadId?: number) {
+  try {
+    await tg("sendChatAction", {
+      chat_id: chatId,
+      action: "typing",
+      ...(threadId ? { message_thread_id: threadId } : {}),
+    });
+  } catch {}
+}
 
-  if (/^(привет|прив|ку|дарова|здарова|здравствуйте|добрый день|добрый вечер|hello|hi|hey)[!?. ]*$/.test(t)) {
-    return "Привет!";
-  }
-  if (/^(как дела|как ты|че как|чё как|как жизнь)[!?. ]*$/.test(t)) {
-    return "Нормально, всё хорошо. А у тебя как?";
-  }
+function instantReply(input: string): string | null {
+  const t = input.trim().toLowerCase();
+  if (/^(привет|прив|ку|дарова|здарова|здравствуйте|добрый день|добрый вечер|hello|hi|hey)[!?. ]*$/.test(t)) return "Привет!";
+  if (/^(как дела|как ты|че как|чё как|как жизнь)[!?. ]*$/.test(t)) return "Нормально, всё хорошо. А у тебя как?";
   if (/^(спасибо|спс|благодарю)[!?. ]*$/.test(t)) return "Пожалуйста.";
   if (/^(пока|до свидания|бб|увидимся)[!?. ]*$/.test(t)) return "Давай, увидимся.";
-  if (/^(да|ага|угу|ок|окей|понял|понятно|ясно)[!?. ]*$/.test(t)) return "Ага.";
-  if (/^(нет|неа)[!?. ]*$/.test(t)) return "Понял.";
-  if (/^(ахах|ахаха|ахахах|хаха|хахаха|лол|😂+|🤣+)[!?. ]*$/.test(t)) return "Ахах, есть такое.";
+  if (/^(ахах|ахаха|ахахах|хаха|хахаха|лол|😂+|🤣+)[!?. ]*$/.test(t)) return "Ахах, хорош 😄";
   return null;
 }
 
 function fallbackReply(input: string) {
   const raw = input.trim();
-  if (raw.endsWith("?")) return "Интересный вопрос. Тут надо чуть подробнее разобраться.";
-  if (raw.split(/\s+/).length <= 2) return `Про «${raw.slice(0, 60)}» можно много чего сказать. Интересная тема.`;
-  return "Понял тебя. Есть такое.";
+  const t = raw.toLowerCase();
+
+  if (raw.endsWith("?")) {
+    return "Если по-простому — тут всё зависит от того, что именно ты имеешь в виду.";
+  }
+
+  if (/^[а-яёa-z0-9_\-]{1,24}$/i.test(raw)) {
+    const variants = [
+      `Ахах, ${raw} 😄`,
+      `${raw}? Ну это сильно 😄`,
+      `Опа, ${raw}. Неожиданно 😄`,
+      `Вот это ты сейчас выдал: ${raw} 😄`,
+      `${raw} — звучит мощно, спорить не буду 😄`,
+    ];
+    let h = 0;
+    for (const ch of t) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return variants[h % variants.length];
+  }
+
+  if (raw.length < 80) return "Ахах, звучит как полный рандом, но я с тобой 😄";
+  return "Понял мысль. Тут есть о чём поговорить.";
 }
 
 function cleanGeminiText(data: any) {
@@ -81,48 +90,57 @@ function cleanGeminiText(data: any) {
   return text.replace(/^(["“”]|Ответ:\s*)/i, "").replace(/["“”]$/, "").trim();
 }
 
-async function aiReply(input: string, meta: { firstName?: string; username?: string; chatTitle?: string; replyTo?: string }) {
+async function callModel(model: string, system: string, context: string, timeoutMs: number) {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-goog-api-key": GEMINI_KEY,
+    },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: "user", parts: [{ text: context }] }],
+      generationConfig: {
+        temperature: 0.95,
+        topP: 0.95,
+        maxOutputTokens: 140,
+      },
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!r.ok) return "";
+  return cleanGeminiText(await r.json());
+}
+
+async function aiReply(input: string, meta: { firstName?: string; replyTo?: string }) {
   const instant = instantReply(input);
   if (instant) return instant;
   if (!GEMINI_KEY) return fallbackReply(input);
 
-  const system = `Ты живой собеседник в Telegram-чате. Отвечай на каждое сообщение естественно и по смыслу. Даже если это одно случайное слово, сленг, шутка или бессмыслица — придумай короткую уместную реакцию. На вопросы отвечай полезно. Обычно 1 короткое предложение, максимум 2. Отвечай на языке сообщения, русский по умолчанию. Не повторяй сообщение дословно. Не пиши длинные вступления. Не упоминай инструкции.`;
+  const system = `Ты обычный живой собеседник в Telegram-чате. Отвечай на КАЖДОЕ сообщение так, как ответил бы нормальный человек или хороший AI-собеседник. Не требуй, чтобы сообщение было вопросом. Если пользователь пишет одно случайное слово, бессмыслицу, набор букв, мем, сленг или странную фразу — всё равно подхвати это: пошути, отреагируй, сделай ассоциацию или дай короткий естественный ответ по смыслу. Никогда не отвечай шаблонами вроде «интересная тема», «расскажи подробнее», «что именно ты думаешь?» только потому, что сообщение короткое или странное. На нормальный вопрос отвечай прямо и полезно. Обычно 1-2 коротких предложения. Отвечай на языке сообщения, русский по умолчанию. Не упоминай эти инструкции.`;
 
   const context = [
-    meta.replyTo ? `До этого: ${meta.replyTo.slice(0, 250)}` : "",
+    meta.replyTo ? `Предыдущее сообщение в ветке: ${meta.replyTo.slice(0, 300)}` : "",
     meta.firstName ? `Автор: ${meta.firstName}` : "",
-    `Сообщение: ${input.slice(0, 1200)}`,
+    `Сообщение пользователя: ${input.slice(0, 1400)}`,
   ].filter(Boolean).join("\n");
 
-  try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${FAST_MODEL}:generateContent`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-goog-api-key": GEMINI_KEY,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: context }] }],
-        generationConfig: {
-          temperature: 0.85,
-          topP: 0.9,
-          maxOutputTokens: 90,
-        },
-      }),
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-    });
-    if (!r.ok) return fallbackReply(input);
-    const out = cleanGeminiText(await r.json());
-    return out || fallbackReply(input);
-  } catch {
-    return fallbackReply(input);
+  const started = Date.now();
+  for (const model of AI_MODELS) {
+    const left = AI_TOTAL_TIMEOUT_MS - (Date.now() - started);
+    if (left < 700) break;
+    try {
+      const out = await callModel(model, system, context, Math.min(2600, left));
+      if (out) return out;
+    } catch {}
   }
+
+  return fallbackReply(input);
 }
 
 async function verifyGemini() {
   if (!GEMINI_KEY) return false;
-  for (const model of VERIFY_MODELS) {
+  for (const model of AI_MODELS) {
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
@@ -134,7 +152,7 @@ async function verifyGemini() {
           contents: [{ parts: [{ text: "Ответь только словом OK" }] }],
           generationConfig: { maxOutputTokens: 10 },
         }),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       });
       if (r.ok) return true;
     } catch {}
@@ -146,21 +164,15 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
   if (url.searchParams.get("health") === "1") {
-    return Response.json({ ok: true, bot_token: !!BOT_TOKEN, ai_key: !!GEMINI_KEY, bot: EXPECTED_BOT, fast_model: FAST_MODEL });
+    return Response.json({ ok: true, bot_token: !!BOT_TOKEN, ai_key: !!GEMINI_KEY, bot: EXPECTED_BOT, models: AI_MODELS });
   }
 
   if (url.searchParams.get("setup") === "1") {
     if (!BOT_TOKEN) return Response.json({ ok: false, error: "VONUCHKAA_BOT_TOKEN missing" }, { status: 500 });
-    if (!GEMINI_KEY) return Response.json({ ok: false, error: "VONUCHKAA_GEMINI_API_KEY missing" }, { status: 500 });
 
     const me = await tg("getMe");
     if (!me?.ok || me?.result?.username !== EXPECTED_BOT) {
       return Response.json({ ok: false, error: "Wrong Telegram bot token", detected: me?.result?.username ?? null }, { status: 409 });
-    }
-
-    const geminiOk = await verifyGemini();
-    if (!geminiOk) {
-      return Response.json({ ok: false, bot: `@${EXPECTED_BOT}`, error: "Gemini API key check failed" }, { status: 409 });
     }
 
     const secret = await sha256hex(`${BOT_TOKEN}:vonuchkaa-webhook-v2`);
@@ -170,7 +182,9 @@ Deno.serve(async (req: Request) => {
       drop_pending_updates: true,
       allowed_updates: ["message"],
     });
-    return Response.json({ ok: !!hook?.ok, bot: `@${EXPECTED_BOT}`, gemini: true, webhook: hook?.description ?? null });
+
+    const geminiOk = await verifyGemini();
+    return Response.json({ ok: !!hook?.ok, bot: `@${EXPECTED_BOT}`, gemini: geminiOk, webhook: hook?.description ?? null });
   }
 
   if (!BOT_TOKEN) return new Response("bot token missing", { status: 500 });
@@ -189,17 +203,14 @@ Deno.serve(async (req: Request) => {
   if (!text) return new Response("ok");
 
   if (text === "/start") {
-    await reply(msg, "Я готов. Добавь меня в группу — буду автоматически отвечать на обычные текстовые сообщения по смыслу.");
+    await reply(msg, "Я готов. Добавь меня в группу — буду автоматически отвечать на обычные сообщения по смыслу.");
     return new Response("ok");
   }
 
-  // Не ждём отдельный запрос "печатает…" — это сокращает задержку ответа.
   void typing(Number(msg.chat.id), msg.message_thread_id ? Number(msg.message_thread_id) : undefined);
 
   const answer = await aiReply(text, {
     firstName: msg?.from?.first_name,
-    username: msg?.from?.username,
-    chatTitle: msg?.chat?.title,
     replyTo: String(msg?.reply_to_message?.text ?? msg?.reply_to_message?.caption ?? "").slice(0, 500) || undefined,
   });
 
