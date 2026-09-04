@@ -31,4 +31,6 @@ jobs:
       - name: Configure Telegram webhook
         run: |
           sleep 5
-          curl --fail --silent --show-error "https://wbqxposidtecxjioqufk.supabase.co/functions/v1/vonuchkaa-ai-bot?setup=1"
+          RESPONSE=$(curl --silent --show-error "https://wbqxposidtecxjioqufk.supabase.co/functions/v1/vonuchkaa-ai-bot?setup=1")
+          echo "$RESPONSE"
+          echo "$RESPONSE" | grep -q '"ok":true'
