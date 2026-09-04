@@ -121,11 +121,7 @@ function toGeminiContents(history: MemoryRow[], current: string, author?: string
   return contents;
 }
 
-async function callModel(
-  model: string,
-  contents: any[],
-  timeoutMs: number,
-) {
+async function callModel(model: string, contents: any[], timeoutMs: number) {
   const system = `Ты полноценный AI-собеседник внутри Telegram, по поведению близкий к хорошему универсальному чат-ассистенту.
 
 Главное правило: НИКАКИХ заранее заготовленных ответов. Каждый ответ формируй заново, исходя из конкретного сообщения и недавнего контекста разговора.
@@ -167,11 +163,7 @@ async function callModel(
   return { text: cleanGeminiText(data), status: r.status };
 }
 
-async function aiReply(
-  chatId: number,
-  input: string,
-  meta: { firstName?: string; replyTo?: string },
-) {
+async function aiReply(chatId: number, input: string, meta: { firstName?: string; replyTo?: string }) {
   if (!GEMINI_KEY) {
     return { text: "AI сейчас не подключён. Проверь ключ Gemini в настройках бота.", model: null };
   }
@@ -195,20 +187,39 @@ async function aiReply(
   };
 }
 
+function sanitizeGoogleError(raw: string) {
+  try {
+    const j = JSON.parse(raw);
+    return String(j?.error?.message ?? j?.error?.status ?? "Unknown Google API error").slice(0, 400);
+  } catch {
+    return raw.replace(/AIza[0-9A-Za-z_-]+/g, "[redacted-key]").slice(0, 400);
+  }
+}
+
 async function verifyGemini() {
-  if (!GEMINI_KEY) return { ok: false, model: null as string | null };
+  const diagnostics: Array<{ model: string; status: number; error?: string }> = [];
+  if (!GEMINI_KEY) return { ok: false, model: null as string | null, diagnostics };
+
   for (const model of AI_MODELS) {
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": GEMINI_KEY },
-        body: JSON.stringify({ contents: [{ parts: [{ text: "Ответь только: OK" }] }], generationConfig: { maxOutputTokens: 8 } }),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: "Ответь только: OK" }] }],
+          generationConfig: { maxOutputTokens: 8 },
+        }),
         signal: AbortSignal.timeout(7000),
       });
-      if (r.ok) return { ok: true, model };
-    } catch {}
+      const raw = await r.text();
+      if (r.ok) return { ok: true, model, diagnostics };
+      diagnostics.push({ model, status: r.status, error: sanitizeGoogleError(raw) });
+    } catch (e) {
+      diagnostics.push({ model, status: 0, error: String(e instanceof Error ? e.message : e).slice(0, 300) });
+    }
   }
-  return { ok: false, model: null as string | null };
+
+  return { ok: false, model: null as string | null, diagnostics };
 }
 
 Deno.serve(async (req: Request) => {
@@ -219,6 +230,8 @@ Deno.serve(async (req: Request) => {
       ok: true,
       bot_token: !!BOT_TOKEN,
       ai_key: !!GEMINI_KEY,
+      ai_key_format: /^AIza[0-9A-Za-z_-]{20,}$/.test(GEMINI_KEY),
+      ai_key_length: GEMINI_KEY.length,
       memory: !!SERVICE_KEY,
       bot: EXPECTED_BOT,
       models: AI_MODELS,
@@ -247,6 +260,9 @@ Deno.serve(async (req: Request) => {
       bot: `@${EXPECTED_BOT}`,
       gemini: ai.ok,
       model: ai.model,
+      diagnostics: ai.diagnostics,
+      ai_key_format: /^AIza[0-9A-Za-z_-]{20,}$/.test(GEMINI_KEY),
+      ai_key_length: GEMINI_KEY.length,
       memory: !!SERVICE_KEY,
       webhook: hook?.description ?? null,
     }, { status: ai.ok ? 200 : 409 });
