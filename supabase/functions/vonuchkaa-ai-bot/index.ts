@@ -1,10 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const EXPECTED_BOT = "Vonuchkaa_bot";
-const BOT_TOKEN = Deno.env.get("VONUCHKAA_BOT_TOKEN") ?? "";
-const GEMINI_KEY = Deno.env.get("VONUCHKAA_GEMINI_API_KEY") ?? "";
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const BOT_TOKEN_RAW = Deno.env.get("VONUCHKAA_BOT_TOKEN") ?? "";
+const GEMINI_KEY_RAW = Deno.env.get("VONUCHKAA_GEMINI_API_KEY") ?? "";
+const BOT_TOKEN = BOT_TOKEN_RAW.trim().replace(/^['"]|['"]$/g, "");
+const GEMINI_KEY = (GEMINI_KEY_RAW.match(/AIza[0-9A-Za-z_-]{20,}/)?.[0] ?? GEMINI_KEY_RAW).trim().replace(/^['"]|['"]$/g, "");
+const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") ?? "").trim();
+const SERVICE_KEY = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();
 const TG = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/vonuchkaa-ai-bot`;
 const AI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
