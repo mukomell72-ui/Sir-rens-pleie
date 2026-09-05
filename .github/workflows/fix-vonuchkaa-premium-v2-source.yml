@@ -1,0 +1,26 @@
+name: Fix Vonuchkaa Premium v2 source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-vonuchkaa-premium-v2-source.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Premium v2 source
+        run: python3 .github/scripts/patch-vonuchkaa-premium-v2-anchor-fix.py
+      - name: Commit fixed patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/scripts/patch-vonuchkaa-premium-v2.py
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix Premium v2 routing anchor"
+          git push
