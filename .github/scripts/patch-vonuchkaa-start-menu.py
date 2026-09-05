@@ -9,7 +9,7 @@ const START_CAPTION = `<b>🤢 ВОНЮЧКА</b>\n\nЯ — дерзкий AI-б
 async function sendStartMenu(msg: any) {
   const keyboard = {
     inline_keyboard: [
-      [{ text: "➕ Добавить в чат", url: `https://t.me/${EXPECTED_BOT}?startgroup=true` }],
+      [{ text: "➕ Добавить в группу", url: `https://t.me/${EXPECTED_BOT}?startgroup=vonuchkaa&admin=manage_chat+delete_messages+restrict_members+invite_users+pin_messages+manage_topics` }],
       [{ text: "🛡 Команды", callback_data: "vonuchkaa_help" }, { text: "🏷 Ники", callback_data: "vonuchkaa_nicks" }],
       [{ text: "👑 Создатель", callback_data: "vonuchkaa_creator" }],
     ],
@@ -121,6 +121,13 @@ if old in s:
     s = s.replace(old, new, 1)
 elif "await sendStartMenu(msg);" not in s:
     raise SystemExit("start handler anchor not found")
+
+# Add group-join diagnostics to setup response so we can distinguish a bad invite link
+# from BotFather's group-joining switch being disabled.
+if 'can_join_groups: me?.result?.can_join_groups' not in s:
+    marker = '      bot: `@${EXPECTED_BOT}`,\n'
+    if marker in s:
+        s = s.replace(marker, marker + '      can_join_groups: me?.result?.can_join_groups ?? null,\n      privacy_disabled: me?.result?.can_read_all_group_messages ?? null,\n', 1)
 
 s = s.replace('promo_post: true });', 'promo_post: true, start_menu: true });')
 s = s.replace('      promo_post: true,\n      api:', '      promo_post: true,\n      start_menu: true,\n      api:')
