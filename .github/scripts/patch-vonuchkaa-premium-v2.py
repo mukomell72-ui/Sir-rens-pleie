@@ -455,10 +455,12 @@ if new_route not in s:
 # Enforce Premium filters/autoreplies/AI response mode after explicit commands.
 old_guard = '''  if (await handleModeration(msg, resolvedText)) return new Response("ok");
 
+  if (!text.startsWith("/")) void maybeAutoPromo(msg);
   void typing(chatId, msg.message_thread_id ? Number(msg.message_thread_id) : undefined);'''
 new_guard = '''  if (await handleModeration(msg, resolvedText)) return new Response("ok");
   if (await handlePremiumPlusMessage(msg, text)) return new Response("ok");
 
+  if (!text.startsWith("/")) void maybeAutoPromo(msg);
   void typing(chatId, msg.message_thread_id ? Number(msg.message_thread_id) : undefined);'''
 if old_guard in s:
     s = s.replace(old_guard, new_guard, 1)
