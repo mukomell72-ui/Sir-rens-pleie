@@ -8,6 +8,7 @@ on:
       - 'supabase/functions/vonuchkaa-ai-bot/**'
       - '.github/workflows/deploy-vonuchkaa-ai-bot.yml'
       - '.github/scripts/patch-vonuchkaa-nicknames.py'
+      - '.github/scripts/patch-vonuchkaa-post.py'
 
 permissions:
   contents: read
@@ -86,6 +87,9 @@ jobs:
 
       - name: Apply Vonuchkaa nickname patch
         run: python3 .github/scripts/patch-vonuchkaa-nicknames.py
+
+      - name: Apply Vonuchkaa promo post patch
+        run: python3 .github/scripts/patch-vonuchkaa-post.py
 
       - name: Deploy vonuchkaa-ai-bot
         env:
