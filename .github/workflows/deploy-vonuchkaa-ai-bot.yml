@@ -7,6 +7,7 @@ on:
     paths:
       - 'supabase/functions/vonuchkaa-ai-bot/**'
       - '.github/workflows/deploy-vonuchkaa-ai-bot.yml'
+      - '.github/scripts/patch-vonuchkaa-nicknames.py'
 
 permissions:
   contents: read
@@ -23,7 +24,7 @@ jobs:
         with:
           version: latest
 
-      - name: Ensure Vonuchkaa moderation storage
+      - name: Ensure Vonuchkaa moderation and nickname storage
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
@@ -45,17 +46,35 @@ jobs:
             updated_at timestamptz not null default now(),
             primary key (chat_id, user_id, base_command),
             unique (chat_id, user_id, alias),
-            check (base_command in ('ban','unban','kick','mute','unmute','warn','del','pin','unpin','modhelp')),
             check (alias ~ '^[a-zA-Zа-яА-ЯёЁ0-9_]{1,32}$')
+          );
+
+          alter table public.vonuchkaa_command_aliases
+            drop constraint if exists vonuchkaa_command_aliases_base_command_check;
+          alter table public.vonuchkaa_command_aliases
+            add constraint vonuchkaa_command_aliases_base_command_check
+            check (base_command in ('ban','unban','kick','mute','unmute','warn','del','pin','unpin','modhelp','snick','dnick','ники'));
+
+          create table if not exists public.vonuchkaa_nicknames (
+            chat_id bigint not null,
+            user_id bigint not null,
+            nickname text not null check (char_length(nickname) between 1 and 64),
+            telegram_label text,
+            set_by bigint,
+            updated_at timestamptz not null default now(),
+            primary key (chat_id, user_id)
           );
 
           alter table public.vonuchkaa_moderators enable row level security;
           alter table public.vonuchkaa_command_aliases enable row level security;
+          alter table public.vonuchkaa_nicknames enable row level security;
 
           create index if not exists vonuchkaa_moderators_chat_level_idx
             on public.vonuchkaa_moderators (chat_id, level desc);
           create index if not exists vonuchkaa_command_aliases_lookup_idx
             on public.vonuchkaa_command_aliases (chat_id, user_id, alias);
+          create index if not exists vonuchkaa_nicknames_chat_idx
+            on public.vonuchkaa_nicknames (chat_id, updated_at desc);
           SQL
           )
           PAYLOAD=$(jq -n --arg query "$SQL" '{query:$query}')
@@ -64,6 +83,9 @@ jobs:
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD"
+
+      - name: Apply Vonuchkaa nickname patch
+        run: python3 .github/scripts/patch-vonuchkaa-nicknames.py
 
       - name: Deploy vonuchkaa-ai-bot
         env:
