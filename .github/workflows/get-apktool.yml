@@ -1,0 +1,22 @@
+name: Get Apktool
+
+on:
+  push:
+    branches:
+      - blesk-compile-temp
+  workflow_dispatch:
+
+jobs:
+  get:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Apktool
+        run: |
+          curl -L --fail https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar -o apktool.jar
+          ls -lh apktool.jar
+      - name: Upload Apktool
+        uses: actions/upload-artifact@v4
+        with:
+          name: apktool-jar
+          path: apktool.jar
+          retention-days: 1
