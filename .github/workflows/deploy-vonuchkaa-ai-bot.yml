@@ -23,6 +23,48 @@ jobs:
         with:
           version: latest
 
+      - name: Ensure Vonuchkaa moderation storage
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          SQL=$(cat <<'SQL'
+          create table if not exists public.vonuchkaa_moderators (
+            chat_id bigint not null,
+            user_id bigint not null,
+            level smallint not null check (level between 1 and 5),
+            set_by bigint,
+            updated_at timestamptz not null default now(),
+            primary key (chat_id, user_id)
+          );
+
+          create table if not exists public.vonuchkaa_command_aliases (
+            chat_id bigint not null,
+            user_id bigint not null,
+            base_command text not null,
+            alias text not null,
+            updated_at timestamptz not null default now(),
+            primary key (chat_id, user_id, base_command),
+            unique (chat_id, user_id, alias),
+            check (base_command in ('ban','unban','kick','mute','unmute','warn','del','pin','unpin','modhelp')),
+            check (alias ~ '^[a-zA-Zа-яА-ЯёЁ0-9_]{1,32}$')
+          );
+
+          alter table public.vonuchkaa_moderators enable row level security;
+          alter table public.vonuchkaa_command_aliases enable row level security;
+
+          create index if not exists vonuchkaa_moderators_chat_level_idx
+            on public.vonuchkaa_moderators (chat_id, level desc);
+          create index if not exists vonuchkaa_command_aliases_lookup_idx
+            on public.vonuchkaa_command_aliases (chat_id, user_id, alias);
+          SQL
+          )
+          PAYLOAD=$(jq -n --arg query "$SQL" '{query:$query}')
+          curl --fail-with-body --silent --show-error \
+            -X POST "https://api.supabase.com/v1/projects/wbqxposidtecxjioqufk/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
+
       - name: Deploy vonuchkaa-ai-bot
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
