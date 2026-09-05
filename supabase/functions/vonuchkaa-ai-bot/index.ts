@@ -214,11 +214,243 @@ async function verifyGemini() {
   return { ok: false, model: null as string | null, diagnostics };
 }
 
+function commandName(text: string) {
+  const token = text.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  return token.replace(new RegExp(`@${EXPECTED_BOT}$`, "i"), "");
+}
+
+function commandArgs(text: string) {
+  return text.trim().split(/\s+/).slice(1);
+}
+
+function userLabel(user: any) {
+  if (!user) return "пользователя";
+  if (user.username) return `@${user.username}`;
+  return String(user.first_name ?? user.last_name ?? `ID ${user.id}`);
+}
+
+function parseDuration(raw?: string): { seconds: number | null; label: string; consumed: boolean } {
+  if (!raw) return { seconds: 600, label: "10 минут", consumed: false };
+  const v = raw.toLowerCase();
+  if (["perm", "permanent", "forever", "навсегда", "вечный", "∞"].includes(v)) {
+    return { seconds: null, label: "навсегда", consumed: true };
+  }
+  const m = v.match(/^(\d+)(s|m|h|d|w|с|м|ч|д|н)$/i);
+  if (!m) return { seconds: 600, label: "10 минут", consumed: false };
+  const n = Math.max(1, Number(m[1]));
+  const unit = m[2].toLowerCase();
+  const mult: Record<string, number> = {
+    s: 1, "с": 1,
+    m: 60, "м": 60,
+    h: 3600, "ч": 3600,
+    d: 86400, "д": 86400,
+    w: 604800, "н": 604800,
+  };
+  const seconds = Math.min(n * (mult[unit] ?? 60), 31536000);
+  const labels: Record<string, string> = {
+    s: `${n} сек.`, "с": `${n} сек.`,
+    m: `${n} мин.`, "м": `${n} мин.`,
+    h: `${n} ч.`, "ч": `${n} ч.`,
+    d: `${n} дн.`, "д": `${n} дн.`,
+    w: `${n} нед.`, "н": `${n} нед.`,
+  };
+  return { seconds, label: labels[unit], consumed: true };
+}
+
+async function isAdmin(chatId: number, userId: number) {
+  const r = await tg("getChatMember", { chat_id: chatId, user_id: userId });
+  const status = r?.result?.status;
+  return r?.ok && (status === "creator" || status === "administrator");
+}
+
+async function targetIsAdmin(chatId: number, userId: number) {
+  const r = await tg("getChatMember", { chat_id: chatId, user_id: userId });
+  const status = r?.result?.status;
+  return r?.ok && (status === "creator" || status === "administrator");
+}
+
+function tgError(r: any) {
+  return String(r?.description ?? "Telegram отклонил команду").replace(/^Bad Request:\s*/i, "");
+}
+
+async function handleModeration(msg: any, text: string) {
+  const cmd = commandName(text);
+  const modCommands = new Set(["/ban", "/unban", "/kick", "/mute", "/unmute", "/warn", "/del", "/pin", "/unpin", "/modhelp"]);
+  if (!modCommands.has(cmd)) return false;
+
+  const chatId = Number(msg.chat.id);
+  const issuerId = Number(msg.from?.id);
+  const chatType = String(msg.chat?.type ?? "");
+  if (!['group', 'supergroup'].includes(chatType)) {
+    await reply(msg, "Эти команды работают только в группе.");
+    return true;
+  }
+
+  if (!(await isAdmin(chatId, issuerId))) {
+    await reply(msg, "Не-а. Модераторские команды доступны только админам группы.");
+    return true;
+  }
+
+  if (cmd === "/modhelp") {
+    await reply(msg,
+      "Модерация:\n" +
+      "/ban — забанить (ответом на сообщение)\n" +
+      "/unban — разбанить\n" +
+      "/kick — кикнуть\n" +
+      "/mute 10m причина — мут, можно 30s / 10m / 2h / 3d / 1w / навсегда\n" +
+      "/unmute — снять мут\n" +
+      "/warn причина — предупреждение\n" +
+      "/del — удалить сообщение\n" +
+      "/pin — закрепить сообщение\n" +
+      "/unpin — открепить сообщение\n\n" +
+      "Все команды, кроме /modhelp, используй ответом на сообщение человека."
+    );
+    return true;
+  }
+
+  const targetMsg = msg.reply_to_message;
+  if (!targetMsg) {
+    await reply(msg, `Ответь этой командой на сообщение человека. Например: ответ на его сообщение → ${cmd}${cmd === "/mute" ? " 10m" : ""}`);
+    return true;
+  }
+
+  if (cmd === "/del") {
+    const r = await tg("deleteMessage", { chat_id: chatId, message_id: targetMsg.message_id });
+    if (!r?.ok) await reply(msg, `Не смог удалить: ${tgError(r)}.`);
+    return true;
+  }
+
+  if (cmd === "/pin") {
+    const r = await tg("pinChatMessage", { chat_id: chatId, message_id: targetMsg.message_id, disable_notification: true });
+    await reply(msg, r?.ok ? "Закрепил." : `Не смог закрепить: ${tgError(r)}.`);
+    return true;
+  }
+
+  if (cmd === "/unpin") {
+    const r = await tg("unpinChatMessage", { chat_id: chatId, message_id: targetMsg.message_id });
+    await reply(msg, r?.ok ? "Открепил." : `Не смог открепить: ${tgError(r)}.`);
+    return true;
+  }
+
+  const target = targetMsg.from;
+  const targetId = Number(target?.id);
+  if (!targetId) {
+    await reply(msg, "Не вижу пользователя у этого сообщения. Выбери обычное сообщение участника.");
+    return true;
+  }
+  const name = userLabel(target);
+
+  if (targetId === issuerId && ["/ban", "/kick", "/mute"].includes(cmd)) {
+    await reply(msg, "Самого себя наказывать не дам. Хорошая попытка.");
+    return true;
+  }
+
+  if (["/ban", "/kick", "/mute"].includes(cmd) && await targetIsAdmin(chatId, targetId)) {
+    await reply(msg, "Админа или владельца группы так наказать не получится.");
+    return true;
+  }
+
+  const args = commandArgs(text);
+
+  if (cmd === "/ban") {
+    const reason = args.join(" ").trim();
+    const r = await tg("banChatMember", { chat_id: chatId, user_id: targetId, revoke_messages: false });
+    await reply(msg, r?.ok
+      ? `Забанил ${name}.${reason ? ` Причина: ${reason}` : ""}`
+      : `Не смог забанить ${name}: ${tgError(r)}. Проверь права бота.`);
+    return true;
+  }
+
+  if (cmd === "/unban") {
+    const r = await tg("unbanChatMember", { chat_id: chatId, user_id: targetId, only_if_banned: true });
+    await reply(msg, r?.ok ? `Разбанил ${name}.` : `Не смог разбанить ${name}: ${tgError(r)}.`);
+    return true;
+  }
+
+  if (cmd === "/kick") {
+    const reason = args.join(" ").trim();
+    const ban = await tg("banChatMember", { chat_id: chatId, user_id: targetId, revoke_messages: false });
+    if (!ban?.ok) {
+      await reply(msg, `Не смог кикнуть ${name}: ${tgError(ban)}. Проверь права бота.`);
+      return true;
+    }
+    const unban = await tg("unbanChatMember", { chat_id: chatId, user_id: targetId, only_if_banned: true });
+    await reply(msg, unban?.ok
+      ? `Кикнул ${name}.${reason ? ` Причина: ${reason}` : ""}`
+      : `Удалил ${name}, но не смог сразу снять бан: ${tgError(unban)}.`);
+    return true;
+  }
+
+  if (cmd === "/mute") {
+    const duration = parseDuration(args[0]);
+    const reason = args.slice(duration.consumed ? 1 : 0).join(" ").trim();
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      user_id: targetId,
+      permissions: {
+        can_send_messages: false,
+        can_send_audios: false,
+        can_send_documents: false,
+        can_send_photos: false,
+        can_send_videos: false,
+        can_send_video_notes: false,
+        can_send_voice_notes: false,
+        can_send_polls: false,
+        can_send_other_messages: false,
+        can_add_web_page_previews: false,
+        can_change_info: false,
+        can_invite_users: false,
+        can_pin_messages: false,
+        can_manage_topics: false,
+      },
+      use_independent_chat_permissions: true,
+    };
+    if (duration.seconds !== null) body.until_date = Math.floor(Date.now() / 1000) + duration.seconds;
+    const r = await tg("restrictChatMember", body);
+    await reply(msg, r?.ok
+      ? `Замутил ${name} на ${duration.label}.${reason ? ` Причина: ${reason}` : ""}`
+      : `Не смог замутить ${name}: ${tgError(r)}. Проверь права бота.`);
+    return true;
+  }
+
+  if (cmd === "/unmute") {
+    const chat = await tg("getChat", { chat_id: chatId });
+    const permissions = chat?.result?.permissions ?? {
+      can_send_messages: true,
+      can_send_audios: true,
+      can_send_documents: true,
+      can_send_photos: true,
+      can_send_videos: true,
+      can_send_video_notes: true,
+      can_send_voice_notes: true,
+      can_send_polls: true,
+      can_send_other_messages: true,
+      can_add_web_page_previews: true,
+    };
+    const r = await tg("restrictChatMember", {
+      chat_id: chatId,
+      user_id: targetId,
+      permissions,
+      use_independent_chat_permissions: true,
+    });
+    await reply(msg, r?.ok ? `Снял мут с ${name}.` : `Не смог снять мут с ${name}: ${tgError(r)}.`);
+    return true;
+  }
+
+  if (cmd === "/warn") {
+    const reason = args.join(" ").trim();
+    await reply(msg, `Предупреждение для ${name}.${reason ? ` Причина: ${reason}` : " Следующее нарушение может закончиться мутом или баном."}`);
+    return true;
+  }
+
+  return true;
+}
+
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
   if (url.searchParams.get("health") === "1") {
-    return Response.json({ ok: true, bot_token: !!BOT_TOKEN, ai_key: !!GEMINI_KEY, memory: !!SERVICE_KEY, bot: EXPECTED_BOT, models: AI_MODELS, api: "interactions" });
+    return Response.json({ ok: true, bot_token: !!BOT_TOKEN, ai_key: !!GEMINI_KEY, memory: !!SERVICE_KEY, bot: EXPECTED_BOT, models: AI_MODELS, api: "interactions", moderation: true });
   }
 
   if (url.searchParams.get("setup") === "1") {
@@ -245,6 +477,7 @@ Deno.serve(async (req: Request) => {
       model: ai.model,
       diagnostics: ai.diagnostics,
       memory: !!SERVICE_KEY,
+      moderation: true,
       api: "interactions",
       webhook: hook?.description ?? null,
     }, { status: ai.ok ? 200 : 409 });
@@ -261,10 +494,12 @@ Deno.serve(async (req: Request) => {
   const text = String(msg?.text ?? msg?.caption ?? "").trim();
   if (!text) return new Response("ok");
 
-  if (text === "/start") {
-    await reply(msg, "Ну давай, пиши что угодно. Отвечу по смыслу, без лишних церемоний.");
+  if (text === "/start" || text === `/start@${EXPECTED_BOT}`) {
+    await reply(msg, "Ну давай, пиши что угодно. Отвечу по смыслу, без лишних церемоний. Для админ-команд: /modhelp");
     return new Response("ok");
   }
+
+  if (await handleModeration(msg, text)) return new Response("ok");
 
   void typing(Number(msg.chat.id), msg.message_thread_id ? Number(msg.message_thread_id) : undefined);
 
