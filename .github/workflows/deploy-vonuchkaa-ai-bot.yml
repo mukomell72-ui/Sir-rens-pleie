@@ -12,6 +12,7 @@ on:
       - '.github/scripts/patch-vonuchkaa-start-menu.py'
       - '.github/scripts/patch-vonuchkaa-autopromo.py'
       - '.github/scripts/patch-vonuchkaa-premium.py'
+      - '.github/scripts/patch-vonuchkaa-premium-hotfix.py'
 
 permissions:
   contents: read
@@ -107,6 +108,12 @@ jobs:
             paid_at timestamptz not null default now()
           );
 
+          create table if not exists public.vonuchkaa_bot_owner (
+            id smallint primary key check (id = 1),
+            owner_user_id bigint not null unique,
+            claimed_at timestamptz not null default now()
+          );
+
           alter table public.vonuchkaa_moderators enable row level security;
           alter table public.vonuchkaa_command_aliases enable row level security;
           alter table public.vonuchkaa_nicknames enable row level security;
@@ -114,6 +121,7 @@ jobs:
           alter table public.vonuchkaa_premium_chats enable row level security;
           alter table public.vonuchkaa_premium_settings enable row level security;
           alter table public.vonuchkaa_premium_payments enable row level security;
+          alter table public.vonuchkaa_bot_owner enable row level security;
 
           create index if not exists vonuchkaa_moderators_chat_level_idx
             on public.vonuchkaa_moderators (chat_id, level desc);
@@ -150,6 +158,9 @@ jobs:
 
       - name: Apply Vonuchkaa Premium patch
         run: python3 .github/scripts/patch-vonuchkaa-premium.py
+
+      - name: Apply Vonuchkaa Premium hotfix
+        run: python3 .github/scripts/patch-vonuchkaa-premium-hotfix.py
 
       - name: Deploy vonuchkaa-ai-bot
         env:
