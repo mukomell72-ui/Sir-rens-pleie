@@ -1,0 +1,38 @@
+name: Compile BLESK Core
+on:
+  push:
+    branches: [blesk-compile-temp]
+    paths:
+      - 'blesk_core.pwn'
+      - '.github/workflows/compile-blesk-core.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Pawn compiler and includes
+        run: |
+          set -euxo pipefail
+          curl -L --fail https://github.com/pawn-lang/compiler/releases/download/v3.10.10/pawnc-3.10.10-linux.tar.gz -o pawnc.tar.gz
+          mkdir -p pawnc
+          tar -xzf pawnc.tar.gz -C pawnc
+          git clone --depth 1 https://github.com/pawn-lang/samp-stdlib.git samp-stdlib
+      - name: Compile blesk_core.pwn
+        run: |
+          set -euxo pipefail
+          PAWNCC="$(find "$PWD/pawnc" -type f -name pawncc | head -n1)"
+          LIBPAWNC="$(find "$PWD/pawnc" -type f -name 'libpawnc.so*' | head -n1 || true)"
+          chmod +x "$PAWNCC"
+          if [ -n "$LIBPAWNC" ]; then export LD_LIBRARY_PATH="$(dirname "$LIBPAWNC"):${LD_LIBRARY_PATH:-}"; fi
+          "$PAWNCC" blesk_core.pwn -i"samp-stdlib" -i"samp-stdlib/include" -oblesk_core.amx
+          test -s blesk_core.amx
+          ls -lah blesk_core.amx
+      - name: Upload compiled AMX
+        uses: actions/upload-artifact@v4
+        with:
+          name: blesk-core-amx
+          path: blesk_core.amx
+          retention-days: 1
