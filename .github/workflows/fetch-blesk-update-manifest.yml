@@ -1,0 +1,30 @@
+name: Fetch BLESK Update Manifest
+
+on:
+  push:
+    branches:
+      - blesk-compile-temp
+    paths:
+      - '.github/workflows/fetch-blesk-update-manifest.yml'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch current updater files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p snapshot/client
+          curl -L --fail --retry 3 'http://wh33289.web5.maze-tech.ru/hash.json' -o snapshot/hash.json
+          curl -L --fail --retry 3 'http://wh33289.web5.maze-tech.ru/app_info.json' -o snapshot/app_info.json
+          curl -L --fail --retry 3 'http://wh33289.web5.maze-tech.ru/client/servers.json' -o snapshot/client/servers.json
+          wc -c snapshot/hash.json snapshot/app_info.json snapshot/client/servers.json
+          head -c 1000 snapshot/hash.json || true
+      - name: Upload snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: blesk-update-manifest-snapshot
+          path: snapshot
+          retention-days: 1
