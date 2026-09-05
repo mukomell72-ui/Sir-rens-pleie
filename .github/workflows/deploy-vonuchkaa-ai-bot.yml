@@ -9,6 +9,7 @@ on:
       - '.github/workflows/deploy-vonuchkaa-ai-bot.yml'
       - '.github/scripts/patch-vonuchkaa-nicknames.py'
       - '.github/scripts/patch-vonuchkaa-post.py'
+      - '.github/scripts/patch-vonuchkaa-start-menu.py'
 
 permissions:
   contents: read
@@ -45,7 +46,7 @@ jobs:
             base_command text not null,
             alias text not null,
             updated_at timestamptz not null default now(),
-            primary key (chat_id, user_id, base_command),
+            primary key (chat_id, user_id,base_command),
             unique (chat_id, user_id, alias),
             check (alias ~ '^[a-zA-Zа-яА-ЯёЁ0-9_]{1,32}$')
           );
@@ -90,6 +91,9 @@ jobs:
 
       - name: Apply Vonuchkaa promo post patch
         run: python3 .github/scripts/patch-vonuchkaa-post.py
+
+      - name: Apply Vonuchkaa start menu patch
+        run: python3 .github/scripts/patch-vonuchkaa-start-menu.py
 
       - name: Deploy vonuchkaa-ai-bot
         env:
