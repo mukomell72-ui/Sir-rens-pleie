@@ -10,6 +10,7 @@ on:
       - '.github/scripts/patch-vonuchkaa-nicknames.py'
       - '.github/scripts/patch-vonuchkaa-post.py'
       - '.github/scripts/patch-vonuchkaa-start-menu.py'
+      - '.github/scripts/patch-vonuchkaa-autopromo.py'
 
 permissions:
   contents: read
@@ -67,9 +68,19 @@ jobs:
             primary key (chat_id, user_id)
           );
 
+          create table if not exists public.vonuchkaa_autopromo_chats (
+            chat_id bigint primary key,
+            enabled boolean not null default false,
+            enabled_by bigint,
+            interval_hours integer not null default 72 check (interval_hours between 24 and 168),
+            last_post_at timestamptz,
+            updated_at timestamptz not null default now()
+          );
+
           alter table public.vonuchkaa_moderators enable row level security;
           alter table public.vonuchkaa_command_aliases enable row level security;
           alter table public.vonuchkaa_nicknames enable row level security;
+          alter table public.vonuchkaa_autopromo_chats enable row level security;
 
           create index if not exists vonuchkaa_moderators_chat_level_idx
             on public.vonuchkaa_moderators (chat_id, level desc);
@@ -77,6 +88,8 @@ jobs:
             on public.vonuchkaa_command_aliases (chat_id, user_id, alias);
           create index if not exists vonuchkaa_nicknames_chat_idx
             on public.vonuchkaa_nicknames (chat_id, updated_at desc);
+          create index if not exists vonuchkaa_autopromo_enabled_idx
+            on public.vonuchkaa_autopromo_chats (enabled, last_post_at);
           SQL
           )
           PAYLOAD=$(jq -n --arg query "$SQL" '{query:$query}')
@@ -94,6 +107,9 @@ jobs:
 
       - name: Apply Vonuchkaa start menu patch
         run: python3 .github/scripts/patch-vonuchkaa-start-menu.py
+
+      - name: Apply Vonuchkaa opt-in autopromo patch
+        run: python3 .github/scripts/patch-vonuchkaa-autopromo.py
 
       - name: Deploy vonuchkaa-ai-bot
         env:
