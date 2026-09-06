@@ -1,0 +1,47 @@
+name: Compile BLESK Free Name
+
+on:
+  push:
+    branches:
+      - blesk-compile-temp
+    paths:
+      - 'blesk_free_name.pwn'
+      - '.github/workflows/compile-blesk-free-name.yml'
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Pawn compiler and includes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -L --fail https://github.com/pawn-lang/compiler/releases/download/v3.10.10/pawnc-3.10.10-linux.tar.gz -o pawnc.tar.gz
+          mkdir -p pawnc
+          tar -xzf pawnc.tar.gz -C pawnc
+          git clone --depth 1 --branch v3.10.10 https://github.com/pawn-lang/compiler.git pawn-src
+          git clone --depth 1 https://github.com/pawn-lang/samp-stdlib.git samp-stdlib
+
+      - name: Compile blesk_free_name.pwn
+        shell: bash
+        run: |
+          set -euxo pipefail
+          PAWNCC="$(find "$PWD/pawnc" -type f -name pawncc | head -n1)"
+          LIBPAWNC="$(find "$PWD/pawnc" -type f -name 'libpawnc.so*' | head -n1)"
+          chmod +x "$PAWNCC"
+          export LD_LIBRARY_PATH="$(dirname "$LIBPAWNC"):${LD_LIBRARY_PATH:-}"
+          "$PAWNCC" blesk_free_name.pwn -i"$PWD/pawn-src/include" -i"$PWD/samp-stdlib" -oblesk_free_name.amx
+          test -s blesk_free_name.amx
+          file blesk_free_name.amx
+          ls -lah blesk_free_name.amx
+
+      - name: Upload AMX
+        uses: actions/upload-artifact@v4
+        with:
+          name: blesk-free-name-amx
+          path: blesk_free_name.amx
+          if-no-files-found: error
