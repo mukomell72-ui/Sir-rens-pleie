@@ -1,4 +1,5 @@
 from pathlib import Path
+import runpy
 
 path = Path("supabase/functions/vonuchkaa-ai-bot/index.ts")
 s = path.read_text(encoding="utf-8")
@@ -32,3 +33,6 @@ s = s.replace('      owner_free_premium: true,\n      premium_price_stars:', '  
 
 path.write_text(s, encoding="utf-8")
 print("Vonuchkaa owner access patch applied")
+
+# Stats is kept as a separate patch for maintainability, but is part of every normal deploy.
+runpy.run_path(".github/scripts/patch-vonuchkaa-stats.py", run_name="__main__")
