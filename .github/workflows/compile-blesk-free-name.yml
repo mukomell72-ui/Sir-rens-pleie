@@ -1,12 +1,6 @@
-name: Compile BLESK Free Name
+name: Compile BLESK Free Name (Manual)
 
 on:
-  push:
-    branches:
-      - blesk-compile-temp
-    paths:
-      - 'blesk_free_name.pwn'
-      - '.github/workflows/compile-blesk-free-name.yml'
   workflow_dispatch:
 
 jobs:
