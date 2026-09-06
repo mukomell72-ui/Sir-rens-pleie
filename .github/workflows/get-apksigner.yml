@@ -1,9 +1,6 @@
-name: Get ApkSigner
+name: Get ApkSigner (Manual)
 
 on:
-  push:
-    branches:
-      - blesk-compile-temp
   workflow_dispatch:
 
 jobs:
