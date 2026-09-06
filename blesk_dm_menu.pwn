@@ -76,14 +76,10 @@ stock DM_AddObject(playerid, modelid, Float:x, Float:y, Float:z, Float:rx, Float
 stock DM_CreateMap(playerid)
 {
     DM_DestroyMap(playerid);
-
-    // Main cover / container layout
     DM_AddObject(playerid, 2934, 398.0, 2498.0, 18.0, 0.0, 0.0,   0.0);
     DM_AddObject(playerid, 2935, 416.0, 2498.0, 18.0, 0.0, 0.0,  90.0);
     DM_AddObject(playerid, 2934, 398.0, 2522.0, 18.0, 0.0, 0.0,  90.0);
     DM_AddObject(playerid, 2935, 416.0, 2522.0, 18.0, 0.0, 0.0,   0.0);
-
-    // Low cover
     DM_AddObject(playerid, 3578, 407.0, 2490.0, 17.2, 0.0, 0.0,   0.0);
     DM_AddObject(playerid, 3578, 407.0, 2530.0, 17.2, 0.0, 0.0,   0.0);
     DM_AddObject(playerid, 3578, 382.0, 2510.0, 17.2, 0.0, 0.0,  90.0);
@@ -92,8 +88,6 @@ stock DM_CreateMap(playerid)
     DM_AddObject(playerid, 3578, 413.5, 2510.5, 17.2, 0.0, 0.0, 315.0);
     DM_AddObject(playerid, 3578, 407.0, 2503.0, 17.2, 0.0, 0.0,  90.0);
     DM_AddObject(playerid, 3578, 407.0, 2517.0, 17.2, 0.0, 0.0,  90.0);
-
-    // Outer fence
     DM_AddObject(playerid, 987, 376.0, 2482.0, 16.6, 0.0, 0.0, 0.0);
     DM_AddObject(playerid, 987, 388.0, 2482.0, 16.6, 0.0, 0.0, 0.0);
     DM_AddObject(playerid, 987, 400.0, 2482.0, 16.6, 0.0, 0.0, 0.0);
@@ -115,7 +109,6 @@ stock DM_SavePlayerState(playerid)
     gReturnWorld[playerid] = GetPlayerVirtualWorld(playerid);
     GetPlayerHealth(playerid, gReturnHealth[playerid]);
     GetPlayerArmour(playerid, gReturnArmour[playerid]);
-
     for(new slot = 0; slot < 13; slot++)
         GetPlayerWeaponData(playerid, slot, gSavedWeapon[playerid][slot], gSavedAmmo[playerid][slot]);
     return 1;
@@ -124,10 +117,10 @@ stock DM_SavePlayerState(playerid)
 stock DM_GiveLoadout(playerid)
 {
     ResetPlayerWeapons(playerid);
-    GivePlayerWeapon(playerid, 24, 120);  // Deagle
-    GivePlayerWeapon(playerid, 25, 100);  // Shotgun
-    GivePlayerWeapon(playerid, 31, 700);  // M4
-    GivePlayerWeapon(playerid, 4, 1);     // Knife
+    GivePlayerWeapon(playerid, 24, 120);
+    GivePlayerWeapon(playerid, 25, 100);
+    GivePlayerWeapon(playerid, 31, 700);
+    GivePlayerWeapon(playerid, 4, 1);
     SetPlayerHealth(playerid, 100.0);
     SetPlayerArmour(playerid, 100.0);
     return 1;
@@ -147,39 +140,29 @@ stock DM_TeleportToSpawn(playerid)
 
 stock DM_Enter(playerid)
 {
-    if(gInDM[playerid])
-    {
-        DM_TeleportToSpawn(playerid);
-        return 1;
-    }
-
+    if(gInDM[playerid]) return DM_TeleportToSpawn(playerid);
     DM_SavePlayerState(playerid);
     gInDM[playerid] = true;
-
     if(IsPlayerInAnyVehicle(playerid)) RemovePlayerFromVehicle(playerid);
     DM_CreateMap(playerid);
     DM_TeleportToSpawn(playerid);
-
     SendClientMessage(playerid, DM_COLOR_RED, "BLESK RUSSIA | DM ZONE");
-    SendClientMessage(playerid, DM_COLOR_WHITE, "Deagle / Shotgun / M4 / Knife. After death you respawn inside DM.");
-    SendClientMessage(playerid, DM_COLOR_GRAY, "Open the normal player menu and select DM ZONE again for controls/exit.");
+    SendClientMessage(playerid, DM_COLOR_WHITE, "Deagle / Shotgun / M4 / Knife. Respawn remains inside DM.");
+    SendClientMessage(playerid, DM_COLOR_GRAY, "Open Player Menu -> DM ZONE again for stats or exit.");
     return 1;
 }
 
 stock DM_Exit(playerid)
 {
     if(!gInDM[playerid]) return 1;
-
     gInDM[playerid] = false;
     DM_DestroyMap(playerid);
     ResetPlayerWeapons(playerid);
-
     for(new slot = 0; slot < 13; slot++)
     {
         if(gSavedWeapon[playerid][slot] > 0 && gSavedAmmo[playerid][slot] > 0)
             GivePlayerWeapon(playerid, gSavedWeapon[playerid][slot], gSavedAmmo[playerid][slot]);
     }
-
     SetPlayerInterior(playerid, gReturnInterior[playerid]);
     SetPlayerVirtualWorld(playerid, gReturnWorld[playerid]);
     SetPlayerPos(playerid, gReturnX[playerid], gReturnY[playerid], gReturnZ[playerid]);
@@ -187,7 +170,6 @@ stock DM_Exit(playerid)
     SetPlayerHealth(playerid, gReturnHealth[playerid]);
     SetPlayerArmour(playerid, gReturnArmour[playerid]);
     SetCameraBehindPlayer(playerid);
-
     SendClientMessage(playerid, DM_COLOR_GREEN, "BLESK DM: returned to the main world.");
     return 1;
 }
@@ -201,9 +183,7 @@ stock DM_ShowControl(playerid)
     return 1;
 }
 
-// Hook the ORIGINAL player menu sent by the gamemode.
-// Dialog #8 is DIALOG_PLAYER_MENU in the current BLESK gamemode.
-ORPC:RPC_SHOW_DIALOG(playerid, BitStream:bs)
+ORPC:61(playerid, BitStream:bs)
 {
     new dialogid, style;
     new title[96], button1[40], button2[40], body[4096];
@@ -230,8 +210,7 @@ ORPC:RPC_SHOW_DIALOG(playerid, BitStream:bs)
     return 1;
 }
 
-// Intercept only the new 13th item. All original 1..12 responses pass to the gamemode unchanged.
-IRPC:RPC_DIALOG_RESPONSE(playerid, BitStream:bs)
+IRPC:62(playerid, BitStream:bs)
 {
     new dialogid, button, listitem;
     new input[256];
@@ -250,7 +229,6 @@ IRPC:RPC_DIALOG_RESPONSE(playerid, BitStream:bs)
                 "BLESK RUSSIA | DM ZONE",
                 "Enter the DM arena?\n\nSeparate world, arena, weapons and respawn will be enabled.",
                 "ENTER", "BACK");
-
         return 0;
     }
     return 1;
@@ -320,17 +298,14 @@ public OnPlayerDeath(playerid, killerid, reason)
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
     #pragma unused inputtext
-
     if(dialogid == DM_DIALOG_CONFIRM)
     {
         if(response) SetTimerEx("DM_EnterDelayed", 100, false, "i", playerid);
         return 1;
     }
-
     if(dialogid == DM_DIALOG_CONTROL)
     {
         if(!response) return 1;
-
         switch(listitem)
         {
             case 0: DM_TeleportToSpawn(playerid);
