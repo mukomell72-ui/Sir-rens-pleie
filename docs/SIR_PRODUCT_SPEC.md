@@ -1,6 +1,6 @@
 # SIR Rens & Pleie — Product & Architecture Specification
 
-Status: consolidated design for `professional-redesign`.
+Status: consolidated production specification for `main`.
 
 ## 1. Core principles
 
@@ -340,4 +340,4 @@ Target public domain can later be `.no`. The domain must remain under SIR contro
 8. Permanent domain/QR and provider portability.
 9. Final responsive/UX/accessibility/security testing.
 
-This document is the single source of truth for the professional redesign unless a later approved requirement explicitly supersedes it.
+This document is the single source of truth for the production system unless a later approved requirement explicitly supersedes it.
