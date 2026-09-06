@@ -1,8 +1,8 @@
-name: Validate SIR professional redesign
+name: Validate SIR production
 
 on:
   push:
-    branches: [professional-redesign]
+    branches: [main, professional-redesign]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find assets admin tests -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | while IFS= read -r -d '' file; do
+          find assets admin guide-app tests -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | while IFS= read -r -d '' file; do
             echo "Checking $file"
             node --check "$file"
           done
@@ -30,12 +30,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -R -n 'rskgbkqtrigtznnksbyp' assets admin supabase scripts index.html privacy.html order q 2>/dev/null; then
+          if grep -R -n 'rskgbkqtrigtznnksbyp' assets admin guide-app supabase scripts index.html privacy.html order q 2>/dev/null; then
             echo 'Old Supabase project reference found in runtime/migration files'
             exit 1
           fi
-          if grep -R --exclude='sir_rens_only_screenshot_functions-2.html' -n "PIN.*1234\|pin.*1234" assets admin supabase scripts index.html privacy.html order q 2>/dev/null; then
-            echo 'Shared legacy admin PIN found in professional files'
+          if grep -R -n "PIN.*1234\|pin.*1234" assets admin guide-app supabase scripts index.html privacy.html order q 2>/dev/null; then
+            echo 'Shared legacy admin PIN found in production files'
             exit 1
           fi
           echo 'Safety regression checks OK'
