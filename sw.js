@@ -1,5 +1,13 @@
-const CACHE='sir-reference-v1';
-const ASSETS=['./','./index.html','./manifest.json'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
-self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
-self.addEventListener('fetch',e=>e.respondWith(fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r}).catch(()=>caches.match(e.request))));
+self.addEventListener('install',event=>{
+  self.skipWaiting();
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil((async()=>{
+    const keys=await caches.keys();
+    await Promise.all(keys.filter(key=>key.startsWith('sir-reference-')).map(key=>caches.delete(key)));
+    await self.registration.unregister();
+    const clients=await self.clients.matchAll({type:'window'});
+    for(const client of clients) client.navigate(client.url);
+  })());
+});
