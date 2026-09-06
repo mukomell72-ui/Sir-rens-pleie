@@ -18,10 +18,12 @@ jobs:
           set -euxo pipefail
           mkdir -p snapshot/client
           curl -L --fail --retry 3 'http://wh33289.web5.maze-tech.ru/hash.json' -o snapshot/hash.json
-          curl -L --fail --retry 3 'http://wh33289.web5.maze-tech.ru/app_info.json' -o snapshot/app_info.json
           curl -L --fail --retry 3 'http://wh33289.web5.maze-tech.ru/client/servers.json' -o snapshot/client/servers.json
-          wc -c snapshot/hash.json snapshot/app_info.json snapshot/client/servers.json
-          head -c 1000 snapshot/hash.json || true
+          curl -L --fail --retry 3 'http://wh33289.web5.maze-tech.ru/client/app_info.json' -o snapshot/client/app_info.json || true
+          curl -L --fail --retry 3 'http://wh33289.web5.maze-tech.ru/app_info.json' -o snapshot/app_info_root.json || true
+          ls -lah snapshot snapshot/client
+          wc -c snapshot/hash.json snapshot/client/servers.json snapshot/client/app_info.json snapshot/app_info_root.json 2>/dev/null || true
+          head -c 1200 snapshot/hash.json || true
       - name: Upload snapshot
         uses: actions/upload-artifact@v4
         with:
