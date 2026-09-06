@@ -3,7 +3,7 @@ name: Test SIR Supabase database
 on:
   workflow_dispatch:
   push:
-    branches: [professional-redesign]
+    branches: [main]
     paths:
       - '.github/workflows/test-supabase-db.yml'
       - 'supabase/migrations/**'
