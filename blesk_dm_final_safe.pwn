@@ -6,24 +6,15 @@
 
 stock ShowBleskPlayerMenu(playerid)
 {
+    new menu[1024];
+    format(menu, sizeof menu, "{FFFFFF}1. Статистика\n2. Список команд\n3. Личные настройки\n4. Настройки безопасности\n5. Связь с администрацией\n6. Улучшения\n7. Правила сервера\n8. Изменить имя\n9. Дополнительно\n{FFFFCC}10. Активация промокода\n{FFFFFF}11. Достижения\n12. Квесты\n{FF4444}13. DM зона");
+
     ShowPlayerDialog(
         playerid,
         DIALOG_PLAYER_MENU,
         DIALOG_STYLE_LIST,
         "{0099CC}BLESK RUSSIA | Меню игрока",
-        "{FFFFFF}1. Статистика\n"
-        "2. Список команд\n"
-        "3. Личные настройки\n"
-        "4. Настройки безопасности\n"
-        "5. Связь с администрацией\n"
-        "6. Улучшения\n"
-        "7. Правила сервера\n"
-        "8. Изменить имя\n"
-        "9. Дополнительно\n"
-        "{FFFFCC}10. Активация промокода\n"
-        "{FFFFFF}11. Достижения\n"
-        "12. Квесты\n"
-        "{FF4444}13. DM зона",
+        menu,
         "Выбрать",
         "Закрыть"
     );
@@ -65,11 +56,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
             );
             return 1;
         }
-
-        // For items 1-12, let the active gamemode process its own existing menu logic.
         return 0;
     }
 
-    // Let the active gamemode process DIALOG_MPREG and spawn its existing DM zone.
     return 0;
 }
