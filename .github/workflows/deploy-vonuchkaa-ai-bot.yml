@@ -19,6 +19,7 @@ on:
       - '.github/scripts/patch-vonuchkaa-voice-hotfix.py'
       - '.github/scripts/patch-vonuchkaa-all.py'
       - '.github/scripts/patch-vonuchkaa-zov.py'
+      - '.github/scripts/patch-vonuchkaa-who.py'
 
 permissions:
   contents: read
@@ -227,6 +228,7 @@ jobs:
           python3 .github/scripts/patch-vonuchkaa-voice-hotfix.py
           python3 .github/scripts/patch-vonuchkaa-all.py
           python3 .github/scripts/patch-vonuchkaa-zov.py
+          python3 .github/scripts/patch-vonuchkaa-who.py
 
       - name: Deploy vonuchkaa-ai-bot
         env:
