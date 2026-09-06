@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -R -n 'rskgbkqtrigtznnksbyp' assets admin guide-app supabase scripts index.html privacy.html order q 2>/dev/null; then
+          if grep -R -n 'rskgbkgtrigtznnksbyp' assets admin guide-app supabase scripts index.html privacy.html order q 2>/dev/null; then
             echo 'Old Supabase project reference found in runtime/migration files'
             exit 1
           fi
