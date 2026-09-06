@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - blesk-compile-temp
+    paths:
+      - 'blesk_entry.pwn'
+      - '.github/workflows/compile-blesk-entry.yml'
   workflow_dispatch:
 
 jobs:
