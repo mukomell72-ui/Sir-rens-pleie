@@ -1,5 +1,5 @@
 # Legacy guide cleanup note
 
-The current SIR Guide entry point is `guide-app/index.html` with `guide-app/manifest.json`, `guide-app/icon.svg`, and `guide-app/sw.js`.
+The active SIR Guide used by Admin is `guide-app/index-v13.html` together with its `app-v13.js`, inventory files and `photos-v13` assets.
 
-Legacy v12/v13 static guide bundles were removed from `main` after the current entry point was confirmed to be self-contained. Their history remains recoverable through Git.
+The older v12 bundle and obsolete helper scripts were removed from `main`. The root `guide.html` route redirects to the active v13 guide. Historical versions remain recoverable through Git history.
