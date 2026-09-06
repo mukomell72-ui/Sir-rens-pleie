@@ -1,75 +1,22 @@
 #include <a_samp>
 
-#define BLESK_DIALOG_NAME      (28910)
-#define BLESK_DIALOG_INFO      (28911)
-#define BLESK_DIALOG_SETTINGS  (28912)
-#define BLESK_MAX_DISPLAY_NAME (32)
-#define BLESK_COLOR_ACCENT     (0xE53935FF)
-#define BLESK_COLOR_WHITE      (0xFFFFFFFF)
-#define BLESK_COLOR_MUTED      (0xB8BDC8FF)
+#define DIALOG_BLESK_NAME 28910
+#define DIALOG_BLESK_INFO 28911
+#define MAX_DISPLAY_NAME 32
+#define COLOR_RED 0xE53935FF
+#define COLOR_WHITE 0xFFFFFFFF
 
-new DB:gBleskDB;
-new gDisplayName[MAX_PLAYERS][BLESK_MAX_DISPLAY_NAME + 1];
+new DB:gDB;
+new gDisplayName[MAX_PLAYERS][MAX_DISPLAY_NAME + 1];
 new bool:gHasDisplayName[MAX_PLAYERS];
 new bool:gMenuVisible[MAX_PLAYERS];
-new bool:gMenuShownThisSession[MAX_PLAYERS];
+new bool:gMenuShown[MAX_PLAYERS];
 new Text3D:gNameLabel[MAX_PLAYERS];
-
-enum E_BLESK_TD
-{
-    BTD_OVERLAY,
-    BTD_PANEL,
-    BTD_ACCENT,
-    BTD_TITLE,
-    BTD_RUSSIA,
-    BTD_SUBTITLE,
-    BTD_PREVIEW,
-    BTD_NAME_CAPTION,
-    BTD_NAME_BOX,
-    BTD_NAME_TEXT,
-    BTD_PLAY_BOX,
-    BTD_PLAY_TEXT,
-    BTD_INFO_BOX,
-    BTD_INFO_TEXT,
-    BTD_SETTINGS_BOX,
-    BTD_SETTINGS_TEXT,
-    BTD_FOOTER,
-    BTD_HINT,
-    BTD_TOTAL
-};
-new PlayerText:gBleskTD[MAX_PLAYERS][BTD_TOTAL];
+new PlayerText:gTD[MAX_PLAYERS][9];
 
 forward Blesk_ShowMenuDelayed(playerid);
 
-stock Blesk_StrReplaceControlChars(string[])
-{
-    for(new i = 0, len = strlen(string); i < len; i++)
-    {
-        if(string[i] == '~') string[i] = '-';
-        if(string[i] == '\r' || string[i] == '\n' || string[i] == '\t') string[i] = ' ';
-    }
-    return 1;
-}
-
-stock Blesk_TrimSpaces(string[])
-{
-    new len = strlen(string);
-    while(len > 0 && string[len - 1] == ' ')
-    {
-        string[len - 1] = EOS;
-        len--;
-    }
-
-    new start = 0;
-    while(string[start] == ' ') start++;
-    if(start > 0)
-    {
-        for(new i = 0; i <= len - start; i++) string[i] = string[i + start];
-    }
-    return 1;
-}
-
-stock Blesk_EscapeSQL(const input[], output[], size)
+stock EscapeSQL(const input[], output[], size)
 {
     new o = 0;
     for(new i = 0, len = strlen(input); i < len && o < size - 1; i++)
@@ -86,305 +33,205 @@ stock Blesk_EscapeSQL(const input[], output[], size)
     return 1;
 }
 
-stock Blesk_SaveName(playerid)
+stock SaveDisplayName(playerid)
 {
-    if(gBleskDB == DB:0 || !gHasDisplayName[playerid]) return 0;
-
-    new techName[MAX_PLAYER_NAME + 1], escTech[(MAX_PLAYER_NAME + 1) * 2];
-    new escDisplay[(BLESK_MAX_DISPLAY_NAME + 1) * 2], query[256];
-    GetPlayerName(playerid, techName, sizeof techName);
-    Blesk_EscapeSQL(techName, escTech, sizeof escTech);
-    Blesk_EscapeSQL(gDisplayName[playerid], escDisplay, sizeof escDisplay);
-
-    format(query, sizeof query,
-        "INSERT OR REPLACE INTO blesk_names (account_name, display_name) VALUES ('%s','%s')",
-        escTech, escDisplay);
-    new DBResult:res = db_query(gBleskDB, query);
-    if(res) db_free_result(res);
+    if(gDB == DB:0 || !gHasDisplayName[playerid]) return 0;
+    new tech[MAX_PLAYER_NAME + 1], etech[(MAX_PLAYER_NAME + 1) * 2];
+    new ename[(MAX_DISPLAY_NAME + 1) * 2], q[220];
+    GetPlayerName(playerid, tech, sizeof tech);
+    EscapeSQL(tech, etech, sizeof etech);
+    EscapeSQL(gDisplayName[playerid], ename, sizeof ename);
+    format(q, sizeof q, "INSERT OR REPLACE INTO names (account_name,display_name) VALUES ('%s','%s')", etech, ename);
+    new DBResult:r = db_query(gDB, q);
+    if(r) db_free_result(r);
     return 1;
 }
 
-stock Blesk_LoadName(playerid)
+stock LoadDisplayName(playerid)
 {
     gHasDisplayName[playerid] = false;
     gDisplayName[playerid][0] = EOS;
-    if(gBleskDB == DB:0) return 0;
-
-    new techName[MAX_PLAYER_NAME + 1], escTech[(MAX_PLAYER_NAME + 1) * 2], query[160];
-    GetPlayerName(playerid, techName, sizeof techName);
-    Blesk_EscapeSQL(techName, escTech, sizeof escTech);
-    format(query, sizeof query, "SELECT display_name FROM blesk_names WHERE account_name='%s' LIMIT 1", escTech);
-
-    new DBResult:res = db_query(gBleskDB, query);
-    if(res)
+    if(gDB == DB:0) return 0;
+    new tech[MAX_PLAYER_NAME + 1], etech[(MAX_PLAYER_NAME + 1) * 2], q[150];
+    GetPlayerName(playerid, tech, sizeof tech);
+    EscapeSQL(tech, etech, sizeof etech);
+    format(q, sizeof q, "SELECT display_name FROM names WHERE account_name='%s' LIMIT 1", etech);
+    new DBResult:r = db_query(gDB, q);
+    if(r)
     {
-        if(db_num_rows(res) > 0)
+        if(db_num_rows(r) > 0)
         {
-            db_get_field_assoc(res, "display_name", gDisplayName[playerid], BLESK_MAX_DISPLAY_NAME + 1);
-            if(strlen(gDisplayName[playerid]) > 0) gHasDisplayName[playerid] = true;
+            db_get_field_assoc(r, "display_name", gDisplayName[playerid], MAX_DISPLAY_NAME + 1);
+            if(strlen(gDisplayName[playerid])) gHasDisplayName[playerid] = true;
         }
-        db_free_result(res);
+        db_free_result(r);
     }
-
-    if(!gHasDisplayName[playerid]) GetPlayerName(playerid, gDisplayName[playerid], BLESK_MAX_DISPLAY_NAME + 1);
     return 1;
 }
 
-stock Blesk_RefreshNameLabel(playerid)
+stock DestroyLabel(playerid)
 {
     if(gNameLabel[playerid] != Text3D:INVALID_3DTEXT_ID)
     {
         Delete3DTextLabel(gNameLabel[playerid]);
         gNameLabel[playerid] = Text3D:INVALID_3DTEXT_ID;
     }
+    return 1;
+}
 
+stock ApplyLabel(playerid)
+{
+    DestroyLabel(playerid);
     if(!gHasDisplayName[playerid]) return 1;
-
-    gNameLabel[playerid] = Create3DTextLabel(gDisplayName[playerid], BLESK_COLOR_WHITE,
-        0.0, 0.0, 0.0, 22.0, 0, 1);
+    gNameLabel[playerid] = Create3DTextLabel(gDisplayName[playerid], COLOR_WHITE, 0.0, 0.0, 0.0, 20.0, 0, 1);
     Attach3DTextLabelToPlayer(gNameLabel[playerid], playerid, 0.0, 0.0, 0.35);
-
     for(new i = 0; i < MAX_PLAYERS; i++)
-    {
         if(IsPlayerConnected(i)) ShowPlayerNameTagForPlayer(i, playerid, false);
-    }
     return 1;
 }
 
-stock Blesk_CreateTD(playerid)
+stock DestroyMenu(playerid)
 {
-    for(new i = 0; i < BTD_TOTAL; i++) gBleskTD[playerid][i] = PlayerText:INVALID_TEXT_DRAW;
-
-    gBleskTD[playerid][BTD_OVERLAY] = CreatePlayerTextDraw(playerid, 0.0, 0.0, "LD_SPAC:white");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_OVERLAY], 4);
-    PlayerTextDrawTextSize(playerid, gBleskTD[playerid][BTD_OVERLAY], 640.0, 448.0);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_OVERLAY], 0x00000066);
-
-    gBleskTD[playerid][BTD_PANEL] = CreatePlayerTextDraw(playerid, 394.0, 38.0, "LD_SPAC:white");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_PANEL], 4);
-    PlayerTextDrawTextSize(playerid, gBleskTD[playerid][BTD_PANEL], 212.0, 365.0);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_PANEL], 0x11141CEB);
-
-    gBleskTD[playerid][BTD_ACCENT] = CreatePlayerTextDraw(playerid, 394.0, 38.0, "LD_SPAC:white");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_ACCENT], 4);
-    PlayerTextDrawTextSize(playerid, gBleskTD[playerid][BTD_ACCENT], 4.0, 365.0);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_ACCENT], BLESK_COLOR_ACCENT);
-
-    gBleskTD[playerid][BTD_TITLE] = CreatePlayerTextDraw(playerid, 44.0, 44.0, "BLESK");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_TITLE], 2);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_TITLE], 0.54, 2.25);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_TITLE], BLESK_COLOR_WHITE);
-    PlayerTextDrawSetProportional(playerid, gBleskTD[playerid][BTD_TITLE], 1);
-
-    gBleskTD[playerid][BTD_RUSSIA] = CreatePlayerTextDraw(playerid, 117.0, 49.0, "RUSSIA");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_RUSSIA], 1);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_RUSSIA], 0.29, 1.55);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_RUSSIA], BLESK_COLOR_ACCENT);
-    PlayerTextDrawSetProportional(playerid, gBleskTD[playerid][BTD_RUSSIA], 1);
-
-    gBleskTD[playerid][BTD_SUBTITLE] = CreatePlayerTextDraw(playerid, 44.0, 72.0, "ТВОЯ ИСТОРИЯ НАЧИНАЕТСЯ ЗДЕСЬ");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_SUBTITLE], 1);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_SUBTITLE], 0.18, 0.9);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_SUBTITLE], BLESK_COLOR_MUTED);
-    PlayerTextDrawSetProportional(playerid, gBleskTD[playerid][BTD_SUBTITLE], 1);
-
-    gBleskTD[playerid][BTD_PREVIEW] = CreatePlayerTextDraw(playerid, 62.0, 103.0, "preview");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_PREVIEW], 5);
-    PlayerTextDrawTextSize(playerid, gBleskTD[playerid][BTD_PREVIEW], 165.0, 255.0);
-    PlayerTextDrawSetPreviewModel(playerid, gBleskTD[playerid][BTD_PREVIEW], GetPlayerSkin(playerid));
-    PlayerTextDrawSetPreviewRot(playerid, gBleskTD[playerid][BTD_PREVIEW], -8.0, 0.0, 16.0, 1.05);
-    PlayerTextDrawBackgroundColor(playerid, gBleskTD[playerid][BTD_PREVIEW], 0x00000000);
-
-    gBleskTD[playerid][BTD_NAME_CAPTION] = CreatePlayerTextDraw(playerid, 419.0, 112.0, "ИГРОВОЕ ИМЯ");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_NAME_CAPTION], 1);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_NAME_CAPTION], 0.20, 1.0);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_NAME_CAPTION], BLESK_COLOR_MUTED);
-
-    gBleskTD[playerid][BTD_NAME_BOX] = CreatePlayerTextDraw(playerid, 419.0, 132.0, "LD_SPAC:white");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_NAME_BOX], 4);
-    PlayerTextDrawTextSize(playerid, gBleskTD[playerid][BTD_NAME_BOX], 167.0, 43.0);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_NAME_BOX], 0x232833FF);
-    PlayerTextDrawSetSelectable(playerid, gBleskTD[playerid][BTD_NAME_BOX], true);
-
-    gBleskTD[playerid][BTD_NAME_TEXT] = CreatePlayerTextDraw(playerid, 431.0, 145.0, gDisplayName[playerid]);
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_NAME_TEXT], 1);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_NAME_TEXT], 0.28, 1.25);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_NAME_TEXT], BLESK_COLOR_WHITE);
-    PlayerTextDrawSetProportional(playerid, gBleskTD[playerid][BTD_NAME_TEXT], 1);
-
-    gBleskTD[playerid][BTD_PLAY_BOX] = CreatePlayerTextDraw(playerid, 419.0, 195.0, "LD_SPAC:white");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_PLAY_BOX], 4);
-    PlayerTextDrawTextSize(playerid, gBleskTD[playerid][BTD_PLAY_BOX], 167.0, 49.0);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_PLAY_BOX], BLESK_COLOR_ACCENT);
-    PlayerTextDrawSetSelectable(playerid, gBleskTD[playerid][BTD_PLAY_BOX], true);
-
-    gBleskTD[playerid][BTD_PLAY_TEXT] = CreatePlayerTextDraw(playerid, 502.0, 211.0, "ИГРАТЬ");
-    PlayerTextDrawAlignment(playerid, gBleskTD[playerid][BTD_PLAY_TEXT], 2);
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_PLAY_TEXT], 2);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_PLAY_TEXT], 0.32, 1.45);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_PLAY_TEXT], BLESK_COLOR_WHITE);
-
-    gBleskTD[playerid][BTD_INFO_BOX] = CreatePlayerTextDraw(playerid, 419.0, 261.0, "LD_SPAC:white");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_INFO_BOX], 4);
-    PlayerTextDrawTextSize(playerid, gBleskTD[playerid][BTD_INFO_BOX], 79.0, 38.0);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_INFO_BOX], 0x232833FF);
-    PlayerTextDrawSetSelectable(playerid, gBleskTD[playerid][BTD_INFO_BOX], true);
-
-    gBleskTD[playerid][BTD_INFO_TEXT] = CreatePlayerTextDraw(playerid, 458.0, 274.0, "ИНФО");
-    PlayerTextDrawAlignment(playerid, gBleskTD[playerid][BTD_INFO_TEXT], 2);
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_INFO_TEXT], 1);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_INFO_TEXT], 0.22, 1.1);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_INFO_TEXT], BLESK_COLOR_WHITE);
-
-    gBleskTD[playerid][BTD_SETTINGS_BOX] = CreatePlayerTextDraw(playerid, 507.0, 261.0, "LD_SPAC:white");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_SETTINGS_BOX], 4);
-    PlayerTextDrawTextSize(playerid, gBleskTD[playerid][BTD_SETTINGS_BOX], 79.0, 38.0);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_SETTINGS_BOX], 0x232833FF);
-    PlayerTextDrawSetSelectable(playerid, gBleskTD[playerid][BTD_SETTINGS_BOX], true);
-
-    gBleskTD[playerid][BTD_SETTINGS_TEXT] = CreatePlayerTextDraw(playerid, 546.0, 274.0, "НАСТР.");
-    PlayerTextDrawAlignment(playerid, gBleskTD[playerid][BTD_SETTINGS_TEXT], 2);
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_SETTINGS_TEXT], 1);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_SETTINGS_TEXT], 0.20, 1.1);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_SETTINGS_TEXT], BLESK_COLOR_WHITE);
-
-    gBleskTD[playerid][BTD_FOOTER] = CreatePlayerTextDraw(playerid, 419.0, 337.0, "BLESK RUSSIA  |  SERVER #1");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_FOOTER], 1);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_FOOTER], 0.17, 0.85);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_FOOTER], 0x7E8796FF);
-
-    gBleskTD[playerid][BTD_HINT] = CreatePlayerTextDraw(playerid, 44.0, 390.0, "НИК МОЖНО МЕНЯТЬ ПРЯМО НА СЕРВЕРЕ — БЕЗ НОВОГО APK");
-    PlayerTextDrawFont(playerid, gBleskTD[playerid][BTD_HINT], 1);
-    PlayerTextDrawLetterSize(playerid, gBleskTD[playerid][BTD_HINT], 0.17, 0.85);
-    PlayerTextDrawColor(playerid, gBleskTD[playerid][BTD_HINT], 0xAAB0BAFF);
-    return 1;
-}
-
-stock Blesk_DestroyTD(playerid)
-{
-    for(new i = 0; i < BTD_TOTAL; i++)
+    for(new i = 0; i < 9; i++)
     {
-        if(gBleskTD[playerid][i] != PlayerText:INVALID_TEXT_DRAW)
+        if(gTD[playerid][i] != PlayerText:INVALID_TEXT_DRAW)
         {
-            PlayerTextDrawDestroy(playerid, gBleskTD[playerid][i]);
-            gBleskTD[playerid][i] = PlayerText:INVALID_TEXT_DRAW;
+            PlayerTextDrawDestroy(playerid, gTD[playerid][i]);
+            gTD[playerid][i] = PlayerText:INVALID_TEXT_DRAW;
         }
     }
     return 1;
 }
 
-stock Blesk_ShowMenu(playerid)
+stock MakeTD(playerid, idx, Float:x, Float:y, const text[], Float:letterX, Float:letterY, color)
+{
+    gTD[playerid][idx] = CreatePlayerTextDraw(playerid, x, y, text);
+    PlayerTextDrawFont(playerid, gTD[playerid][idx], 1);
+    PlayerTextDrawLetterSize(playerid, gTD[playerid][idx], letterX, letterY);
+    PlayerTextDrawColor(playerid, gTD[playerid][idx], color);
+    PlayerTextDrawSetProportional(playerid, gTD[playerid][idx], 1);
+    return 1;
+}
+
+stock MakeButton(playerid, idx, Float:x, Float:y, const text[], boxcolor)
+{
+    MakeTD(playerid, idx, x, y, text, 0.28, 1.35, COLOR_WHITE);
+    PlayerTextDrawUseBox(playerid, gTD[playerid][idx], 1);
+    PlayerTextDrawBoxColor(playerid, gTD[playerid][idx], boxcolor);
+    PlayerTextDrawTextSize(playerid, gTD[playerid][idx], x + 150.0, 0.0);
+    PlayerTextDrawSetSelectable(playerid, gTD[playerid][idx], true);
+    return 1;
+}
+
+stock ShowBleskMenu(playerid)
 {
     if(!IsPlayerConnected(playerid) || gMenuVisible[playerid]) return 0;
-    Blesk_DestroyTD(playerid);
-    Blesk_CreateTD(playerid);
-    for(new i = 0; i < BTD_TOTAL; i++) PlayerTextDrawShow(playerid, gBleskTD[playerid][i]);
+    DestroyMenu(playerid);
 
-    new Float:x, Float:y, Float:z;
-    GetPlayerPos(playerid, x, y, z);
+    MakeTD(playerid, 0, 420.0, 72.0, "BLESK", 0.52, 2.1, COLOR_WHITE);
+    MakeTD(playerid, 1, 487.0, 79.0, "RUSSIA", 0.24, 1.25, COLOR_RED);
+    MakeTD(playerid, 2, 420.0, 112.0, "SERVER MENU", 0.18, 0.9, 0xB9C0CBFF);
+    MakeTD(playerid, 3, 420.0, 150.0, "DISPLAY NAME", 0.18, 0.9, 0xB9C0CBFF);
+    MakeButton(playerid, 4, 420.0, 170.0, "CHANGE NAME", 0x222833DD);
+    MakeButton(playerid, 5, 420.0, 225.0, "PLAY", COLOR_RED);
+    MakeButton(playerid, 6, 420.0, 280.0, "INFO", 0x222833DD);
+    MakeTD(playerid, 7, 420.0, 338.0, "BLESK RUSSIA  |  SERVER #1", 0.16, 0.8, 0x8E97A6FF);
+    MakeTD(playerid, 8, 420.0, 360.0, "/bleskmenu  /nick", 0.16, 0.8, 0x8E97A6FF);
+
+    for(new i = 0; i < 9; i++) PlayerTextDrawShow(playerid, gTD[playerid][i]);
     TogglePlayerControllable(playerid, false);
-    InterpolateCameraPos(playerid, x + 20.0, y + 22.0, z + 11.0, x - 18.0, y + 15.0, z + 9.0, 11000, CAMERA_MOVE);
-    InterpolateCameraLookAt(playerid, x, y, z + 1.2, x, y, z + 1.0, 11000, CAMERA_MOVE);
-    SelectTextDraw(playerid, BLESK_COLOR_ACCENT);
+    SelectTextDraw(playerid, COLOR_RED);
     gMenuVisible[playerid] = true;
     return 1;
 }
 
-stock Blesk_HideMenu(playerid)
+stock HideBleskMenu(playerid)
 {
     if(!gMenuVisible[playerid]) return 1;
     CancelSelectTextDraw(playerid);
-    for(new i = 0; i < BTD_TOTAL; i++)
-        if(gBleskTD[playerid][i] != PlayerText:INVALID_TEXT_DRAW) PlayerTextDrawHide(playerid, gBleskTD[playerid][i]);
-    SetCameraBehindPlayer(playerid);
+    for(new i = 0; i < 9; i++)
+        if(gTD[playerid][i] != PlayerText:INVALID_TEXT_DRAW) PlayerTextDrawHide(playerid, gTD[playerid][i]);
     TogglePlayerControllable(playerid, true);
     gMenuVisible[playerid] = false;
     return 1;
 }
 
-stock Blesk_OpenNameDialog(playerid)
+stock OpenNameDialog(playerid)
 {
     CancelSelectTextDraw(playerid);
-    ShowPlayerDialog(playerid, BLESK_DIALOG_NAME, DIALOG_STYLE_INPUT,
-        "{E53935}BLESK RUSSIA {FFFFFF}— ИГРОВОЕ ИМЯ",
-        "{FFFFFF}ВВЕДИТЕ ИМЯ, КОТОРОЕ БУДУТ ВИДЕТЬ ИГРОКИ.\n\n{B8BDC8}МОЖНО ПРОБЕЛЫ, РУССКИЙ ЯЗЫК И СИМВОЛЫ.\nИМЯ СОХРАНЯЕТСЯ НА СЕРВЕРЕ.",
-        "СОХРАНИТЬ", "НАЗАД");
+    ShowPlayerDialog(playerid, DIALOG_BLESK_NAME, DIALOG_STYLE_INPUT,
+        "BLESK RUSSIA - DISPLAY NAME",
+        "Enter any display name. Spaces and non-English characters are accepted by this server display-name system.\nMaximum: 32 characters.",
+        "SAVE", "BACK");
     return 1;
 }
 
 public OnFilterScriptInit()
 {
-    print("[BLESK] Perfect server UI loaded");
-    gBleskDB = db_open("blesk_names.db");
-    if(gBleskDB != DB:0)
+    print("[BLESK SAFE UI] loaded");
+    gDB = db_open("blesk_names.db");
+    if(gDB != DB:0)
     {
-        new DBResult:res = db_query(gBleskDB,
-            "CREATE TABLE IF NOT EXISTS blesk_names (account_name TEXT PRIMARY KEY, display_name TEXT NOT NULL)");
-        if(res) db_free_result(res);
+        new DBResult:r = db_query(gDB, "CREATE TABLE IF NOT EXISTS names (account_name TEXT PRIMARY KEY, display_name TEXT NOT NULL)");
+        if(r) db_free_result(r);
     }
-
-    for(new i = 0; i < MAX_PLAYERS; i++)
+    for(new p = 0; p < MAX_PLAYERS; p++)
     {
-        gNameLabel[i] = Text3D:INVALID_3DTEXT_ID;
-        gMenuVisible[i] = false;
-        gMenuShownThisSession[i] = false;
-        for(new t = 0; t < BTD_TOTAL; t++) gBleskTD[i][t] = PlayerText:INVALID_TEXT_DRAW;
+        gNameLabel[p] = Text3D:INVALID_3DTEXT_ID;
+        gMenuVisible[p] = false;
+        gMenuShown[p] = false;
+        for(new i = 0; i < 9; i++) gTD[p][i] = PlayerText:INVALID_TEXT_DRAW;
     }
     return 1;
 }
 
 public OnFilterScriptExit()
 {
-    for(new i = 0; i < MAX_PLAYERS; i++)
+    for(new p = 0; p < MAX_PLAYERS; p++)
     {
-        if(IsPlayerConnected(i))
-        {
-            Blesk_SaveName(i);
-            Blesk_DestroyTD(i);
-            if(gNameLabel[i] != Text3D:INVALID_3DTEXT_ID) Delete3DTextLabel(gNameLabel[i]);
-        }
+        if(IsPlayerConnected(p)) SaveDisplayName(p);
+        DestroyMenu(p);
+        DestroyLabel(p);
     }
-    if(gBleskDB != DB:0) db_close(gBleskDB);
+    if(gDB != DB:0) db_close(gDB);
     return 1;
 }
 
 public OnPlayerConnect(playerid)
 {
     gMenuVisible[playerid] = false;
-    gMenuShownThisSession[playerid] = false;
+    gMenuShown[playerid] = false;
     gNameLabel[playerid] = Text3D:INVALID_3DTEXT_ID;
-    for(new t = 0; t < BTD_TOTAL; t++) gBleskTD[playerid][t] = PlayerText:INVALID_TEXT_DRAW;
-    Blesk_LoadName(playerid);
-    if(gHasDisplayName[playerid]) Blesk_RefreshNameLabel(playerid);
+    for(new i = 0; i < 9; i++) gTD[playerid][i] = PlayerText:INVALID_TEXT_DRAW;
+    LoadDisplayName(playerid);
     return 1;
 }
 
 public OnPlayerDisconnect(playerid, reason)
 {
     #pragma unused reason
-    Blesk_SaveName(playerid);
-    Blesk_DestroyTD(playerid);
-    if(gNameLabel[playerid] != Text3D:INVALID_3DTEXT_ID) Delete3DTextLabel(gNameLabel[playerid]);
-    gNameLabel[playerid] = Text3D:INVALID_3DTEXT_ID;
+    SaveDisplayName(playerid);
+    DestroyMenu(playerid);
+    DestroyLabel(playerid);
     gMenuVisible[playerid] = false;
-    gMenuShownThisSession[playerid] = false;
+    gMenuShown[playerid] = false;
     return 1;
 }
 
 public OnPlayerSpawn(playerid)
 {
-    if(gHasDisplayName[playerid]) Blesk_RefreshNameLabel(playerid);
-    if(!gMenuShownThisSession[playerid])
+    if(gHasDisplayName[playerid]) ApplyLabel(playerid);
+    if(!gMenuShown[playerid])
     {
-        gMenuShownThisSession[playerid] = true;
-        SetTimerEx("Blesk_ShowMenuDelayed", 900, false, "i", playerid);
+        gMenuShown[playerid] = true;
+        SetTimerEx("Blesk_ShowMenuDelayed", 2200, false, "i", playerid);
     }
     return 1;
 }
 
 public Blesk_ShowMenuDelayed(playerid)
 {
-    if(IsPlayerConnected(playerid)) Blesk_ShowMenu(playerid);
+    if(IsPlayerConnected(playerid)) ShowBleskMenu(playerid);
     return 1;
 }
 
@@ -397,35 +244,23 @@ public OnPlayerStreamIn(playerid, forplayerid)
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 {
     if(!gMenuVisible[playerid]) return 0;
-
-    if(playertextid == gBleskTD[playerid][BTD_NAME_BOX])
+    if(playertextid == gTD[playerid][4])
     {
-        PlayerPlaySound(playerid, 1083, 0.0, 0.0, 0.0);
-        Blesk_OpenNameDialog(playerid);
+        OpenNameDialog(playerid);
         return 1;
     }
-    if(playertextid == gBleskTD[playerid][BTD_PLAY_BOX])
+    if(playertextid == gTD[playerid][5])
     {
-        PlayerPlaySound(playerid, 1057, 0.0, 0.0, 0.0);
-        Blesk_HideMenu(playerid);
+        HideBleskMenu(playerid);
         return 1;
     }
-    if(playertextid == gBleskTD[playerid][BTD_INFO_BOX])
+    if(playertextid == gTD[playerid][6])
     {
         CancelSelectTextDraw(playerid);
-        ShowPlayerDialog(playerid, BLESK_DIALOG_INFO, DIALOG_STYLE_MSGBOX,
-            "{E53935}BLESK RUSSIA",
-            "{FFFFFF}СЕРВЕРНОЕ МЕНЮ BLESK RUSSIA.\n\n{B8BDC8}• /bleskmenu — ОТКРЫТЬ МЕНЮ\n• /nick — СМЕНИТЬ ИГРОВОЕ ИМЯ\n• ПРОБЕЛЫ И РУССКИЙ ЯЗЫК РАЗРЕШЕНЫ\n• НОВЫЙ APK НЕ НУЖЕН",
-            "НАЗАД", "");
-        return 1;
-    }
-    if(playertextid == gBleskTD[playerid][BTD_SETTINGS_BOX])
-    {
-        CancelSelectTextDraw(playerid);
-        ShowPlayerDialog(playerid, BLESK_DIALOG_SETTINGS, DIALOG_STYLE_LIST,
-            "{E53935}BLESK RUSSIA {FFFFFF}— НАСТРОЙКИ",
-            "ИЗМЕНИТЬ ИГРОВОЕ ИМЯ\nВЕРНУТЬСЯ В ИГРУ",
-            "ВЫБРАТЬ", "НАЗАД");
+        ShowPlayerDialog(playerid, DIALOG_BLESK_INFO, DIALOG_STYLE_MSGBOX,
+            "BLESK RUSSIA",
+            "Server-side compatibility menu.\n/nick - change display name\n/bleskmenu - open this menu\nNo APK update is required.",
+            "BACK", "");
         return 1;
     }
     return 0;
@@ -435,7 +270,7 @@ public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
     if(clickedid == Text:INVALID_TEXT_DRAW && gMenuVisible[playerid])
     {
-        SelectTextDraw(playerid, BLESK_COLOR_ACCENT);
+        SelectTextDraw(playerid, COLOR_RED);
         return 1;
     }
     return 0;
@@ -443,59 +278,39 @@ public OnPlayerClickTextDraw(playerid, Text:clickedid)
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
-    if(dialogid == BLESK_DIALOG_NAME)
+    #pragma unused listitem
+    if(dialogid == DIALOG_BLESK_NAME)
     {
         if(!response)
         {
-            if(gMenuVisible[playerid]) SelectTextDraw(playerid, BLESK_COLOR_ACCENT);
+            if(gMenuVisible[playerid]) SelectTextDraw(playerid, COLOR_RED);
             return 1;
         }
 
-        new newName[BLESK_MAX_DISPLAY_NAME + 1];
-        format(newName, sizeof newName, "%s", inputtext);
-        Blesk_StrReplaceControlChars(newName);
-        Blesk_TrimSpaces(newName);
-
-        new len = strlen(newName);
-        if(len < 1 || len > BLESK_MAX_DISPLAY_NAME)
+        new n[MAX_DISPLAY_NAME + 1];
+        format(n, sizeof n, "%s", inputtext);
+        new len = strlen(n);
+        if(len < 1 || len > MAX_DISPLAY_NAME)
         {
-            ShowPlayerDialog(playerid, BLESK_DIALOG_NAME, DIALOG_STYLE_INPUT,
-                "{E53935}BLESK RUSSIA {FFFFFF}— ИГРОВОЕ ИМЯ",
-                "{FF6B6B}ИМЯ ДОЛЖНО БЫТЬ ОТ 1 ДО 32 СИМВОЛОВ.\n\n{FFFFFF}ПРОБЕЛЫ, РУССКИЙ ЯЗЫК И СИМВОЛЫ РАЗРЕШЕНЫ.",
-                "СОХРАНИТЬ", "НАЗАД");
+            ShowPlayerDialog(playerid, DIALOG_BLESK_NAME, DIALOG_STYLE_INPUT,
+                "BLESK RUSSIA - DISPLAY NAME",
+                "Name must contain 1 to 32 characters.",
+                "SAVE", "BACK");
             return 1;
         }
 
-        format(gDisplayName[playerid], BLESK_MAX_DISPLAY_NAME + 1, "%s", newName);
+        format(gDisplayName[playerid], MAX_DISPLAY_NAME + 1, "%s", n);
         gHasDisplayName[playerid] = true;
-        Blesk_SaveName(playerid);
-        Blesk_RefreshNameLabel(playerid);
-        if(gBleskTD[playerid][BTD_NAME_TEXT] != PlayerText:INVALID_TEXT_DRAW)
-            PlayerTextDrawSetString(playerid, gBleskTD[playerid][BTD_NAME_TEXT], gDisplayName[playerid]);
-
-        PlayerPlaySound(playerid, 1054, 0.0, 0.0, 0.0);
-        if(gMenuVisible[playerid]) SelectTextDraw(playerid, BLESK_COLOR_ACCENT);
+        SaveDisplayName(playerid);
+        ApplyLabel(playerid);
+        SendClientMessage(playerid, COLOR_RED, "BLESK RUSSIA | Display name saved.");
+        if(gMenuVisible[playerid]) SelectTextDraw(playerid, COLOR_RED);
         return 1;
     }
 
-    if(dialogid == BLESK_DIALOG_INFO)
+    if(dialogid == DIALOG_BLESK_INFO)
     {
-        if(gMenuVisible[playerid]) SelectTextDraw(playerid, BLESK_COLOR_ACCENT);
-        return 1;
-    }
-
-    if(dialogid == BLESK_DIALOG_SETTINGS)
-    {
-        if(response)
-        {
-            if(listitem == 0) return Blesk_OpenNameDialog(playerid);
-            if(listitem == 1)
-            {
-                Blesk_HideMenu(playerid);
-                return 1;
-            }
-        }
-        if(gMenuVisible[playerid]) SelectTextDraw(playerid, BLESK_COLOR_ACCENT);
+        if(gMenuVisible[playerid]) SelectTextDraw(playerid, COLOR_RED);
         return 1;
     }
     return 0;
@@ -505,12 +320,12 @@ public OnPlayerCommandText(playerid, cmdtext[])
 {
     if(!strcmp(cmdtext, "/bleskmenu", true) || !strcmp(cmdtext, "/menu", true))
     {
-        Blesk_ShowMenu(playerid);
+        ShowBleskMenu(playerid);
         return 1;
     }
     if(!strcmp(cmdtext, "/nick", true) || !strcmp(cmdtext, "/myname", true))
     {
-        Blesk_OpenNameDialog(playerid);
+        OpenNameDialog(playerid);
         return 1;
     }
     return 0;
