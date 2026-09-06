@@ -3,7 +3,7 @@ name: Test SIR public order flow
 on:
   workflow_dispatch:
   push:
-    branches: [professional-redesign]
+    branches: [main]
     paths:
       - '.github/workflows/test-public-order-flow.yml'
       - 'supabase/migrations/**'
