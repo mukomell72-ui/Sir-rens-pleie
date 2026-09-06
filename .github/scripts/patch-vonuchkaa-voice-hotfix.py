@@ -89,7 +89,7 @@ async function sendVoiceBytes'''
 
 if not pattern.search(s):
     raise SystemExit("voice generator anchor not found")
-s = pattern.sub(replacement, s, count=1)
+s = pattern.sub(lambda _m: replacement, s, count=1)
 
 old = '''  if (!audio.ok || !audio.bytes) {
     voiceCooldown.delete(cdKey);
