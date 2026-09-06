@@ -3,11 +3,10 @@ name: Deploy SIR Supabase database
 on:
   workflow_dispatch:
   push:
-    branches: [professional-redesign]
+    branches: [main]
     paths:
       - 'supabase/migrations/**'
       - 'supabase/config.toml'
-      - '.github/workflows/deploy-supabase-db.yml'
 
 permissions:
   contents: write
@@ -27,7 +26,7 @@ jobs:
         with:
           version: 2.116.0
 
-      - name: Link new SIR project
+      - name: Link SIR project
         run: supabase link --project-ref fxdgeizhlhgvybclvmyo
 
       - name: Preview migrations
@@ -39,7 +38,7 @@ jobs:
       - name: Show migration status
         run: supabase migration list --linked
 
-      - name: Sync public frontend key and new project URLs
+      - name: Sync public frontend key and SIR project URLs
         shell: bash
         run: |
           set -euo pipefail
@@ -101,5 +100,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/config.js
-          git commit -m "config: connect frontend to new SIR Supabase project"
-          git push origin HEAD:professional-redesign
+          git commit -m "config: sync frontend with SIR Supabase project"
+          git push origin HEAD:main
