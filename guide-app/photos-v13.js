@@ -1,0 +1,14 @@
+window.SIR_PHOTOS={
+  koch_fleckenwasser:'./photos-v13/koch_fleckenwasser.jpg',
+  koch_freshup:'./photos-v13/koch_freshup.jpg',
+  koch_glasscleaner:'./photos-v13/koch_glasscleaner.jpg',
+  koch_plaststar:'./photos-v13/koch_plaststar.jpg',
+  koch_polstar:'./photos-v13/koch_polstar.png',
+  koch_rrr:'./photos-v13/koch_rrr.jpg',
+  koch_topstar:'./photos-v13/koch_topstar.jpg',
+  carpro_darkside:'./photos-v13/carpro_darkside.jpg',
+  carpro_essence:'./photos-v13/carpro_essence.png',
+  carpro_retyre:'./photos-v13/carpro_retyre.jpg',
+  ecolab_carpetb:'./photos-v13/ecolab_carpetb.jpg',
+  karcher_foamstop:'./photos-v13/karcher_foamstop.jpg'
+};
