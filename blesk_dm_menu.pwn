@@ -2,19 +2,21 @@
 #include <a_samp>
 #include <Pawn.RakNet>
 
-#define DM_DIALOG_MAIN      (30120)
-#define DM_DIALOG_CONFIRM   (30121)
-#define DM_WORLD            (7777)
-#define DM_PACKET_GUI       (0xFC)
-#define DM_GUI_SCREEN       (14)
-#define MAX_DM_OBJECTS      (24)
-#define DM_COLOR_RED        (0xE53935FF)
-#define DM_COLOR_WHITE      (0xFFFFFFFF)
-#define DM_COLOR_GREEN      (0x45D483FF)
-#define DM_COLOR_GRAY       (0xA9B0BCFF)
+#define PLAYER_MENU_DIALOG   (8)
+#define RPC_SHOW_DIALOG      (61)
+#define RPC_DIALOG_RESPONSE  (62)
+
+#define DM_DIALOG_CONTROL    (30120)
+#define DM_DIALOG_CONFIRM    (30121)
+#define DM_WORLD             (7777)
+#define MAX_DM_OBJECTS       (24)
+
+#define DM_COLOR_RED         (0xE53935FF)
+#define DM_COLOR_WHITE       (0xFFFFFFFF)
+#define DM_COLOR_GREEN       (0x45D483FF)
+#define DM_COLOR_GRAY        (0xA9B0BCFF)
 
 new bool:gInDM[MAX_PLAYERS];
-new bool:gPassOriginalMenu[MAX_PLAYERS];
 new Float:gReturnX[MAX_PLAYERS], Float:gReturnY[MAX_PLAYERS], Float:gReturnZ[MAX_PLAYERS], Float:gReturnA[MAX_PLAYERS];
 new gReturnInterior[MAX_PLAYERS], gReturnWorld[MAX_PLAYERS];
 new Float:gReturnHealth[MAX_PLAYERS], Float:gReturnArmour[MAX_PLAYERS];
@@ -23,8 +25,8 @@ new gDMKills[MAX_PLAYERS], gDMDeaths[MAX_PLAYERS];
 new gDMObject[MAX_PLAYERS][MAX_DM_OBJECTS];
 new gDMObjectCount[MAX_PLAYERS];
 
-forward DM_OpenFromNativeMenu(playerid);
 forward DM_Respawn(playerid);
+forward DM_EnterDelayed(playerid);
 
 new const Float:gDMSpawns[][4] =
 {
@@ -41,7 +43,6 @@ new const Float:gDMSpawns[][4] =
 stock DM_ResetPlayerData(playerid)
 {
     gInDM[playerid] = false;
-    gPassOriginalMenu[playerid] = false;
     gDMKills[playerid] = 0;
     gDMDeaths[playerid] = 0;
     gDMObjectCount[playerid] = 0;
@@ -66,9 +67,9 @@ stock DM_DestroyMap(playerid)
 stock DM_AddObject(playerid, modelid, Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:rz)
 {
     if(gDMObjectCount[playerid] >= MAX_DM_OBJECTS) return 0;
-    new obj = CreatePlayerObject(playerid, modelid, x, y, z, rx, ry, rz, 180.0);
-    if(obj == INVALID_OBJECT_ID) return 0;
-    gDMObject[playerid][gDMObjectCount[playerid]++] = obj;
+    new objectid = CreatePlayerObject(playerid, modelid, x, y, z, rx, ry, rz, 180.0);
+    if(objectid == INVALID_OBJECT_ID) return 0;
+    gDMObject[playerid][gDMObjectCount[playerid]++] = objectid;
     return 1;
 }
 
@@ -76,10 +77,13 @@ stock DM_CreateMap(playerid)
 {
     DM_DestroyMap(playerid);
 
+    // Main cover / container layout
     DM_AddObject(playerid, 2934, 398.0, 2498.0, 18.0, 0.0, 0.0,   0.0);
     DM_AddObject(playerid, 2935, 416.0, 2498.0, 18.0, 0.0, 0.0,  90.0);
     DM_AddObject(playerid, 2934, 398.0, 2522.0, 18.0, 0.0, 0.0,  90.0);
     DM_AddObject(playerid, 2935, 416.0, 2522.0, 18.0, 0.0, 0.0,   0.0);
+
+    // Low cover
     DM_AddObject(playerid, 3578, 407.0, 2490.0, 17.2, 0.0, 0.0,   0.0);
     DM_AddObject(playerid, 3578, 407.0, 2530.0, 17.2, 0.0, 0.0,   0.0);
     DM_AddObject(playerid, 3578, 382.0, 2510.0, 17.2, 0.0, 0.0,  90.0);
@@ -88,16 +92,18 @@ stock DM_CreateMap(playerid)
     DM_AddObject(playerid, 3578, 413.5, 2510.5, 17.2, 0.0, 0.0, 315.0);
     DM_AddObject(playerid, 3578, 407.0, 2503.0, 17.2, 0.0, 0.0,  90.0);
     DM_AddObject(playerid, 3578, 407.0, 2517.0, 17.2, 0.0, 0.0,  90.0);
-    DM_AddObject(playerid, 987, 376.0, 2482.0, 16.6, 0.0, 0.0,   0.0);
-    DM_AddObject(playerid, 987, 388.0, 2482.0, 16.6, 0.0, 0.0,   0.0);
-    DM_AddObject(playerid, 987, 400.0, 2482.0, 16.6, 0.0, 0.0,   0.0);
-    DM_AddObject(playerid, 987, 412.0, 2482.0, 16.6, 0.0, 0.0,   0.0);
-    DM_AddObject(playerid, 987, 424.0, 2482.0, 16.6, 0.0, 0.0,   0.0);
-    DM_AddObject(playerid, 987, 376.0, 2538.0, 16.6, 0.0, 0.0,   0.0);
-    DM_AddObject(playerid, 987, 388.0, 2538.0, 16.6, 0.0, 0.0,   0.0);
-    DM_AddObject(playerid, 987, 400.0, 2538.0, 16.6, 0.0, 0.0,   0.0);
-    DM_AddObject(playerid, 987, 412.0, 2538.0, 16.6, 0.0, 0.0,   0.0);
-    DM_AddObject(playerid, 987, 424.0, 2538.0, 16.6, 0.0, 0.0,   0.0);
+
+    // Outer fence
+    DM_AddObject(playerid, 987, 376.0, 2482.0, 16.6, 0.0, 0.0, 0.0);
+    DM_AddObject(playerid, 987, 388.0, 2482.0, 16.6, 0.0, 0.0, 0.0);
+    DM_AddObject(playerid, 987, 400.0, 2482.0, 16.6, 0.0, 0.0, 0.0);
+    DM_AddObject(playerid, 987, 412.0, 2482.0, 16.6, 0.0, 0.0, 0.0);
+    DM_AddObject(playerid, 987, 424.0, 2482.0, 16.6, 0.0, 0.0, 0.0);
+    DM_AddObject(playerid, 987, 376.0, 2538.0, 16.6, 0.0, 0.0, 0.0);
+    DM_AddObject(playerid, 987, 388.0, 2538.0, 16.6, 0.0, 0.0, 0.0);
+    DM_AddObject(playerid, 987, 400.0, 2538.0, 16.6, 0.0, 0.0, 0.0);
+    DM_AddObject(playerid, 987, 412.0, 2538.0, 16.6, 0.0, 0.0, 0.0);
+    DM_AddObject(playerid, 987, 424.0, 2538.0, 16.6, 0.0, 0.0, 0.0);
     return 1;
 }
 
@@ -118,10 +124,10 @@ stock DM_SavePlayerState(playerid)
 stock DM_GiveLoadout(playerid)
 {
     ResetPlayerWeapons(playerid);
-    GivePlayerWeapon(playerid, 24, 120);
-    GivePlayerWeapon(playerid, 25, 100);
-    GivePlayerWeapon(playerid, 31, 700);
-    GivePlayerWeapon(playerid, 4, 1);
+    GivePlayerWeapon(playerid, 24, 120);  // Deagle
+    GivePlayerWeapon(playerid, 25, 100);  // Shotgun
+    GivePlayerWeapon(playerid, 31, 700);  // M4
+    GivePlayerWeapon(playerid, 4, 1);     // Knife
     SetPlayerHealth(playerid, 100.0);
     SetPlayerArmour(playerid, 100.0);
     return 1;
@@ -149,13 +155,14 @@ stock DM_Enter(playerid)
 
     DM_SavePlayerState(playerid);
     gInDM[playerid] = true;
+
     if(IsPlayerInAnyVehicle(playerid)) RemovePlayerFromVehicle(playerid);
     DM_CreateMap(playerid);
     DM_TeleportToSpawn(playerid);
 
     SendClientMessage(playerid, DM_COLOR_RED, "BLESK RUSSIA | DM ZONE");
-    SendClientMessage(playerid, DM_COLOR_WHITE, "Weapons: Deagle / Shotgun / M4 / Knife. Respawn stays inside DM.");
-    SendClientMessage(playerid, DM_COLOR_GRAY, "Open Actions -> Menu to see DM controls and leave the zone.");
+    SendClientMessage(playerid, DM_COLOR_WHITE, "Deagle / Shotgun / M4 / Knife. After death you respawn inside DM.");
+    SendClientMessage(playerid, DM_COLOR_GRAY, "Open the normal player menu and select DM ZONE again for controls/exit.");
     return 1;
 }
 
@@ -180,91 +187,78 @@ stock DM_Exit(playerid)
     SetPlayerHealth(playerid, gReturnHealth[playerid]);
     SetPlayerArmour(playerid, gReturnArmour[playerid]);
     SetCameraBehindPlayer(playerid);
+
     SendClientMessage(playerid, DM_COLOR_GREEN, "BLESK DM: returned to the main world.");
     return 1;
 }
 
-stock DM_ShowNativeMenu(playerid)
+stock DM_ShowControl(playerid)
 {
-    if(gInDM[playerid])
-    {
-        ShowPlayerDialog(playerid, DM_DIALOG_MAIN, DIALOG_STYLE_LIST,
-            "BLESK RUSSIA | MENU",
-            "RETURN TO DM\nDM STATS\nEXIT DM ZONE\nORIGINAL MENU",
-            "SELECT", "CLOSE");
-    }
-    else
-    {
-        ShowPlayerDialog(playerid, DM_DIALOG_MAIN, DIALOG_STYLE_LIST,
-            "BLESK RUSSIA | MENU",
-            "DM ZONE\nORIGINAL MENU",
-            "SELECT", "CLOSE");
-    }
+    ShowPlayerDialog(playerid, DM_DIALOG_CONTROL, DIALOG_STYLE_LIST,
+        "BLESK RUSSIA | DM ZONE",
+        "RETURN TO ARENA\nDM STATS\nEXIT DM ZONE",
+        "SELECT", "CLOSE");
     return 1;
 }
 
-stock DM_ForwardOriginalMenu(playerid)
+// Hook the ORIGINAL player menu sent by the gamemode.
+// Dialog #8 is DIALOG_PLAYER_MENU in the current BLESK gamemode.
+ORPC:RPC_SHOW_DIALOG(playerid, BitStream:bs)
 {
-    new payload[] = "{\"t\":2}";
-    new BitStream:bs = BS_New();
-    if(bs == BitStream:0) return 0;
+    new dialogid, style;
+    new title[96], button1[40], button2[40], body[4096];
 
-    BS_WriteValue(bs,
-        PR_UINT8, DM_PACKET_GUI,
-        PR_UINT16, DM_GUI_SCREEN,
-        PR_UINT32, strlen(payload),
-        PR_STRING, payload);
+    BS_ReadUint16(bs, dialogid);
+    BS_ReadUint8(bs, style);
+    BS_ReadString8(bs, title);
+    BS_ReadString8(bs, button1);
+    BS_ReadString8(bs, button2);
+    BS_ReadCompressedString(bs, body, sizeof(body));
 
-    gPassOriginalMenu[playerid] = true;
-    PR_EmulateIncomingPacket(bs, playerid);
-    BS_Delete(bs);
+    if(dialogid != PLAYER_MENU_DIALOG || style != DIALOG_STYLE_LIST) return 1;
+
+    if(strfind(body, "13. DM ZONE", true) == -1)
+        strcat(body, "\n{FF6A00}13. DM ZONE", sizeof(body));
+
+    BS_Reset(bs);
+    BS_WriteUint16(bs, dialogid);
+    BS_WriteUint8(bs, style);
+    BS_WriteString8(bs, title);
+    BS_WriteString8(bs, button1);
+    BS_WriteString8(bs, button2);
+    BS_WriteCompressedString(bs, body);
     return 1;
 }
 
-IPacket:0xFC(playerid, BitStream:bs)
+// Intercept only the new 13th item. All original 1..12 responses pass to the gamemode unchanged.
+IRPC:RPC_DIALOG_RESPONSE(playerid, BitStream:bs)
 {
-    if(gPassOriginalMenu[playerid])
+    new dialogid, button, listitem;
+    new input[256];
+
+    BS_ReadUint16(bs, dialogid);
+    BS_ReadUint8(bs, button);
+    BS_ReadUint16(bs, listitem);
+    BS_ReadString8(bs, input);
+
+    if(dialogid == PLAYER_MENU_DIALOG && button == 1 && listitem == 12)
     {
-        gPassOriginalMenu[playerid] = false;
-        return 1;
-    }
+        if(gInDM[playerid])
+            DM_ShowControl(playerid);
+        else
+            ShowPlayerDialog(playerid, DM_DIALOG_CONFIRM, DIALOG_STYLE_MSGBOX,
+                "BLESK RUSSIA | DM ZONE",
+                "Enter the DM arena?\n\nSeparate world, arena, weapons and respawn will be enabled.",
+                "ENTER", "BACK");
 
-    new header, screenid, length;
-    BS_ReadValue(bs,
-        PR_UINT8, header,
-        PR_UINT16, screenid,
-        PR_UINT32, length);
-
-    if(header != DM_PACKET_GUI || screenid != DM_GUI_SCREEN) return 1;
-    if(length < 1 || length > 63) return 1;
-
-    new json[64];
-    BS_ReadValue(bs, PR_STRING, json, length);
-    json[length] = EOS;
-
-    if(strfind(json, "\"t\":2", true) != -1)
-    {
-        SetTimerEx("DM_OpenFromNativeMenu", 120, false, "i", playerid);
         return 0;
     }
     return 1;
 }
 
-public DM_OpenFromNativeMenu(playerid)
-{
-    if(IsPlayerConnected(playerid)) DM_ShowNativeMenu(playerid);
-    return 1;
-}
-
-public DM_Respawn(playerid)
-{
-    if(IsPlayerConnected(playerid) && gInDM[playerid]) DM_TeleportToSpawn(playerid);
-    return 1;
-}
-
 public OnFilterScriptInit()
 {
-    print("[BLESK DM MENU] native Actions->Menu hook loaded");
+    print("[BLESK DM] native Player Menu integration loaded");
     for(new i = 0; i < MAX_PLAYERS; i++) DM_ResetPlayerData(i);
     return 1;
 }
@@ -295,7 +289,19 @@ public OnPlayerDisconnect(playerid, reason)
 
 public OnPlayerSpawn(playerid)
 {
-    if(gInDM[playerid]) SetTimerEx("DM_Respawn", 400, false, "i", playerid);
+    if(gInDM[playerid]) SetTimerEx("DM_Respawn", 500, false, "i", playerid);
+    return 1;
+}
+
+public DM_Respawn(playerid)
+{
+    if(IsPlayerConnected(playerid) && gInDM[playerid]) DM_TeleportToSpawn(playerid);
+    return 1;
+}
+
+public DM_EnterDelayed(playerid)
+{
+    if(IsPlayerConnected(playerid)) DM_Enter(playerid);
     return 1;
 }
 
@@ -315,60 +321,27 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
     #pragma unused inputtext
 
-    if(dialogid == DM_DIALOG_MAIN)
+    if(dialogid == DM_DIALOG_CONFIRM)
+    {
+        if(response) SetTimerEx("DM_EnterDelayed", 100, false, "i", playerid);
+        return 1;
+    }
+
+    if(dialogid == DM_DIALOG_CONTROL)
     {
         if(!response) return 1;
 
-        if(gInDM[playerid])
+        switch(listitem)
         {
-            switch(listitem)
+            case 0: DM_TeleportToSpawn(playerid);
+            case 1:
             {
-                case 0: DM_TeleportToSpawn(playerid);
-                case 1:
-                {
-                    new msg[96];
-                    format(msg, sizeof msg, "BLESK DM | Kills: %d | Deaths: %d", gDMKills[playerid], gDMDeaths[playerid]);
-                    SendClientMessage(playerid, DM_COLOR_WHITE, msg);
-                }
-                case 2: DM_Exit(playerid);
-                case 3: DM_ForwardOriginalMenu(playerid);
+                new msg[96];
+                format(msg, sizeof(msg), "BLESK DM | Kills: %d | Deaths: %d", gDMKills[playerid], gDMDeaths[playerid]);
+                SendClientMessage(playerid, DM_COLOR_WHITE, msg);
             }
+            case 2: DM_Exit(playerid);
         }
-        else
-        {
-            switch(listitem)
-            {
-                case 0:
-                {
-                    ShowPlayerDialog(playerid, DM_DIALOG_CONFIRM, DIALOG_STYLE_MSGBOX,
-                        "BLESK RUSSIA | DM ZONE",
-                        "Enter DM Zone?\n\nSeparate arena, weapons and respawn are enabled automatically.",
-                        "ENTER", "BACK");
-                }
-                case 1: DM_ForwardOriginalMenu(playerid);
-            }
-        }
-        return 1;
-    }
-
-    if(dialogid == DM_DIALOG_CONFIRM)
-    {
-        if(response) DM_Enter(playerid);
-        return 1;
-    }
-    return 0;
-}
-
-public OnPlayerCommandText(playerid, cmdtext[])
-{
-    if(!strcmp(cmdtext, "/dm", true))
-    {
-        DM_ShowNativeMenu(playerid);
-        return 1;
-    }
-    if(!strcmp(cmdtext, "/dmexit", true))
-    {
-        DM_Exit(playerid);
         return 1;
     }
     return 0;
