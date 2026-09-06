@@ -1,12 +1,6 @@
-name: Compile BLESK Probe
+name: Compile BLESK Probe (Manual)
 
 on:
-  push:
-    branches:
-      - blesk-compile-temp
-    paths:
-      - 'blesk_probe.pwn'
-      - '.github/workflows/compile-blesk-probe.yml'
   workflow_dispatch:
 
 jobs:
