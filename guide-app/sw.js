@@ -1,8 +1,18 @@
-const CACHE='sir-guide-current-v1';
-const ASSETS=['./index.html','./manifest.json','./icon.svg'];
+const CACHE='sir-guide-v13-current-v2';
+const CORE=[
+  './index-v13.html',
+  './app-v13.js',
+  './inventory-v13-1.js',
+  './inventory-v13-2.js',
+  './inventory-v13-3.js',
+  './inventory-v13-4.js',
+  './photos-v13.js',
+  './manifest.json',
+  './icon.svg'
+];
 
 self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));
+  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)));
   self.skipWaiting();
 });
 
@@ -17,23 +27,20 @@ self.addEventListener('activate',event=>{
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET') return;
   const url=new URL(event.request.url);
-  const isGuideRoot=url.pathname.endsWith('/guide-app/')||url.pathname.endsWith('/guide-app/index.html');
+  if(url.origin!==self.location.origin) return;
+  const isGuideEntry=url.pathname.endsWith('/guide-app/')||url.pathname.endsWith('/guide-app/index.html')||url.pathname.endsWith('/guide-app/index-v13.html');
+  const request=isGuideEntry?new Request(new URL('./index-v13.html',self.location.href),{cache:'no-store'}):event.request;
 
-  if(isGuideRoot){
-    event.respondWith(
-      fetch('./index.html',{cache:'no-store'})
-        .then(response=>{
-          const copy=response.clone();
-          caches.open(CACHE).then(cache=>cache.put('./index.html',copy));
-          return response;
-        })
-        .catch(()=>caches.match('./index.html'))
-    );
-    return;
-  }
-
-  event.respondWith(
-    fetch(event.request,{cache:'no-store'})
-      .catch(()=>caches.match(event.request))
-  );
+  event.respondWith((async()=>{
+    try{
+      const response=await fetch(request,{cache:'no-store'});
+      if(response.ok){
+        const cache=await caches.open(CACHE);
+        await cache.put(request,response.clone());
+      }
+      return response;
+    }catch{
+      return (await caches.match(request))||(await caches.match('./index-v13.html'))||Response.error();
+    }
+  })());
 });
