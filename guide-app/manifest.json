@@ -2,7 +2,7 @@
   "name": "SIR Rens & Pleie — Рабочий справочник",
   "short_name": "SIR Справочник",
   "description": "Рабочий справочник SIR Rens & Pleie по химии и оборудованию",
-  "start_url": "./",
+  "start_url": "./index-v13.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0d1117",
