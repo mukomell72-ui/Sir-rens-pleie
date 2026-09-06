@@ -16,6 +16,7 @@ on:
       - '.github/scripts/patch-vonuchkaa-owner-access.py'
       - '.github/scripts/patch-vonuchkaa-premium-v2.py'
       - '.github/scripts/patch-vonuchkaa-voice.py'
+      - '.github/scripts/patch-vonuchkaa-voice-hotfix.py'
 
 permissions:
   contents: read
@@ -194,6 +195,7 @@ jobs:
           python3 .github/scripts/patch-vonuchkaa-owner-access.py
           python3 .github/scripts/patch-vonuchkaa-premium-v2.py
           python3 .github/scripts/patch-vonuchkaa-voice.py
+          python3 .github/scripts/patch-vonuchkaa-voice-hotfix.py
 
       - name: Deploy vonuchkaa-ai-bot
         env:
