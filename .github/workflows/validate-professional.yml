@@ -26,7 +26,7 @@ jobs:
             echo "Checking $file"
             node --check "$file"
           done
-      - name: Safety regression checks
+      - name: Safety and repository isolation checks
         shell: bash
         run: |
           set -euo pipefail
@@ -38,7 +38,25 @@ jobs:
             echo 'Shared legacy admin PIN found in production files'
             exit 1
           fi
-          echo 'Safety regression checks OK'
+          foreign_paths="$(git ls-files | grep -Ei '(^|/)(vonuchkaa|blesk|username-scanner)(/|[._-])|(^|/)(vonuchkaa|blesk|username-scanner)$' || true)"
+          if [ -n "$foreign_paths" ]; then
+            echo 'Unrelated project artifacts found in SIR main:'
+            printf '%s\n' "$foreign_paths"
+            exit 1
+          fi
+          if grep -R -n 'wbqxposidtecxjioqufk' assets admin guide-app supabase scripts docs 2>/dev/null; then
+            echo 'Foreign Supabase project reference found in SIR production files'
+            exit 1
+          fi
+          if grep -R -n 'professional-redesign' .github/workflows --exclude='validate-professional.yml' 2>/dev/null; then
+            echo 'Legacy deployment branch still referenced by a production workflow'
+            exit 1
+          fi
+          test -f guide-app/index-v13.html
+          test -f guide-app/app-v13.js
+          test ! -f guide-app/index-v12.html
+          test ! -f manifest.json
+          echo 'Safety and repository isolation checks OK'
 
   browser-regression:
     runs-on: ubuntu-latest
