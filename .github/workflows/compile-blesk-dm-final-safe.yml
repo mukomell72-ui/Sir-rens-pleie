@@ -1,0 +1,46 @@
+name: Compile BLESK DM Final Safe
+
+on:
+  push:
+    branches:
+      - blesk-compile-temp
+    paths:
+      - 'blesk_dm_final_safe.pwn'
+      - '.github/workflows/compile-blesk-dm-final-safe.yml'
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Pawn compiler and includes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -L --fail https://github.com/pawn-lang/compiler/releases/download/v3.10.10/pawnc-3.10.10-linux.tar.gz -o pawnc.tar.gz
+          mkdir -p pawnc
+          tar -xzf pawnc.tar.gz -C pawnc
+          git clone --depth 1 --branch v3.10.10 https://github.com/pawn-lang/compiler.git pawn-src
+          git clone --depth 1 https://github.com/pawn-lang/samp-stdlib.git samp-stdlib
+
+      - name: Convert source to CP1251 and compile
+        shell: bash
+        run: |
+          set -euxo pipefail
+          iconv -f UTF-8 -t WINDOWS-1251 blesk_dm_final_safe.pwn > blesk_dm_final_safe_cp1251.pwn
+          PAWNCC="$(find "$PWD/pawnc" -type f -name pawncc | head -n1)"
+          LIBPAWNC="$(find "$PWD/pawnc" -type f -name 'libpawnc.so*' | head -n1)"
+          chmod +x "$PAWNCC"
+          export LD_LIBRARY_PATH="$(dirname "$LIBPAWNC"):${LD_LIBRARY_PATH:-}"
+          "$PAWNCC" blesk_dm_final_safe_cp1251.pwn -i"$PWD/pawn-src/include" -i"$PWD/samp-stdlib" -oblesk_dm_final_safe.amx
+          test -s blesk_dm_final_safe.amx
+
+      - name: Upload AMX
+        uses: actions/upload-artifact@v4
+        with:
+          name: blesk-dm-final-safe-amx
+          path: blesk_dm_final_safe.amx
+          if-no-files-found: error
