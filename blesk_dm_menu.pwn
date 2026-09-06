@@ -14,21 +14,19 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
     #pragma unused inputtext
 
-    // The active gamemode owns dialog 8. We intercept only the new 13th item.
     if(dialogid == DIALOG_PLAYER_MENU && response && listitem == 12)
     {
         ShowPlayerDialog(
             playerid,
             DIALOG_MPREG,
             DIALOG_STYLE_LIST,
-            "{FFCD00}Регистрация на мероприятия",
-            "{FFCD00}[1] {FFFFFF}DeathMatch Zone",
-            "Выбрать",
-            "Отмена"
+            "BLESK RUSSIA | DM ZONE",
+            "DeathMatch Zone",
+            "SELECT",
+            "BACK"
         );
         return 1;
     }
 
-    // Everything else, including DIALOG_MPREG response, must continue to the gamemode.
     return 0;
 }
