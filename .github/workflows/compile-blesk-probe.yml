@@ -1,0 +1,45 @@
+name: Compile BLESK Probe
+
+on:
+  push:
+    branches:
+      - blesk-compile-temp
+    paths:
+      - 'blesk_probe.pwn'
+      - '.github/workflows/compile-blesk-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Pawn compiler and includes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -L --fail https://github.com/pawn-lang/compiler/releases/download/v3.10.10/pawnc-3.10.10-linux.tar.gz -o pawnc.tar.gz
+          mkdir -p pawnc
+          tar -xzf pawnc.tar.gz -C pawnc
+          git clone --depth 1 --branch v3.10.10 https://github.com/pawn-lang/compiler.git pawn-src
+          git clone --depth 1 https://github.com/pawn-lang/samp-stdlib.git samp-stdlib
+
+      - name: Compile probe
+        shell: bash
+        run: |
+          set -euxo pipefail
+          PAWNCC="$(find "$PWD/pawnc" -type f -name pawncc | head -n1)"
+          LIBPAWNC="$(find "$PWD/pawnc" -type f -name 'libpawnc.so*' | head -n1)"
+          chmod +x "$PAWNCC"
+          export LD_LIBRARY_PATH="$(dirname "$LIBPAWNC"):${LD_LIBRARY_PATH:-}"
+          "$PAWNCC" blesk_probe.pwn -i"$PWD/pawn-src/include" -i"$PWD/samp-stdlib" -oblesk_probe.amx
+          test -s blesk_probe.amx
+
+      - name: Upload AMX
+        uses: actions/upload-artifact@v4
+        with:
+          name: blesk-probe-amx
+          path: blesk_probe.amx
+          if-no-files-found: error
