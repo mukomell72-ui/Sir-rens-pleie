@@ -69,7 +69,7 @@ stock LoadDisplayName(playerid)
     return 1;
 }
 
-stock DestroyLabel(playerid)
+stock BleskDestroyLabel(playerid)
 {
     if(gNameLabel[playerid] != Text3D:INVALID_3DTEXT_ID)
     {
@@ -81,7 +81,7 @@ stock DestroyLabel(playerid)
 
 stock ApplyLabel(playerid)
 {
-    DestroyLabel(playerid);
+    BleskDestroyLabel(playerid);
     if(!gHasDisplayName[playerid]) return 1;
     gNameLabel[playerid] = Create3DTextLabel(gDisplayName[playerid], COLOR_WHITE, 0.0, 0.0, 0.0, 20.0, 0, 1);
     Attach3DTextLabelToPlayer(gNameLabel[playerid], playerid, 0.0, 0.0, 0.35);
@@ -90,7 +90,7 @@ stock ApplyLabel(playerid)
     return 1;
 }
 
-stock DestroyMenu(playerid)
+stock BleskDestroyMenu(playerid)
 {
     for(new i = 0; i < 9; i++)
     {
@@ -126,7 +126,7 @@ stock MakeButton(playerid, idx, Float:x, Float:y, const text[], boxcolor)
 stock ShowBleskMenu(playerid)
 {
     if(!IsPlayerConnected(playerid) || gMenuVisible[playerid]) return 0;
-    DestroyMenu(playerid);
+    BleskDestroyMenu(playerid);
 
     MakeTD(playerid, 0, 420.0, 72.0, "BLESK", 0.52, 2.1, COLOR_WHITE);
     MakeTD(playerid, 1, 487.0, 79.0, "RUSSIA", 0.24, 1.25, COLOR_RED);
@@ -190,8 +190,8 @@ public OnFilterScriptExit()
     for(new p = 0; p < MAX_PLAYERS; p++)
     {
         if(IsPlayerConnected(p)) SaveDisplayName(p);
-        DestroyMenu(p);
-        DestroyLabel(p);
+        BleskDestroyMenu(p);
+        BleskDestroyLabel(p);
     }
     if(gDB != DB:0) db_close(gDB);
     return 1;
@@ -211,8 +211,8 @@ public OnPlayerDisconnect(playerid, reason)
 {
     #pragma unused reason
     SaveDisplayName(playerid);
-    DestroyMenu(playerid);
-    DestroyLabel(playerid);
+    BleskDestroyMenu(playerid);
+    BleskDestroyLabel(playerid);
     gMenuVisible[playerid] = false;
     gMenuShown[playerid] = false;
     return 1;
