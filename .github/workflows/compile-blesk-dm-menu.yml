@@ -1,12 +1,6 @@
-name: Compile BLESK DM Native Menu
+name: Compile BLESK DM Native Menu (Manual)
 
 on:
-  push:
-    branches:
-      - blesk-compile-temp
-    paths:
-      - 'blesk_dm_menu.pwn'
-      - '.github/workflows/compile-blesk-dm-menu.yml'
   workflow_dispatch:
 
 jobs:
