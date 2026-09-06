@@ -30,7 +30,8 @@ function premiumVoiceError(status: number, raw: string) {
   try {
     const d = JSON.parse(raw);
     const code = String(d?.error?.status ?? d?.error?.code ?? "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
-    return code ? `TTS_${status}_${code}` : `TTS_${status}`;
+    const msg = String(d?.error?.message ?? "").replace(/\s+/g, " ").replace(/[^\p{L}\p{N} .,:;()_\/-]/gu, "").slice(0, 120);
+    return code ? `TTS_${status}_${code}${msg ? `_${msg}` : ""}` : `TTS_${status}${msg ? `_${msg}` : ""}`;
   } catch {
     return `TTS_${status}`;
   }
@@ -47,14 +48,12 @@ async function generatePremiumVoice(text: string, preset: VoicePreset) {
         headers: {
           "content-type": "application/json",
           "x-goog-api-key": GEMINI_KEY,
-          "Api-Revision": "2026-05-20",
         },
         body: JSON.stringify({
           model: PREMIUM_VOICE_MODEL,
           input: prompt,
-          response_format: { type: "audio", mime_type: "audio/mp3", delivery: "inline" },
+          response_format: { type: "audio", mime_type: "audio/mp3" },
           generation_config: { speech_config: [{ voice: preset.voice }] },
-          store: false,
         }),
         signal: AbortSignal.timeout(22000),
       });
