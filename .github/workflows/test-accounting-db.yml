@@ -3,7 +3,7 @@ name: Test SIR ENK accounting database
 on:
   workflow_dispatch:
   push:
-    branches: [professional-redesign]
+    branches: [main]
     paths:
       - '.github/workflows/test-accounting-db.yml'
       - 'supabase/migrations/**accounting**.sql'
