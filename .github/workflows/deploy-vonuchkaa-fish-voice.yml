@@ -1,0 +1,156 @@
+name: Deploy Vonuchkaa Fish Audio voice
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-vonuchkaa-fish-voice.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Restore Vonuchkaa stable build inputs
+        run: |
+          git checkout 2ca022b117cb5a74d3b6bacb829b209f25676d9c -- supabase/functions/vonuchkaa-ai-bot .github/scripts
+
+      - name: Apply Vonuchkaa patches
+        run: |
+          python3 .github/scripts/patch-vonuchkaa-nicknames.py
+          python3 .github/scripts/patch-vonuchkaa-post.py
+          python3 .github/scripts/patch-vonuchkaa-start-menu.py
+          python3 .github/scripts/patch-vonuchkaa-autopromo.py
+          python3 .github/scripts/patch-vonuchkaa-premium.py
+          python3 .github/scripts/patch-vonuchkaa-premium-hotfix.py
+          python3 .github/scripts/patch-vonuchkaa-owner-access.py
+          python3 .github/scripts/patch-vonuchkaa-premium-v2.py
+          python3 .github/scripts/patch-vonuchkaa-voice.py
+          python3 .github/scripts/patch-vonuchkaa-voice-hotfix.py
+          python3 .github/scripts/patch-vonuchkaa-all.py
+          python3 .github/scripts/patch-vonuchkaa-zov.py
+          python3 .github/scripts/patch-vonuchkaa-who.py
+
+      - name: Add Fish Audio voice preset
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('supabase/functions/vonuchkaa-ai-bot/index.ts')
+          s = path.read_text(encoding='utf-8')
+
+          model_anchor = 'const PREMIUM_VOICE_MODEL = "gemini-3.1-flash-tts-preview";'
+          fish_constants = '''const FISH_AUDIO_API_KEY = Deno.env.get("FISH_AUDIO_API_KEY") ?? "";
+          const FISH_TTS_URL = "https://api.fish.audio/v1/tts";
+          const FISH_MELLSTROY_REFERENCE_ID = "0a690dbeb3984a9f88cd39353880775f";'''
+          if 'FISH_MELLSTROY_REFERENCE_ID' not in s:
+              if model_anchor not in s:
+                  raise SystemExit('voice model anchor not found')
+              s = s.replace(model_anchor, model_anchor + '\n' + fish_constants, 1)
+
+          old_type = 'type VoicePreset = { voice: string; direction: string; label: string };'
+          new_type = 'type VoicePreset = { voice: string; direction: string; label: string; provider?: "gemini" | "fish"; referenceId?: string };'
+          if old_type in s:
+              s = s.replace(old_type, new_type, 1)
+
+          streamer_line = '  streamer: { voice: "Algenib", label: "злой стример", direction: "Очень эмоциональный, грубоватый мужской стримерский стиль: низкий хрипловатый тембр, резкая энергичная подача, короткие ударные фразы, раздражённая и дерзкая интонация, местами почти крик, но слова должны оставаться разборчивыми. Это самостоятельный синтетический голосовой стиль: не копируй и не выдавай голос за конкретного реального человека." },'
+          fish_preset = '  mellstroy: { voice: "", label: "Fish Audio", direction: "", provider: "fish", referenceId: FISH_MELLSTROY_REFERENCE_ID },'
+          if fish_preset not in s:
+              if streamer_line not in s:
+                  raise SystemExit('streamer preset anchor not found')
+              s = s.replace(streamer_line, streamer_line + '\n' + fish_preset, 1)
+
+          alias_anchor = '    streamer:"streamer", стример:"streamer", злой:"streamer", aggressive:"streamer",'
+          alias_new = alias_anchor + '\n    mellstroy:"mellstroy", melstroy:"mellstroy", "меллстрой":"mellstroy", "мелстрой":"mellstroy",'
+          if 'mellstroy:"mellstroy"' not in s:
+              if alias_anchor not in s:
+                  raise SystemExit('voice alias anchor not found')
+              s = s.replace(alias_anchor, alias_new, 1)
+
+          fish_fn = r'''
+          async function generateFishVoice(text: string, referenceId: string) {
+            if (!FISH_AUDIO_API_KEY) {
+              return { ok: false, error: "FISH_KEY_MISSING", bytes: null as Uint8Array | null };
+            }
+            try {
+              const r = await fetch(FISH_TTS_URL, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${FISH_AUDIO_API_KEY}`,
+                  "Content-Type": "application/json",
+                  "model": "s2.1-pro-free",
+                },
+                body: JSON.stringify({
+                  text: text.slice(0, 700),
+                  reference_id: referenceId,
+                  format: "mp3",
+                }),
+                signal: AbortSignal.timeout(30000),
+              });
+              if (!r.ok) {
+                const raw = await r.text().catch(() => "");
+                const msg = raw.replace(/\s+/g, " ").replace(/[^\p{L}\p{N} .,:;()_\/-]/gu, "").slice(0, 100);
+                const code = r.status === 401 || r.status === 403 ? "FISH_AUTH"
+                  : r.status === 429 ? "FISH_LIMIT"
+                  : `FISH_${r.status}`;
+                return { ok: false, error: msg ? `${code}_${msg}` : code, bytes: null as Uint8Array | null };
+              }
+              const bytes = new Uint8Array(await r.arrayBuffer());
+              if (!bytes.byteLength) {
+                return { ok: false, error: "FISH_AUDIO_EMPTY", bytes: null as Uint8Array | null };
+              }
+              return { ok: true, error: "", bytes };
+            } catch (e) {
+              const timeout = e instanceof DOMException && e.name === "TimeoutError";
+              return { ok: false, error: timeout ? "FISH_TIMEOUT" : "FISH_REQUEST_ERROR", bytes: null as Uint8Array | null };
+            }
+          }
+          '''
+          gen_anchor = 'async function generatePremiumVoice(text: string, preset: VoicePreset) {'
+          if 'async function generateFishVoice' not in s:
+              if gen_anchor not in s:
+                  raise SystemExit('Gemini voice generator anchor not found')
+              s = s.replace(gen_anchor, fish_fn + '\n' + gen_anchor, 1)
+
+          call_old = '  const audio = await generatePremiumVoice(spoken, preset);'
+          call_new = '  const audio = preset.provider === "fish"\n    ? await generateFishVoice(spoken, preset.referenceId || FISH_MELLSTROY_REFERENCE_ID)\n    : await generatePremiumVoice(spoken, preset);'
+          if call_new not in s:
+              if call_old not in s:
+                  raise SystemExit('voice call anchor not found')
+              s = s.replace(call_old, call_new, 1)
+
+          help_anchor = '    `/voice streamer текст — злой хрипловатый стримерский стиль\\n\\n` +'
+          help_new = '    `/voice streamer текст — злой хрипловатый стримерский стиль\\n` +\n    `/voice mellstroy текст — голосовая модель Fish Audio\\n\\n` +'
+          if '/voice mellstroy текст' not in s:
+              if help_anchor not in s:
+                  raise SystemExit('voice help anchor not found')
+              s = s.replace(help_anchor, help_new, 1)
+
+          path.write_text(s, encoding='utf-8')
+          print('Fish Audio voice preset applied')
+          PY
+
+      - name: Deploy vonuchkaa-ai-bot
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy vonuchkaa-ai-bot --project-ref wbqxposidtecxjioqufk --no-verify-jwt
+
+      - name: Configure Telegram webhook
+        run: |
+          sleep 5
+          RESPONSE=$(curl --silent --show-error "https://wbqxposidtecxjioqufk.supabase.co/functions/v1/vonuchkaa-ai-bot?setup=1")
+          echo "$RESPONSE"
+          echo "$RESPONSE" | grep -q '"ok":true'
