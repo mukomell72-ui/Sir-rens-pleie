@@ -2,7 +2,7 @@ name: Validate SIR production
 
 on:
   push:
-    branches: [main, professional-redesign]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
