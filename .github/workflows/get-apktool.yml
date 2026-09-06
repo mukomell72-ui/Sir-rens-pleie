@@ -1,9 +1,6 @@
-name: Get Apktool
+name: Get Apktool (Manual)
 
 on:
-  push:
-    branches:
-      - blesk-compile-temp
   workflow_dispatch:
 
 jobs:
