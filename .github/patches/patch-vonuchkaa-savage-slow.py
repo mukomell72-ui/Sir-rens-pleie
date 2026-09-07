@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 path = Path("supabase/functions/vonuchkaa-ai-bot/index.ts")
 s = path.read_text(encoding="utf-8")
@@ -22,12 +23,12 @@ if "function savageReplyDelayMs()" not in s:
         raise SystemExit("typing anchor not found")
     s = s.replace(helper_anchor, delay_helper + helper_anchor, 1)
 
-call_anchor = "  void typing(chatId, msg.message_thread_id ? Number(msg.message_thread_id) : undefined);\n  const author = String(msg?.from?.first_name ?? msg?.from?.username ?? \"\").trim() || undefined;"
-call_new = "  void typing(chatId, msg.message_thread_id ? Number(msg.message_thread_id) : undefined);\n  await new Promise(resolve => setTimeout(resolve, savageReplyDelayMs()));\n  const author = String(msg?.from?.first_name ?? msg?.from?.username ?? \"\").trim() || undefined;"
 if "setTimeout(resolve, savageReplyDelayMs())" not in s:
-    if call_anchor not in s:
-        raise SystemExit("AI reply timing anchor not found")
-    s = s.replace(call_anchor, call_new, 1)
+    pattern = re.compile(r'(async function aiReply\([^\n]+\)\s*\{)')
+    m = pattern.search(s)
+    if not m:
+        raise SystemExit("aiReply function anchor not found")
+    s = pattern.sub(r'\1\n  await new Promise(resolve => setTimeout(resolve, savageReplyDelayMs()));', s, count=1)
 
 path.write_text(s, encoding="utf-8")
 print("Vonuchkaa savage slow persona patch applied")
