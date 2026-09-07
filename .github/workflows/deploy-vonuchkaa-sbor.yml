@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/deploy-vonuchkaa-sbor.yml'
+      - '.github/patches/patch-vonuchkaa-savage-slow.py'
 
 permissions:
   contents: read
@@ -144,6 +145,9 @@ jobs:
           path.write_text(s, encoding='utf-8')
           print('Vonuchkaa /сбор command applied')
           PY
+
+      - name: Add savage slow auto-replies
+        run: python3 .github/patches/patch-vonuchkaa-savage-slow.py
 
       - name: Deploy vonuchkaa-ai-bot
         env:
