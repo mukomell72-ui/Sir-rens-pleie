@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 p = Path('supabase/functions/vonuchkaa-ai-bot/index.ts')
 s = p.read_text(encoding='utf-8')
@@ -13,13 +12,32 @@ new_gate = r'''  // VONUCHKAA_MODERATION_ONLY_GATE
   if (!vonModerationCommand) return new Response("ok");
 '''
 
-pattern = re.compile(
-    r'  // VONUCHKAA_MODERATION_ONLY_GATE\n.*?  if \(!vonModerationCommand\) return new Response\("ok"\);\n(?:  if \(/\^\\/start.*?\n  \}\n)?',
-    re.S,
-)
+marker = '  // VONUCHKAA_MODERATION_ONLY_GATE'
+start = s.find(marker)
+if start >= 0:
+    stop_line = '  if (!vonModerationCommand) return new Response("ok");'
+    stop = s.find(stop_line, start)
+    if stop < 0:
+        raise SystemExit('moderation gate end not found')
+    end = s.find('\n', stop + len(stop_line))
+    if end < 0:
+        end = stop + len(stop_line)
+    else:
+        end += 1
 
-if pattern.search(s):
-    s = pattern.sub(new_gate, s, count=1)
+    # Older strict mode also had a special /start block directly after the gate.
+    rest = s[end:]
+    if rest.startswith('  if (/^\\/start'):
+        close = rest.find('\n  }')
+        if close >= 0:
+            close_end = rest.find('\n', close + 4)
+            if close_end < 0:
+                close_end = close + 4
+            else:
+                close_end += 1
+            end += close_end
+
+    s = s[:start] + new_gate + s[end:]
 else:
     anchor = '  if (!text) return new Response("ok");'
     if anchor not in s:
