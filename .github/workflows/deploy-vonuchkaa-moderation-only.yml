@@ -1,11 +1,12 @@
-name: Deploy Vonuchkaa moderation-only mode
+name: Deploy Vonuchkaa moderation only
 
-on:
+"on":
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
-      - '.github/workflows/deploy-vonuchkaa-moderation-only.yml'
+      - .github/workflows/deploy-vonuchkaa-moderation-only.yml
 
 permissions:
   contents: read
@@ -30,58 +31,45 @@ jobs:
           supabase functions download vonuchkaa-ai-bot --project-ref wbqxposidtecxjioqufk --use-api
           test -f supabase/functions/vonuchkaa-ai-bot/index.ts
 
-      - name: Disable conversational AI replies
+      - name: Disable ordinary AI replies
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          p = Path('supabase/functions/vonuchkaa-ai-bot/index.ts')
-          s = p.read_text(encoding='utf-8')
+          p = Path("supabase/functions/vonuchkaa-ai-bot/index.ts")
+          s = p.read_text(encoding="utf-8")
 
-          gate_marker = '// VONUCHKAA_MODERATION_ONLY_GATE'
-          if gate_marker not in s:
-              gate = r'''
-  // VONUCHKAA_MODERATION_ONLY_GATE
-  // Ignore ordinary chat completely. Keep slash commands, @all and moderation commands without slash.
-  const vonCommandLike = text.startsWith("/")
-    || /^@all(?:\s|$)/i.test(text)
-    || /^(?:ban|unban|kick|mute|unmute|warn|del|pin|unpin|modhelp|setmoder|cmd)(?:@\w+)?(?:\s|$)/i.test(text);
-  if (!vonCommandLike) return new Response("ok");
-'''
-              if 'void trackUserMessage(msg);' in s:
-                  s = s.replace('  void trackUserMessage(msg);', '  void trackUserMessage(msg);\n' + gate.rstrip('\n'), 1)
-              else:
-                  anchor = '  if (!text) return new Response("ok");'
-                  if anchor not in s:
-                      raise SystemExit('text gate anchor not found')
-                  s = s.replace(anchor, anchor + '\n' + gate.rstrip('\n'), 1)
-
-          fallback_marker = '// VONUCHKAA_NO_AI_FALLBACK'
-          if fallback_marker not in s:
-              candidates = [
-                  '  void typing(chatId,',
-                  '  await typing(chatId,',
-                  '  const author = String(msg?.from?.first_name',
-                  '  const answer = await aiReply(',
+          marker = "// VONUCHKAA_MODERATION_ONLY"
+          if marker not in s:
+              anchors = [
+                  "  void typing(chatId, msg.message_thread_id ? Number(msg.message_thread_id) : undefined);",
+                  "  await typing(chatId, msg.message_thread_id ? Number(msg.message_thread_id) : undefined);",
+                  "  void typing(chatId,",
+                  "  await typing(chatId,",
+                  "  const author = String(msg?.from?.first_name",
+                  "  const answer = await aiReply(",
               ]
-              for anchor in candidates:
+              for anchor in anchors:
                   if anchor in s:
-                      s = s.replace(anchor, '  // VONUCHKAA_NO_AI_FALLBACK\n  return new Response("ok");\n\n' + anchor, 1)
+                      s = s.replace(
+                          anchor,
+                          "  // VONUCHKAA_MODERATION_ONLY\n  // Ordinary messages are ignored; command handlers above remain active.\n  return new Response(\"ok\");\n\n" + anchor,
+                          1,
+                      )
                       break
               else:
-                  raise SystemExit('AI fallback anchor not found')
+                  raise SystemExit("AI reply tail anchor not found")
 
-          # Neutralize the old base /start text if that exact fallback is still present.
           s = s.replace(
-              'Ну давай, пиши что угодно. Отвечу по смыслу, без лишних церемоний. Для модерации: /modhelp',
-              'Бот модерации группы. Основные команды: /warn, /mute, /unmute, /kick, /ban, /unban, /del, /pin, /unpin. Справка: /modhelp'
+              "Ну давай, пиши что угодно. Отвечу по смыслу, без лишних церемоний. Для модерации: /modhelp",
+              "Бот для управления группой. Команды модерации: /modhelp",
           )
 
-          p.write_text(s, encoding='utf-8')
-          print('Vonuchkaa moderation-only mode applied')
+          p.write_text(s, encoding="utf-8")
+          print("Moderation-only mode applied")
           PY
 
-      - name: Deploy vonuchkaa-ai-bot
+      - name: Deploy bot
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy vonuchkaa-ai-bot --project-ref wbqxposidtecxjioqufk --no-verify-jwt --use-api
