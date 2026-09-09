@@ -1,0 +1,39 @@
+name: Temporary BLESK Pawn Build
+
+on:
+  push:
+    branches:
+      - blesk-build-temp-20260909
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile BLESK_RUSSIA.pwn
+        id: pawn
+        uses: knryuu/pawn-compiler-action@v1
+        with:
+          input: tools/blesk-build/BLESK_RUSSIA.pwn
+          output: tools/blesk-build/BLESK_RUSSIA.amx
+          flags: '-Z -d3'
+          includes: ''
+          source_url: 'https://github.com/pawn-lang/compiler'
+
+      - name: Verify AMX header
+        shell: bash
+        run: |
+          test -s tools/blesk-build/BLESK_RUSSIA.amx
+          echo "AMX size: $(stat -c%s tools/blesk-build/BLESK_RUSSIA.amx) bytes"
+          xxd -l 16 tools/blesk-build/BLESK_RUSSIA.amx
+
+      - name: Upload compiled gamemode
+        uses: actions/upload-artifact@v4
+        with:
+          name: BLESK_RUSSIA_BASE_V0_1_AMX
+          path: tools/blesk-build/BLESK_RUSSIA.amx
+          if-no-files-found: error
