@@ -19,13 +19,13 @@ jobs:
           git clone --depth 1 https://github.com/pawn-lang/compiler.git pawn-compiler
           mkdir build
           cd build
-          cmake ../pawn-compiler/source/compiler -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS='-Wno-address-of-packed-member'
-          make -j2
-          find . -type f \( -name pawncc -o -name 'libpawnc.so*' \) -print
+          cmake ../pawn-compiler/source/compiler -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_C_FLAGS='-Wno-address-of-packed-member'
+          cmake --build . --target pawncc -j2
           mkdir -p ../out/bin ../out/lib
-          cp "$(find . -type f -name pawncc | head -n1)" ../out/bin/pawncc
-          cp "$(find . -type f -name 'libpawnc.so*' | head -n1)" ../out/lib/libpawnc.so
+          cp ./pawncc ../out/bin/pawncc
+          cp ./libpawnc.so ../out/lib/libpawnc.so
           chmod +x ../out/bin/pawncc
+          file ../out/bin/pawncc
       - name: Upload x64 compiler
         uses: actions/upload-artifact@v4
         with:
