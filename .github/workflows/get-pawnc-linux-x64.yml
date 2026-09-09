@@ -1,0 +1,34 @@
+name: Build Pawn Linux x64
+
+on:
+  push:
+    branches:
+      - blesk-compile-temp
+    paths:
+      - '.github/workflows/get-pawnc-linux-x64.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build compiler from source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 https://github.com/pawn-lang/compiler.git pawn-compiler
+          mkdir build
+          cd build
+          cmake ../pawn-compiler/source/compiler -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS='-Wno-address-of-packed-member'
+          make -j2
+          find . -type f \( -name pawncc -o -name 'libpawnc.so*' \) -print
+          mkdir -p ../out/bin ../out/lib
+          cp "$(find . -type f -name pawncc | head -n1)" ../out/bin/pawncc
+          cp "$(find . -type f -name 'libpawnc.so*' | head -n1)" ../out/lib/libpawnc.so
+          chmod +x ../out/bin/pawncc
+      - name: Upload x64 compiler
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawnc-linux-x64
+          path: out
+          if-no-files-found: error
