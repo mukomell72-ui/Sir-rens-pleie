@@ -31,13 +31,7 @@ jobs:
         run: |
           set -euxo pipefail
           iconv -f UTF-8 -t WINDOWS-1251 black_crush_reborn.pwn > black_crush_reborn_cp1251.pwn
-          cat >> black_crush_reborn_cp1251.pwn <<'EOF'
-
-stock strncmp(const string1[], const string2[], length, bool:ignorecase = false)
-{
-    return strcmp(string1, string2, ignorecase, length);
-}
-EOF
+          printf '\nstock strncmp(const string1[], const string2[], length, bool:ignorecase = false)\n{\n    return strcmp(string1, string2, ignorecase, length);\n}\n' >> black_crush_reborn_cp1251.pwn
           PAWNCC="$(find "$PWD/pawnc" -type f -name pawncc | head -n1)"
           LIBPAWNC="$(find "$PWD/pawnc" -type f -name 'libpawnc.so*' | head -n1)"
           chmod +x "$PAWNCC"
