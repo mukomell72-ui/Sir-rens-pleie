@@ -1,4 +1,4 @@
-#pragma compat
+#pragma rational Float
 
 #define BLESK_NAME "BLESK RUSSIA"
 #define BLESK_VERSION "0.1.0"
@@ -27,6 +27,13 @@ native BleskCore_IsLoaded();
 native BleskCore_Version();
 native BleskCore_Build();
 native BleskCore_Features();
+
+forward OnGameModeInit();
+forward OnGameModeExit();
+forward OnPlayerConnect(playerid);
+forward OnPlayerRequestClass(playerid, classid);
+forward OnPlayerSpawn(playerid);
+forward OnPlayerCommandText(playerid, cmdtext[]);
 
 main()
 {
