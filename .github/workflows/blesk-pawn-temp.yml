@@ -14,22 +14,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download native Linux x64 Pawn compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .pawncc
+          curl -fsSL https://raw.githubusercontent.com/Mac-Andreas/vscode-open-pawn/main/bin/linux-x64/pawncc -o .pawncc/pawncc
+          curl -fsSL https://raw.githubusercontent.com/Mac-Andreas/vscode-open-pawn/main/bin/linux-x64/libpawnc.so -o .pawncc/libpawnc.so
+          chmod +x .pawncc/pawncc
+          file .pawncc/pawncc .pawncc/libpawnc.so
+
       - name: Compile BLESK_RUSSIA.pwn
-        id: pawn
-        uses: knryuu/pawn-compiler-action@v1
-        with:
-          input: tools/blesk-build/BLESK_RUSSIA.pwn
-          output: tools/blesk-build/BLESK_RUSSIA.amx
-          flags: '-Z -d3'
-          includes: ''
-          source_url: 'https://github.com/pawn-lang/compiler'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export LD_LIBRARY_PATH="$PWD/.pawncc:${LD_LIBRARY_PATH:-}"
+          ./.pawncc/pawncc tools/blesk-build/BLESK_RUSSIA.pwn \
+            -otools/blesk-build/BLESK_RUSSIA.amx \
+            -Z -d3
 
       - name: Verify AMX header
         shell: bash
         run: |
+          set -euo pipefail
           test -s tools/blesk-build/BLESK_RUSSIA.amx
-          echo "AMX size: $(stat -c%s tools/blesk-build/BLESK_RUSSIA.amx) bytes"
-          xxd -l 16 tools/blesk-build/BLESK_RUSSIA.amx
+          SIZE=$(stat -c%s tools/blesk-build/BLESK_RUSSIA.amx)
+          MAGIC=$(xxd -s 4 -l 2 -p tools/blesk-build/BLESK_RUSSIA.amx)
+          echo "AMX size: ${SIZE} bytes"
+          echo "AMX magic bytes at offset 4: ${MAGIC}"
+          test "$MAGIC" = "e0f1"
 
       - name: Upload compiled gamemode
         uses: actions/upload-artifact@v4
