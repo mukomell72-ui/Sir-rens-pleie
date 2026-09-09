@@ -1,0 +1,28 @@
+name: Get Pawn Linux Compiler
+
+on:
+  push:
+    branches:
+      - blesk-compile-temp
+    paths:
+      - '.github/workflows/get-pawnc-linux.yml'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download compiler
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -L --fail https://github.com/pawn-lang/compiler/releases/download/v3.10.10/pawnc-3.10.10-linux.tar.gz -o pawnc.tar.gz
+          mkdir pawnc
+          tar -xzf pawnc.tar.gz -C pawnc
+          find pawnc -type f -name pawncc -exec chmod +x {} \;
+      - name: Upload compiler
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawnc-linux-3.10.10
+          path: pawnc
+          if-no-files-found: error
