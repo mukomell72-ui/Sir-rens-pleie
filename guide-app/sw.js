@@ -1,4 +1,4 @@
-const CACHE='sir-guide-v13-current-v3';
+const CACHE='sir-guide-v13-current-v4';
 const CORE=[
   './index-v13.html',
   './app-v13.js',
