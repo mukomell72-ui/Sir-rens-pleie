@@ -10,7 +10,26 @@ const canonicalName=v=>normalize(v)
   .replace(/\b(carpro)\s+\1\b/g,'$1')
   .replace(/\s+/g,' ').trim();
 const hseCanonical=new Map(Object.entries(hseMap).map(([name,row])=>[canonicalName(name),row]));
-function hseFor(x){return hseMap[x.n]||hseCanonical.get(canonicalName(x.n))||HSE_FALLBACK;}
+const hseRiskRank={'LOW':1,'CAUTION':2,'HIGH RISK':3,'STOP':4};
+const dbRiskLevel=v=>({low:'LOW',caution:'CAUTION',high_risk:'HIGH RISK',stop:'STOP'}[String(v||'').toLowerCase()]||null);
+function hseFor(x){
+  const base=hseMap[x.n]||hseCanonical.get(canonicalName(x.n))||HSE_FALLBACK;
+  if(!x?._db)return base;
+  const dbLevel=x._dbHseStatus==='stop'?'STOP':dbRiskLevel(x._dbRisk);
+  const level=dbLevel&&(hseRiskRank[dbLevel]||0)>(hseRiskRank[base.level]||0)?dbLevel:base.level;
+  return {
+    ...base,
+    status:x._dbHseStatus||base.status,
+    level,
+    label:level==='STOP'?'STOP · '+(base.label||'HMS sperret'):base.label,
+    hazards:x._dbHazards||base.hazards,
+    ppe:x._dbPpe||base.ppe,
+    first:x._dbFirst||base.first,
+    storage:x._dbStorage||base.storage,
+    sds:x._dbSds||base.sds,
+    verified:x._dbVerified||base.verified
+  };
+}
 const broadCats=['Все','Химия','Расходники','Оборудование'];
 const q=document.getElementById('q'),chips=document.getElementById('chips'),list=document.getElementById('list'),count=document.getElementById('count');let active='Все';
 function dbDisplayName(c){
@@ -26,7 +45,10 @@ const fromDb=c=>({
   tags:[c.category,...(c.intended_surfaces||[]),...(c.prohibited_surfaces||[])].filter(Boolean),
   t:c.dwell_time?`Выдержка: ${c.dwell_time}`:'',
   buy:{shop:c.shop_url?'Открыть магазин':'Ссылка не добавлена',url:c.shop_url||'#'},
-  src:c.source_note||'',_db:true,_id:c.id,_verification:c.verification_status,_hseStatus:c.hse_status
+  src:c.source_note||'',_db:true,_id:c.id,_verification:c.verification_status,
+  _dbHseStatus:c.hse_status,_dbRisk:c.risk_level,_dbApproval:c.approval_required,
+  _dbHazards:c.hse_hazards||'',_dbPpe:c.hse_ppe||'',_dbFirst:c.hse_first_aid||'',_dbStorage:c.hse_storage||'',
+  _dbSds:/^https:\/\//i.test(String(c.sds_url||''))?c.sds_url:'',_dbVerified:c.hse_verified_at||''
 });
 window.addEventListener('message',e=>{
   if(e.origin!==location.origin||e.data?.type!=='sir-guide-chemicals'||!Array.isArray(e.data.items))return;
