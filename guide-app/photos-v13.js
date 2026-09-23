@@ -10,7 +10,6 @@ window.SIR_PHOTOS={
   carpro_darkside:'./photos-v13/carpro_darkside.jpg',
   carpro_essence:'./photos-v13/carpro_essence.png',
   carpro_retyre:'./photos-v13/carpro_retyre.jpg',
-  ecolab_carpetb:'./photos-v13/ecolab_carpetb.jpg',
   karcher_foamstop:'./photos-v13/karcher_foamstop.jpg',
   koch_greenstar:'./photos-v13/user-green-star.jpg',
   koch_leatherstar:'./photos-v13/user-leather-star.jpg',
