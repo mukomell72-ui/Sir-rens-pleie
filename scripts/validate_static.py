@@ -19,6 +19,8 @@ HTML_FILES = [
     ROOT / "order" / "index.html",
     ROOT / "status" / "index.html",
     ROOT / "q" / "index.html",
+    ROOT / "guide-app" / "index.html",
+    ROOT / "guide-app" / "index-v13.html",
 ]
 
 class Parser(HTMLParser):
@@ -148,6 +150,20 @@ def main() -> int:
     admin_index = (ROOT / "admin" / "index.html").read_text(encoding="utf-8")
     if "guide-editor.html" not in admin_index:
         errors.append("Admin navigation is missing Guide Editor")
+
+    guide = (ROOT / "guide-app" / "index-v13.html").read_text(encoding="utf-8")
+    guide_scripts = ("photos-v13.js", "inventory-v13-1.js", "inventory-v13-2.js", "inventory-v13-3.js", "inventory-v13-4.js", "hse-v13.js", "guide-wizard.js", "app-v13.js")
+    guide_positions = [guide.find(script) for script in guide_scripts]
+    if any(pos < 0 for pos in guide_positions) or guide_positions != sorted(guide_positions):
+        errors.append("SIR Guide scripts are missing or load in an unsafe order")
+    for marker in ("HMS / Stoffkartotek", "id=\"hseBoard\"", "id=\"cleaningWizard\""):
+        if marker not in guide:
+            errors.append(f"SIR Guide professional safety marker is missing: {marker}")
+
+    sw = (ROOT / "guide-app" / "sw.js").read_text(encoding="utf-8")
+    for marker in ("hse-v13.js", "ignoreSearch:true", "networkWithTimeout"):
+        if marker not in sw:
+            errors.append(f"SIR Guide service-worker hardening marker is missing: {marker}")
 
     if errors:
         print("SIR static validation FAILED")
