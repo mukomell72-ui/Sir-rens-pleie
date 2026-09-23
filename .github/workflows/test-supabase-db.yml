@@ -167,7 +167,7 @@ jobs:
             values(v_order_after,v_expired_start+interval '30 minutes',v_expired_start+interval '90 minutes',false,0);
           end $$;
 
-          do $
+          do $hse$
           declare
             caught boolean;
           begin
@@ -202,7 +202,7 @@ jobs:
             exception when check_violation then caught := true;
             end;
             if not caught then raise exception 'hse_stop_fail_closed_not_enforced'; end if;
-          end $;
+          end $hse$;
 
           rollback;
           SQL
