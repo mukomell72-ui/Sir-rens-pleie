@@ -40,13 +40,15 @@ jobs:
             echo 'Shared legacy admin PIN found in production files'
             exit 1
           fi
-          foreign_paths="$(git ls-files | grep -Ei 'vonu[ch]kaa|bl[e]sk|username[-_]scanner' || true)"
+          foreign_regex='vonu[c]hkaa|bl[e]sk|username[-_]scanner'
+          printf '%s\n' 'deploy-vonuchkaa-test.yml' 'blesk-test.txt' 'username-scanner-test' | grep -Eq "$foreign_regex" || { echo 'Foreign-project regex self-test failed'; exit 1; }
+          foreign_paths="$(git ls-files | grep -Ei "$foreign_regex" || true)"
           if [ -n "$foreign_paths" ]; then
             echo 'Unrelated project artifacts found anywhere in SIR main:'
             printf '%s\n' "$foreign_paths"
             exit 1
           fi
-          foreign_refs="$(git grep -nEi 'vonu[ch]kaa|bl[e]sk|username[-_]scanner|wbqxposidtecxjioquf[k]' -- . || true)"
+          foreign_refs="$(git grep -nEi "$foreign_regex|wbqxposidtecxjioquf[k]" -- . || true)"
           if [ -n "$foreign_refs" ]; then
             echo 'Unrelated project references found anywhere in tracked SIR files:'
             printf '%s\n' "$foreign_refs"
