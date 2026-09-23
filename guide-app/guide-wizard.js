@@ -1,5 +1,8 @@
 (()=>{
   const items=window.SIR_ITEMS||[];
+  const hseMap=window.SIR_HSE||{};
+  const hseFallback={status:'UNVERIFIED',label:'HMS не проверен',level:'STOP',ppe:'STOP до проверки SDS',hazards:'Нет подтверждённой HMS-записи.'};
+  const hseForName=name=>hseMap[name]||hseFallback;
   const zoneEl=document.getElementById('wizZone');
   const levelEl=document.getElementById('wizLevel');
   const dirtEl=document.getElementById('wizDirt');
@@ -108,11 +111,14 @@
       action:action||x.u||'',
       after:opts.after||x.a||'',
       warning:opts.warning||x.w||'',
-      risk:opts.risk||'LOW'
+      risk:opts.risk||'LOW',
+      hse:hseForName(x.n)
     };
   }
   function manual(title,action,opts={}){
-    return {title,product:opts.product||'Без химии',dilution:opts.dilution||'—',tool:opts.tool||'',action,after:opts.after||'',warning:opts.warning||'',risk:opts.risk||'LOW'};
+    const productName=opts.product||'Без химии';
+    const noChem=productName==='Без химии'||productName==='AVA P55 Go'||productName.includes('Bosch')||productName.includes('Вода');
+    return {title,product:productName,dilution:opts.dilution||'—',tool:opts.tool||'',action,after:opts.after||'',warning:opts.warning||'',risk:opts.risk||'LOW',hse:noChem?null:hseForName(productName)};
   }
 
   function baseRinse(){
@@ -132,21 +138,14 @@
     });
   }
   function touchlessPrewash(level,dirt){
-    if(level==='heavy' || dirt==='insects'){
-      return step('Бесконтактная предмойка','Gtechniq W4 Citrus Foam','Используйте именно старую красную версию W4, подтверждённую фото вашей бутылки. Встряхните. На холодный кузов вне прямого солнца нанесите снизу вверх, выдержите 3–5 минут, не давая высохнуть, затем полностью смойте мойкой высокого давления.',{
-        dilution:'Foam lance — следуйте вашей задней этикетке: налейте W4 слоем примерно 2,5 см в бачок пенника и долейте тёплой водой. Старые ориентиры Gtechniq: рабочее разведение при нанесении 1:400 для лёгкой грязи и 1:200 для сильной; это НЕ прямой рецепт премикса в бачке. Помповый распылитель: 1:20 = 1 часть W4 + 20 частей воды.',
-        tool:'Пенообразователь/foam lance + AVA P55 Go. Альтернатива для локальной предмойки — помповый распылитель 1:20. Не обычный мелкодисперсный интерьерный триггер.',
-        after:'После полного смыва обязательно перейти к контактной мойке NanoMagicShampoo.',
-        warning:'Только для вашей старой красной версии W4. НЕ использовать современную дозировку 10:1. Не работать на горячей поверхности/под прямым солнцем, не давать высохнуть и не тереть кузов до смыва предмойки.',
-        risk:'LOW'
-      });
-    }
     return step('Бесконтактная предмойка','Autoglym Polar Blast','Работайте на холодном автомобиле вне прямого солнца. Нанесите через пенокомплект снизу вверх на наружные поверхности, включая стекло и колёса. В обычной предмойке пену НЕ тереть. Оставьте работать до 10 минут, но не дайте высохнуть. Затем тщательно смойте мойкой высокого давления снизу вверх.',{
       dilution:'Официальный стартовый вариант Autoglym: 100 мл Polar Blast + 500 мл воды в бутылке пенокомплекта (1:5). Производитель допускает регулировку вплоть до 1:10 в зависимости от оборудования и требуемой пены; 1:5 — подтверждённый рабочий ориентир.',
       tool:'Пенокомплект/foam gun + AVA P55 Go для полного смыва.',
       after:'После полного смыва перейти к контактной мойке NanoMagicShampoo. Не трите грязный кузов до смыва предмойки.',
-      warning:'Не работать на горячей поверхности или под прямым солнцем. Не давать пене высохнуть. Polar Blast рассчитан на пенокомплект/мойку высокого давления; Autoglym не рекомендует использовать его из ведра.',
-      risk:'LOW'
+      warning:(level==='heavy'||dirt==='insects')
+        ? 'Для сильной грязи можно увеличить время работы только в пределах инструкции, не допуская высыхания. Старая красная W4 пока НЕ используется в профессиональном плане: точный legacy-SDS для этой формулы не внесён в stoffkartotek.'
+        : 'Не работать на горячей поверхности или под прямым солнцем. Не давать пене высохнуть. Polar Blast рассчитан на пенокомплект/мойку высокого давления; Autoglym не рекомендует использовать его из ведра.',
+      risk:'CAUTION'
     });
   }
   function polStar(level,areaAction){
@@ -183,10 +182,10 @@
         }));
         risk='HIGH RISK';
       }else if(dirt==='insects'){
-        steps.push(manual('Проверка после W4 и контактной мойки','Осмотрите переднюю часть кузова после полного смыва и контактной мойки. Если единичные следы насекомых остались, не соскабливайте их по сухому ЛКП.',{
-          product:'Gtechniq W4 Citrus Foam — старая красная версия',
-          tool:'Для локального повторного размягчения допустим помповый распылитель с W4 1:20 (1 часть W4 + 20 частей воды); выдержать 3–5 минут без высыхания и полностью смыть.',
-          warning:'Не применять Eulex как универсальный insect remover и не усиливать Green Star автоматически на ЛКП.',
+        steps.push(manual('Проверка следов насекомых после мойки','После Polar Blast, полного смыва и контактной мойки осмотрите переднюю часть кузова. Если следы остались, повторно размочите участок безопасной предмойкой и не соскабливайте загрязнение по сухому ЛКП.',{
+          product:'Autoglym Polar Blast',
+          tool:'Пенообразователь. Не использовать Eulex как универсальный insect remover.',
+          warning:'Старая красная Gtechniq W4 находится в HMS-карантине до получения SDS именно для этой legacy-формулы; мастер её автоматически не назначает.',
           risk:'CAUTION'
         }));
         steps.push(manual('Финальный смыв и сушка','После полного удаления следов тщательно смойте остатки химии и высушите кузов чистой мягкой микрофиброй.'));
@@ -473,15 +472,25 @@
     if(risk==='CAUTION')return 'risk-caution';
     return 'risk-low';
   }
+  const riskRank={'LOW':0,'CAUTION':1,'HIGH RISK':2,'STOP':3};
+  function combinedRisk(plan){
+    let r=plan.risk||'LOW';
+    for(const s of plan.steps||[]){
+      const hr=s.hse?.level;
+      if(hr && (riskRank[hr]??0)>(riskRank[r]??0))r=hr;
+    }
+    return r;
+  }
   function render(){
     const zone=zoneEl.value, level=levelEl.value, dirt=dirtEl.value;
     const plan=makePlan(zone,level,dirt);
+    const finalRisk=combinedRisk(plan);
     const levelLabel=levelEl.options[levelEl.selectedIndex]?.text||'';
     const dirtLabel=dirtEl.options[dirtEl.selectedIndex]?.text||'';
     result.innerHTML=`
       <div class="wiz-summary">
         <div><b>${h(zones[zone])}</b><span>${h(levelLabel)} · ${h(dirtLabel)}</span></div>
-        <span class="wiz-risk ${riskClass(plan.risk)}">${h(plan.risk)}</span>
+        <span class="wiz-risk ${riskClass(finalRisk)}">${h(finalRisk)}</span>
       </div>
       <div class="wiz-note">${h(plan.note)}</div>
       <div class="wiz-steps">
@@ -495,6 +504,7 @@
             <div class="wiz-row"><b>Что делать</b><span>${h(s.action)}</span></div>
             ${s.after?`<div class="wiz-row"><b>После</b><span>${h(s.after)}</span></div>`:''}
             ${s.warning?`<div class="wiz-row wiz-warning"><b>Важно</b><span>${h(s.warning)}</span></div>`:''}
+            ${s.hse?`<div class="wiz-row wiz-hse ${riskClass(s.hse.level||'LOW')}"><b>HMS / SDS</b><span>${h(s.hse.label)}. ${h(s.hse.ppe||'')}</span></div>`:''}
           </div>
         </article>`).join('')}
       </div>`;
