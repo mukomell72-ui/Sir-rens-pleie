@@ -11,5 +11,13 @@ window.SIR_PHOTOS={
   carpro_essence:'./photos-v13/carpro_essence.png',
   carpro_retyre:'./photos-v13/carpro_retyre.jpg',
   ecolab_carpetb:'./photos-v13/ecolab_carpetb.jpg',
-  karcher_foamstop:'./photos-v13/karcher_foamstop.jpg'
+  karcher_foamstop:'./photos-v13/karcher_foamstop.jpg',
+  koch_greenstar:'./photos-v13/user-green-star.jpg',
+  koch_leatherstar:'./photos-v13/user-leather-star.jpg',
+  koch_nms:'./photos-v13/user-nanomagic.jpg',
+  taski_tapi:'./photos-v13/user-taski-tapi.jpg',
+  autoglym_polarblast:'./photos-v13/user-polar-blast.jpg',
+  gtechniq_w4:'./photos-v13/user-gtechniq-w4.jpg',
+  autoglym_polarwash:'./photos-v13/user-polar-wash.jpg',
+  turtle_scratch:'./photos-v13/user-turtle-scratch.jpg'
 };
