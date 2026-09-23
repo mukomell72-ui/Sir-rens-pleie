@@ -167,5 +167,42 @@ jobs:
             values(v_order_after,v_expired_start+interval '30 minutes',v_expired_start+interval '90 minutes',false,0);
           end $$;
 
+          do $
+          declare
+            caught boolean;
+          begin
+            caught := false;
+            begin
+              insert into public.chemicals(name,verification_status,active,hse_status)
+              values('CI HSE unverified active','manufacturer_verified',true,'unverified');
+            exception when check_violation then caught := true;
+            end;
+            if not caught then raise exception 'active_manufacturer_without_hse_not_blocked'; end if;
+
+            caught := false;
+            begin
+              insert into public.chemicals(name,verification_status,active,hse_status,hse_verified_at)
+              values('CI HSE reviewed no source','manufacturer_verified',true,'source_reviewed',current_date);
+            exception when check_violation then caught := true;
+            end;
+            if not caught then raise exception 'reviewed_hse_without_source_not_blocked'; end if;
+
+            caught := false;
+            begin
+              insert into public.chemicals(name,active,hse_status,risk_level,approval_required)
+              values('CI HSE high no approval',false,'unverified','high_risk',false);
+            exception when check_violation then caught := true;
+            end;
+            if not caught then raise exception 'high_risk_without_approval_not_blocked'; end if;
+
+            caught := false;
+            begin
+              insert into public.chemicals(name,active,hse_status,risk_level,approval_required)
+              values('CI HSE stop mismatch',false,'stop','caution',false);
+            exception when check_violation then caught := true;
+            end;
+            if not caught then raise exception 'hse_stop_fail_closed_not_enforced'; end if;
+          end $;
+
           rollback;
           SQL
