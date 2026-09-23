@@ -4,6 +4,8 @@
   const orderId=new URLSearchParams(location.search).get('order');
   const sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const safeUrl=v=>{try{const u=new URL(String(v||''));return u.protocol==='https:'?u.href:'';}catch{return'';}};
+  const riskRank={low:1,caution:2,high_risk:3,stop:4};
   const managerRoles=['owner','admin','manager'];
   let session,profile,order,card,items=[],photos=[],chemicals=[];
 
@@ -23,7 +25,7 @@
       sb.from('order_items').select('*').eq('order_id',orderId).order('created_at'),
       sb.from('order_photos').select('*').eq('order_id',orderId).order('created_at'),
       sb.from('order_technology_cards').select('*').eq('order_id',orderId).maybeSingle(),
-      sb.from('chemicals').select('*').eq('active',true).eq('verification_status','manufacturer_verified').order('brand').order('name')
+      sb.from('chemicals').select('*').eq('active',true).eq('verification_status','manufacturer_verified').in('hse_status',['verified','source_reviewed']).neq('risk_level','stop').order('brand').order('name')
     ]);
     if(error||!o){root.innerHTML='<div class="notice">Заказ не найден или нет доступа.</div>';throw error||new Error('not found');}
     order=o;items=i;card=t;chemicals=c;
@@ -48,7 +50,7 @@
       ${photos.length?`<section class="panel"><div class="panel-head">Фото клиента</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:14px">${photos.map(x=>`<a href="${x.url}" target="_blank"><img src="${x.url}" alt="Фото заказа" style="width:100%;height:160px;object-fit:cover;border-radius:12px"></a>`).join('')}</div></section>`:'<div class="notice">Фото клиента не загружены. Для спорного материала итоговую технологию не подтверждать без осмотра.</div>'}
       <section class="panel"><div class="panel-head"><span>Последовательность работ</span><span>${risk}</span></div><div style="padding:16px">${steps.length?`<ol>${steps.map(x=>`<li style="margin:10px 0">${esc(x)}</li>`).join('')}</ol>`:'<p>Черновик ещё не сформирован.</p>'}</div></section>
       <section class="panel"><div class="panel-head">Обязательные условия STOP</div><div style="padding:16px">${stops.length?`<ul>${stops.map(x=>`<li style="margin:10px 0">${esc(x)}</li>`).join('')}</ul>`:'<p>После формирования карты здесь появятся условия остановки.</p>'}</div></section>
-      <section class="panel"><div class="panel-head"><span>Химия, совпадающая по области применения</span><span class="mini">manufacturer_verified · ${matched.length}</span></div><div class="notice safe" style="margin:14px"><b>Это кандидаты, а не автоматическое назначение.</b> Перед использованием обязателен осмотр материала и spot-test. Если поверхность не совпадает с официальной областью применения — средство не использовать.</div>${chemTable(matched)}</section>
+      <section class="panel"><div class="panel-head"><span>Химия, совпадающая по области применения</span><span class="mini">manufacturer_verified + HMS gate · ${matched.length}</span></div><div class="notice safe" style="margin:14px"><b>Это только безопасные кандидаты после HMS-фильтра.</b> HIGH RISK, STOP, непроверенный HMS и средства с обязательным подтверждением исключены из автоподбора. Перед использованием всё равно обязательны осмотр материала и spot-test.</div>${chemTable(matched)}</section>
       <details class="panel"><summary class="panel-head">Показать всю проверенную базу SIR (${chemicals.length})</summary>${chemTable(chemicals)}</details>`;
 
     document.getElementById('generate')?.addEventListener('click',generate);
@@ -58,13 +60,22 @@
 
   function matchedChemicals(){
     const wanted=new Set();
-    if(['car','sofa','chair','mattress'].includes(order.service_type)){wanted.add('textiles');wanted.add('vehicle interior');}
-    if(order.service_type==='car'&&items.some(x=>['interior_plastic','dashboard_console','door_cards'].includes(x.item_code)))wanted.add('vehicle interior');
-    return chemicals.filter(c=>(c.intended_surfaces||[]).some(s=>wanted.has(String(s).toLowerCase())));
+    if(['car','sofa','chair','mattress'].includes(order.service_type)){wanted.add('textiles');wanted.add('textile');wanted.add('upholstery');wanted.add('vehicle interior');}
+    if(order.service_type==='car'&&items.some(x=>['interior_plastic','dashboard_console','door_cards'].includes(x.item_code))){wanted.add('vehicle interior');wanted.add('interior_plastic');}
+    return chemicals.filter(c=>{
+      if(c.approval_required||c.risk_level==='high_risk'||c.risk_level==='stop')return false;
+      if(!['verified','source_reviewed'].includes(c.hse_status))return false;
+      return (c.intended_surfaces||[]).some(s=>wanted.has(String(s).toLowerCase()));
+    });
   }
   function chemTable(rows){
-    if(!rows.length)return'<div class="empty">Нет подтверждённого средства, которое можно безопасно подобрать автоматически по этой категории. Используйте ручной поиск в SIR Guide и не придумывайте смесь/разведение.</div>';
-    return `<div class="table-wrap"><table class="table"><thead><tr><th>Средство</th><th>Разведение</th><th>Как применять</th><th>Выдержка</th><th>После</th><th>STOP / предупреждение</th></tr></thead><tbody>${rows.map(x=>`<tr><td><b>${esc(x.brand||'')} ${esc(x.name)}</b><div class="mini"><a href="${esc(x.source_note||'#')}" target="_blank" rel="noopener">официальный источник</a></div></td><td>${esc(x.dilution||'—')}</td><td>${esc(x.application_method||'—')}</td><td>${esc(x.dwell_time||'—')}</td><td>${esc(x.follow_up||'—')}</td><td>${esc(x.warnings||'—')}</td></tr>`).join('')}</tbody></table></div>`;
+    if(!rows.length)return'<div class="empty">Нет химии, прошедшей одновременно технологическую и HMS-проверку для безопасного автоматического подбора. Используйте SIR Guide и ручное подтверждение, не придумывайте смесь/разведение.</div>';
+    return `<div class="table-wrap"><table class="table"><thead><tr><th>Средство</th><th>Риск / HMS</th><th>Разведение</th><th>Как применять</th><th>Выдержка</th><th>После</th><th>STOP / предупреждение</th></tr></thead><tbody>${rows.map(x=>{
+      const src=safeUrl(x.source_note),sds=safeUrl(x.sds_url);
+      const risk=String(x.risk_level||'caution');
+      const manual=x.approval_required||risk==='high_risk'||risk==='stop';
+      return `<tr><td><b>${esc(x.brand||'')} ${esc(x.name)}</b><div class="mini">${src?`<a href="${esc(src)}" target="_blank" rel="noopener noreferrer">официальный источник</a>`:'источник не привязан'}</div></td><td><span class="risk ${risk.replace('_','-')}">${esc(risk.toUpperCase())}</span><div class="mini">HMS: ${esc(x.hse_status||'unverified')}${manual?' · только с подтверждением':''}</div>${sds?`<div class="mini"><a href="${esc(sds)}" target="_blank" rel="noopener noreferrer">SDS/HMS</a></div>`:''}</td><td>${esc(x.dilution||'—')}</td><td>${esc(x.application_method||'—')}</td><td>${esc(x.dwell_time||'—')}</td><td>${esc(x.follow_up||'—')}</td><td>${esc(x.warnings||'—')}${x.hse_ppe?`<div class="mini">СИЗ: ${esc(x.hse_ppe)}</div>`:''}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
   }
 
   async function generate(){
