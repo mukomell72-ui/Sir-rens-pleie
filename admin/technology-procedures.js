@@ -27,7 +27,7 @@
         sb.from('order_items').select('item_code,quantity').eq('order_id',orderId),
         sb.from('order_technology_cards').select('material_guess,risk_level,reviewed_at').eq('order_id',orderId).maybeSingle(),
         sb.from('procedures').select('code,name,surface_type,contamination,risk_level,steps,stop_conditions,verified,version,pass_plan,drying_rule,mechanical_method,chemical_rule,source_note').eq('verified',true),
-        sb.from('chemicals').select('brand,name,category,intended_surfaces,prohibited_surfaces,dilution,application_method,dwell_time,follow_up,warnings,verification_status,source_note,active').eq('active',true).eq('verification_status','manufacturer_verified')
+        sb.from('chemicals').select('brand,name,category,intended_surfaces,prohibited_surfaces,dilution,application_method,dwell_time,follow_up,warnings,verification_status,source_note,active,risk_level,approval_required,hse_status,sds_url,hse_ppe,hse_hazards,hse_verified_at').eq('active',true).eq('verification_status','manufacturer_verified').in('hse_status',['verified','source_reviewed']).neq('risk_level','stop')
       ]);
       if(error||!o)return;
       data={order:o,items,card,procedures,chemicals};append();
@@ -60,8 +60,10 @@
 
   function chemicalCandidates(surface){
     if(['headliner','leather','seat_belt','child_seat','interior_plastic'].includes(surface))return[];
-    const keys=surface==='carpet'?['carpet','textile']:surface==='mattress'?['textile','mattress']:['textile'];
+    const keys=surface==='carpet'?['carpet','textile','upholstery']:surface==='mattress'?['textile','mattress','upholstery']:['textile','upholstery'];
     return data.chemicals.filter(c=>{
+      if(c.approval_required||c.risk_level==='high_risk'||c.risk_level==='stop')return false;
+      if(!['verified','source_reviewed'].includes(c.hse_status))return false;
       const allowed=(c.intended_surfaces||[]).join(' ').toLowerCase();
       const prohibited=(c.prohibited_surfaces||[]).join(' ').toLowerCase();
       return keys.some(k=>allowed.includes(k))&&!keys.some(k=>prohibited.includes(k));
@@ -88,13 +90,14 @@
       <div class="kv"><span>Правило химии</span><b>${esc(p.chemical_rule||'Только подтверждённая совместимость')}</b></div>
       <h4>Последовательность</h4><ol>${steps.map(x=>`<li style="margin:8px 0">${esc(x)}</li>`).join('')}</ol>
       <h4>STOP</h4><ul>${stops.map(x=>`<li style="margin:8px 0">${esc(x)}</li>`).join('')}</ul>
-      <div class="notice safe"><b>Химия из проверенного SIR Guide:</b>${chems.length?` ${chems.map(chemLine).join('<hr style="border:0;border-top:1px solid #ffffff12;margin:10px 0">')}`:' автоматический выбор для этой поверхности отключён. Сначала подтвердить материал и совместимость.'}</div>
+      <div class="notice safe"><b>Химия после technology + HMS gate:</b>${chems.length?` ${chems.map(chemLine).join('<hr style="border:0;border-top:1px solid #ffffff12;margin:10px 0">')}`:' автоматический выбор для этой поверхности отключён. HIGH RISK, STOP, HMS=unverified и approval_required не назначаются автоматически.'}</div>
     </article>`;
   }
 
   function chemLine(c){
-    const src=safeUrl(c.source_note);
-    return `<div><b>${esc([c.brand,c.name].filter(Boolean).join(' '))}</b> · ${esc(c.dilution||'разведение см. у производителя')}<br><span class="mini">${esc(c.application_method||'')} ${c.dwell_time?`Выдержка: ${esc(c.dwell_time)}.`:''} ${c.follow_up?`После: ${esc(c.follow_up)}`:''}</span>${c.warnings?`<br><span class="mini">Предупреждение: ${esc(c.warnings)}</span>`:''}${src?`<br><a href="${src}" target="_blank" rel="noopener noreferrer">Источник производителя</a>`:''}</div>`;
+    const src=safeUrl(c.source_note),sds=safeUrl(c.sds_url);
+    const risk=String(c.risk_level||'caution').toUpperCase();
+    return `<div><b>${esc([c.brand,c.name].filter(Boolean).join(' '))}</b> · ${esc(c.dilution||'разведение см. у производителя')}<br><span class="mini">Риск: ${esc(risk)} · HMS: ${esc(c.hse_status||'unverified')}${c.hse_verified_at?` · проверено ${esc(c.hse_verified_at)}`:''}</span><br><span class="mini">${esc(c.application_method||'')} ${c.dwell_time?`Выдержка: ${esc(c.dwell_time)}.`:''} ${c.follow_up?`После: ${esc(c.follow_up)}`:''}</span>${c.hse_ppe?`<br><span class="mini">СИЗ: ${esc(c.hse_ppe)}</span>`:''}${c.warnings?`<br><span class="mini">Предупреждение: ${esc(c.warnings)}</span>`:''}${src?`<br><a href="${src}" target="_blank" rel="noopener noreferrer">Источник производителя</a>`:''}${sds?` · <a href="${sds}" target="_blank" rel="noopener noreferrer">SDS/HMS</a>`:''}</div>`;
   }
 
   function append(){
