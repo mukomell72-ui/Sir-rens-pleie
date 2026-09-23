@@ -43,10 +43,10 @@ jobs:
 
             caught := false;
             begin
-              insert into public.orders(customer_name,phone,service_type,vehicle_seats) values('CI Test','0000000002','car',8);
+              insert into public.orders(customer_name,phone,service_type,vehicle_seats) values('CI Test','0000000002','car',100);
             exception when check_violation then caught := true;
             end;
-            if not caught then raise exception 'invalid_vehicle_seats_not_blocked'; end if;
+            if not caught then raise exception 'vehicle_seats_above_99_not_blocked'; end if;
 
             caught := false;
             begin
