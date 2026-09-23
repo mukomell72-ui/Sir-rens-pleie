@@ -26,7 +26,7 @@ const canonical=v=>norm(v)
   .replace(/\b(carpro)\s+\1\b/g,'$1')
   .replace(/\s+/g,' ').trim();
 
-const core=items.filter(x=>x.c!=='Оборудование'&&(x.c!=='Расходники'||String(x.n).includes('FoamStop')));
+const core=items.filter(x=>(x.c!=='Оборудование'&&!['Расходники','Ароматы'].includes(x.c))||String(x.n).includes('FoamStop'));
 if(core.length!==20)errors.push(`Expected exactly 20 working/service chemical cards, got ${core.length}`);
 
 const seen=new Map();
