@@ -239,7 +239,27 @@ Each product record:
 - risk warnings;
 - purchase price and shop link;
 - source/verification status;
-- version history.
+- version history;
+- current SDS/HMS verification status;
+- SDS link and verification date;
+- hazard summary based on the applicable SDS/label;
+- required PPE;
+- first-aid reference;
+- storage/handling controls.
+
+### Professional HSE / stoffkartotek gate
+
+For professional use in Norway, the Guide must behave as an operational supplement to the required stoffkartotek, never as a replacement for the supplier SDS.
+
+- For hazardous chemicals used occupationally, keep an accessible current SDS; prefer Norwegian SDS supplied for the actual product/formulation.
+- Product label and SDS take precedence over SIR text if they conflict.
+- New chemicals, changed formulas, or legacy products without a verified matching SDS receive `STOP` and must not be selected automatically by the technology wizard.
+- The Guide must surface SDS status, PPE, first aid, storage/handling and the last verification date directly on each chemical card.
+- Secondary/work bottles must be correctly identified and must never be repurposed food/drink containers.
+- Chemical risk assessment must consider product hazards, quantity, application method, aerosol/splash exposure, frequency, ventilation, worker exposure and existing controls.
+- SIR baseline during concentrated chemical dosing/spraying is chemical-resistant gloves and splash eye protection; any stricter SDS Section 8 requirement overrides this baseline.
+- The Guide must provide an emergency reminder for immediate eye flushing, Giftinformasjonen (22 59 13 00) and emergency number 113.
+- Exact compatibility of defoamers/additives with extraction equipment must be documented before automatic use.
 
 Never invent a dilution or chemical combination. Prefer manufacturer-confirmed instructions.
 
