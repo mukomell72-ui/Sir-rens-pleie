@@ -22,10 +22,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find assets admin guide-app tests -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | while IFS= read -r -d '' file; do
+          find assets admin guide-app tests scripts -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | while IFS= read -r -d '' file; do
             echo "Checking $file"
             node --check "$file"
           done
+      - name: Professional Guide data validation
+        run: node scripts/validate_guide.mjs
       - name: Safety and repository isolation checks
         shell: bash
         run: |
@@ -38,14 +40,16 @@ jobs:
             echo 'Shared legacy admin PIN found in production files'
             exit 1
           fi
-          foreign_paths="$(git ls-files | grep -Ei '(^|/)(vonuchkaa|blesk|username-scanner)(/|[._-])|(^|/)(vonuchkaa|blesk|username-scanner)$' || true)"
+          foreign_paths="$(git ls-files | grep -Ei 'vonu[ch]kaa|bl[e]sk|username[-_]scanner' || true)"
           if [ -n "$foreign_paths" ]; then
-            echo 'Unrelated project artifacts found in SIR main:'
+            echo 'Unrelated project artifacts found anywhere in SIR main:'
             printf '%s\n' "$foreign_paths"
             exit 1
           fi
-          if grep -R -n 'wbqxposidtecxjioqufk' assets admin guide-app supabase scripts docs 2>/dev/null; then
-            echo 'Foreign Supabase project reference found in SIR production files'
+          foreign_refs="$(git grep -nEi 'vonu[ch]kaa|bl[e]sk|username[-_]scanner|wbqxposidtecxjioquf[k]' -- . || true)"
+          if [ -n "$foreign_refs" ]; then
+            echo 'Unrelated project references found anywhere in tracked SIR files:'
+            printf '%s\n' "$foreign_refs"
             exit 1
           fi
           if grep -R -n 'professional-redesign' .github/workflows --exclude='validate-professional.yml' 2>/dev/null; then
@@ -82,6 +86,11 @@ jobs:
           done
           cat /tmp/sir-http.log
           exit 1
+      - name: Run SIR Guide professional/HMS/offline regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s node tests/guide-professional.mjs
       - name: Run final mobile browser regression
         shell: bash
         run: |
