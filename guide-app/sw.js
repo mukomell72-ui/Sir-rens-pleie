@@ -1,4 +1,4 @@
-const CACHE='sir-guide-v13-current-v15';
+const CACHE='sir-guide-v13-current-v16';
 const CORE=[
   './index-v13.html',
   './app-v13.js',
@@ -14,8 +14,11 @@ const CORE=[
 ];
 
 self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)));
-  self.skipWaiting();
+  event.waitUntil((async()=>{
+    const cache=await caches.open(CACHE);
+    await cache.addAll(CORE);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate',event=>{
@@ -26,23 +29,49 @@ self.addEventListener('activate',event=>{
   })());
 });
 
+function normalizedCacheRequest(request){
+  const u=new URL(request.url);
+  u.search='';
+  u.hash='';
+  return new Request(u.toString(),{method:'GET'});
+}
+
+async function networkWithTimeout(request,ms=5000){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),ms);
+  try{
+    return await fetch(request,{cache:'no-store',signal:controller.signal});
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
 self.addEventListener('fetch',event=>{
-  if(event.request.method!=='GET') return;
+  if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
-  if(url.origin!==self.location.origin) return;
+  if(url.origin!==self.location.origin)return;
+  if(!url.pathname.includes('/guide-app/'))return;
+
   const isGuideEntry=url.pathname.endsWith('/guide-app/')||url.pathname.endsWith('/guide-app/index.html')||url.pathname.endsWith('/guide-app/index-v13.html');
-  const request=isGuideEntry?new Request(new URL('./index-v13.html',self.location.href),{cache:'no-store'}):event.request;
+  const networkRequest=isGuideEntry
+    ? new Request(new URL('./index-v13.html',self.location.href),{method:'GET'})
+    : event.request;
+  const cacheRequest=normalizedCacheRequest(networkRequest);
 
   event.respondWith((async()=>{
     try{
-      const response=await fetch(request,{cache:'no-store'});
-      if(response.ok){
+      const response=await networkWithTimeout(networkRequest);
+      if(response?.ok){
         const cache=await caches.open(CACHE);
-        await cache.put(request,response.clone());
+        await cache.put(cacheRequest,response.clone());
+        return response;
       }
-      return response;
+      const fallback=await caches.match(cacheRequest,{ignoreSearch:true});
+      return fallback||response||Response.error();
     }catch{
-      return (await caches.match(request))||(await caches.match('./index-v13.html'))||Response.error();
+      return (await caches.match(cacheRequest,{ignoreSearch:true}))
+        ||(await caches.match('./index-v13.html',{ignoreSearch:true}))
+        ||Response.error();
     }
   })());
 });
