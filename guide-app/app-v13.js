@@ -107,13 +107,14 @@ function card(x){
   const url=safeUrl(x.buy?.url),canBuy=url!=='#',sourceUrl=safeUrl(x.src),hasSource=sourceUrl!=='#';
   const hs=hseFor(x),sdsUrl=safeUrl(hs.sds),hasSds=sdsUrl!=='#';
   const hseClass=hs.level==='STOP'?'hse-stop':hs.level==='HIGH RISK'?'hse-high':hs.level==='CAUTION'?'hse-caution':'hse-ok';
+  const stopGate=hs.level==='STOP'?'<div class="stop-gate"><b>STOP — профессиональное применение заблокировано</b><span>Не использовать в клиентской работе, пока причина STOP не устранена и HMS/SDS не перепроверен.</span></div>':'';
   const buyInline=canBuy?`<a class="buy-inline" href="${h(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Купить ↗</a>`:'<span class="mini">Ссылка на магазин не добавлена</span>';
   return `<article class="card">
     <div class="head">${thumb}<div class="label" style="background:${h(x.col||'#35d2bd')};color:${h(x.tc||'#111')}">${h(x.m)}</div>
       <div><div class="name">${h(x.n)}</div><div class="mini">${h(x.f)}</div>
       <div class="meta"><span class="pill">${h(mark)}</span><span class="pill">${h(x.c)}</span>${method}<span class="pill hse-pill ${hseClass}">${h(hs.label)}</span></div>${buyInline}</div><div class="arr">⌄</div>
     </div>
-    <div class="body">${hero}
+    <div class="body">${hero}${stopGate}
       <div class="sec"><b>Что чистить / назначение</b><p>${h(x.f)}</p></div>
       ${x.t?`<div class="sec"><b>Способ нанесения / инструмент</b><p>${h(x.t)}</p></div>`:''}
       <div class="sec"><b>Разведение</b><p>${h(x.d)}</p></div>
@@ -132,6 +133,6 @@ function card(x){
     </div>
   </article>`;
 }
-function render(){const s=q.value.trim();const f=items.map(x=>({x,score:searchScore(x,s)})).filter(({x,score})=>(active==='Все'||broad(x)===active)&&(!s||score>=0));const ordered=f.sort((a,b)=>s?b.score-a.score:catRank[broad(a.x)]-catRank[broad(b.x)]||(brandRank[brand(a.x)]??99)-(brandRank[brand(b.x)]??99)||brand(a.x).localeCompare(brand(b.x),'ru')||items.indexOf(a.x)-items.indexOf(b.x)).map(({x})=>x);count.textContent=s?`По запросу «${s}» найдено: ${ordered.length}`:`В справочнике: ${items.length}`;let out='';['Химия','Расходники','Оборудование'].forEach(c=>{const cc=ordered.filter(x=>broad(x)===c);if(!cc.length)return;out+=`<div class="group-title">${c}</div>`;[...new Set(cc.map(brand))].forEach(br=>{const bi=cc.filter(x=>brand(x)===br);out+=`<div class="brand-title">${br}</div>`+bi.map(card).join('')})});list.innerHTML=out||`<div class="empty-search"><b>Ничего не найдено</b><span>Проверьте название или напишите, что нужно очистить: пластик, кожа, сиденья, шины…</span></div>`;list.querySelectorAll('.card').forEach(el=>el.querySelector('.head').onclick=()=>el.classList.toggle('open'))};guideHealth()
+function render(){const s=q.value.trim();const f=items.map(x=>({x,score:searchScore(x,s)})).filter(({x,score})=>(active==='Все'||broad(x)===active)&&(!s||score>=0));const ordered=f.sort((a,b)=>s?b.score-a.score:catRank[broad(a.x)]-catRank[broad(b.x)]||(brandRank[brand(a.x)]??99)-(brandRank[brand(b.x)]??99)||brand(a.x).localeCompare(brand(b.x),'ru')||items.indexOf(a.x)-items.indexOf(b.x)).map(({x})=>x);count.textContent=s?`По запросу «${s}» найдено: ${ordered.length}`:`В справочнике: ${items.length}`;let out='';['Химия','Расходники','Оборудование'].forEach(c=>{const cc=ordered.filter(x=>broad(x)===c);if(!cc.length)return;out+=`<div class="group-title">${c}</div>`;[...new Set(cc.map(brand))].forEach(br=>{const bi=cc.filter(x=>brand(x)===br);out+=`<div class="brand-title">${br}</div>`+bi.map(card).join('')})});list.innerHTML=out||`<div class="empty-search"><b>Ничего не найдено</b><span>Проверьте название или напишите, что нужно очистить: пластик, кожа, сиденья, шины…</span></div>`;list.querySelectorAll('.card').forEach(el=>el.querySelector('.head').onclick=()=>el.classList.toggle('open'));guideHealth()}
 chipsRender();q.oninput=render;render();
 })();
