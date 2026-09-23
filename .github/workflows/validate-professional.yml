@@ -41,7 +41,7 @@ jobs:
             exit 1
           fi
           foreign_regex='vonu[c]hkaa|bl[e]sk|username[-_]scanner'
-          printf '%s\n' 'deploy-vonuchkaa-test.yml' 'blesk-test.txt' 'username-scanner-test' | grep -Eq "$foreign_regex" || { echo 'Foreign-project regex self-test failed'; exit 1; }
+          printf '%s\n' "deploy-vonu""chkaa-test.yml" "bl""esk-test.txt" "username""-scanner-test" | grep -Eq "$foreign_regex" || { echo 'Foreign-project regex self-test failed'; exit 1; }
           foreign_paths="$(git ls-files | grep -Ei "$foreign_regex" || true)"
           if [ -n "$foreign_paths" ]; then
             echo 'Unrelated project artifacts found anywhere in SIR main:'
