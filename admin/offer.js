@@ -27,23 +27,15 @@
     try{
       const {data,error}=await client.rpc('issue_order_confirmation_token',{p_order:orderId});
       if(error)throw error;
-      if(!data?.order_no||!data?.token)throw new Error('confirmation token response incomplete');
-
-      const [orderRes,apptRes]=await Promise.all([
-        client.from('orders').select('phone,final_price,service_type').eq('id',orderId).single(),
-        client.from('appointments').select('starts_at,address,location_mode').eq('order_id',orderId).order('starts_at',{ascending:false}).limit(1).maybeSingle()
-      ]);
-      if(orderRes.error)throw orderRes.error;
-      if(apptRes.error)throw apptRes.error;
-      const order=orderRes.data,appt=apptRes.data;
-      const phone=String(order?.phone||'').trim();
-      if(!phone)throw new Error('customer phone missing');
-      if(order?.final_price==null)throw new Error('final price missing');
+      if(!data?.order_no||!data?.token||!data?.phone||!data?.appointment_start||data?.final_price==null){
+        throw new Error('confirmation payload incomplete');
+      }
 
       const link=new URL('../order/',location.href);
       link.searchParams.set('o',data.order_no);link.searchParams.set('t',data.token);
-      const when=appt?.starts_at?new Intl.DateTimeFormat('nb-NO',{weekday:'short',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}).format(new Date(appt.starts_at)):'—';
-      const text=`SIR Rens & Pleie\nTilbud ${data.order_no}\nTjeneste: ${order.service_type||''}\nTid: ${when}\nPris: ${order.final_price} NOK\nBekreft, velg annet tidspunkt eller avbestill her:\n${link.href}`;
+      const when=new Intl.DateTimeFormat('nb-NO',{weekday:'short',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}).format(new Date(data.appointment_start));
+      const text=`SIR Rens & Pleie\nTilbud ${data.order_no}\nTjeneste: ${data.service_type||''}\nTid: ${when}\nPris: ${data.final_price} NOK\nBekreft, velg annet tidspunkt eller avbestill her:\n${link.href}`;
+      const phone=String(data.phone).trim();
       const normalized=(phone.startsWith('+')?'+':'')+phone.replace(/\D/g,'');
       if(normalized.replace(/\D/g,'').length<6)throw new Error('invalid customer phone');
       status.textContent='Ссылка создана. Открываем SMS — отправка останется под вашим контролем.';
