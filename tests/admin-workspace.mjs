@@ -10,7 +10,7 @@ const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'commit'});
 await page.waitForSelector('#recoveryButton',{timeout:45000});
 await page.locator('#recoveryButton').click();
-assert.match(await page.locator('#loginStatus').innerText(),/Сначала введите email/);
+assert.match(await page.locator('#loginStatus').innerText(),/Сначала введите эл\. почту/);
 await page.locator('#previewBtn').click();
 await page.waitForSelector('#app:not(.hidden)');
 assert.equal((await page.locator('#main h1').first().textContent()).trim(),'Центр контроля');
