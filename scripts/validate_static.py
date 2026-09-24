@@ -153,7 +153,7 @@ def main() -> int:
     for marker in ("approve_order_technology_card", "raise_order_stop", "service_type==='rug'", "wanted.add('carpet')", "technology.load"):
         if marker not in technology_js:
             errors.append(f"SIR Technology hardening marker is missing: {marker}")
-    if "technology.js?v=20260924-audit2" not in technology:
+    if "technology.js?v=20260924-audit3" not in technology:
         errors.append("SIR Technology cache-bust is stale")
 
     admin_index = (ROOT / "admin" / "index.html").read_text(encoding="utf-8")
