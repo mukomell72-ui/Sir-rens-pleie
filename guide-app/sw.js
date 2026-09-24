@@ -1,4 +1,4 @@
-const CACHE='sir-guide-v13-resilience-v20-i18n';
+const CACHE='sir-guide-v13-resilience-v21-dilution';
 const CORE=[
   './index-v13.html',
   './guide-runtime-guard.js',

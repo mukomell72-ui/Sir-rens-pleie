@@ -34,6 +34,15 @@ try{
   for(const marker of ['HMS / опасности','СИЗ','Первая помощь','Проверка HMS','SDS / HMS-источник']){
     assert(green.includes(marker),'Green Star missing '+marker);
   }
+  const greenCalc=greenBody.locator('[data-dilution-calc]');
+  assert(await greenCalc.count()===1,'Verified Green Star must expose one dilution calculator');
+  await greenCalc.locator('[data-role="ratio"]').fill('20');
+  await greenCalc.locator('[data-role="total"]').fill('500');
+  const greenCalcResult=await greenCalc.locator('[data-role="result"]').innerText();
+  assert(greenCalcResult.includes('23.81 мл средства')&&greenCalcResult.includes('476.19 мл воды'),'Dilution calculator arithmetic failed: '+greenCalcResult);
+  await greenCalc.locator('[data-role="ratio"]').fill('2');
+  const rejectedRatio=await greenCalc.locator('[data-role="result"]').innerText();
+  assert(rejectedRatio.includes('STOP'),'Out-of-range dilution must be blocked: '+rejectedRatio);
 
   await page.locator('#q').fill('Gtechniq W4');
   const w4Card=page.locator('.card').filter({has:page.locator('.name',{hasText:'Gtechniq W4'})}).first();
@@ -43,6 +52,7 @@ try{
   assert(await w4Body.isVisible(),'Gtechniq W4 body is not visible after open');
   const w4=await w4Body.textContent();
   assert(/STOP/i.test(w4),'Legacy W4 must visibly show STOP');
+  assert(await w4Body.locator('[data-dilution-calc]').count()===0,'STOP chemical must never expose dilution calculator');
 
   await page.locator('#q').fill('');
   await page.locator('#wizZone').selectOption('body');
