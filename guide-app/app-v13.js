@@ -123,7 +123,7 @@ function guideHealth(){
   let el=document.getElementById('guideHealth');
   if(!el){
     el=document.createElement('div');el.id='guideHealth';el.className='guide-health';
-    const top=document.querySelector('.top');(top?.parentNode||document.body).insertBefore(el,top||null);
+    const slot=document.querySelector('.pro-health-slot');if(slot)slot.appendChild(el);else{const top=document.querySelector('.top');(top?.parentNode||document.body).insertBefore(el,top||null);}
   }
   el.className=`guide-health ${health.ok?'guide-health-ok':'guide-health-stop'}`;
   el.innerHTML=health.ok
@@ -169,6 +169,66 @@ function card(x){
     </div>
   </article>`;
 }
-function render(){const s=q.value.trim();const f=items.map(x=>({x,score:searchScore(x,s)})).filter(({x,score})=>(active==='Все'||broad(x)===active)&&(!s||score>=0));const ordered=f.sort((a,b)=>s?b.score-a.score:catRank[broad(a.x)]-catRank[broad(b.x)]||(brandRank[brand(a.x)]??99)-(brandRank[brand(b.x)]??99)||brand(a.x).localeCompare(brand(b.x),'ru')||items.indexOf(a.x)-items.indexOf(b.x)).map(({x})=>x);count.textContent=s?`По запросу «${s}» найдено: ${ordered.length}`:`В справочнике: ${items.length}`;let out='';['Химия','Расходники','Оборудование'].forEach(c=>{const cc=ordered.filter(x=>broad(x)===c);if(!cc.length)return;out+=`<div class="group-title">${c}</div>`;[...new Set(cc.map(brand))].forEach(br=>{const bi=cc.filter(x=>brand(x)===br);out+=`<div class="brand-title">${br}</div>`+bi.map(card).join('')})});list.innerHTML=out||`<div class="empty-search"><b>Ничего не найдено</b><span>Проверьте название или напишите, что нужно очистить: пластик, кожа, сиденья, шины…</span></div>`;list.querySelectorAll('.card').forEach(el=>el.querySelector('.head').onclick=()=>el.classList.toggle('open'));guideHealth()}
-chipsRender();q.oninput=render;render();
+
+function initProfessionalUI(){
+  if(document.querySelector('.pro-sidebar'))return;
+  const wrap=document.querySelector('.wrap'),top=document.querySelector('.top');
+  if(!wrap||!top)return;
+
+  wrap.insertBefore(top,wrap.firstChild);
+
+  const hero=document.createElement('section');
+  hero.className='pro-hero';
+  hero.id='dashboard';
+  hero.innerHTML=`<div class="pro-eyebrow">SIR WORKSPACE · KONGSBERG</div>
+    <h1>Рабочая панель детейлинга</h1>
+    <p class="pro-hero-copy">Быстрый доступ к технологическим схемам, химии и HMS/SDS. Интерфейс построен для работы с телефона одной рукой и для полноценной панели на компьютере.</p>
+    <div class="pro-quick">
+      <a class="pro-action" href="#cleaningWizard"><span class="pro-action-icon">↳</span><strong>Подобрать схему</strong><span>Элемент → загрязнение → безопасный пошаговый план</span></a>
+      <a class="pro-action" href="#list" data-focus-search="1"><span class="pro-action-icon">⌕</span><strong>Найти средство</strong><span>По названию, поверхности, задаче или материалу</span></a>
+      <a class="pro-action" href="#hseBoard"><span class="pro-action-icon">!</span><strong>HMS / SDS</strong><span>Риски, СИЗ, первая помощь и проверенные документы</span></a>
+    </div>
+    <div class="pro-stats">
+      <span class="pro-stat"><b id="proStatAll">—</b> позиций</span>
+      <span class="pro-stat"><b id="proStatChem">—</b> химия</span>
+      <span class="pro-stat"><b id="proStatHse">—</b> HMS готовы</span>
+    </div>
+    <div class="pro-health-slot"></div>`;
+  top.insertAdjacentElement('afterend',hero);
+
+  const wizard=document.getElementById('cleaningWizard');
+  if(wizard)hero.insertAdjacentElement('afterend',wizard);
+
+  const sidebar=document.createElement('aside');
+  sidebar.className='pro-sidebar';
+  sidebar.setAttribute('aria-label','Навигация SIR');
+  sidebar.innerHTML=`<div class="pro-side-brand"><div class="pro-logo">SIR</div><div><div class="pro-brand-name">Rens & Pleie</div><div class="pro-brand-sub">Detailing workspace</div></div></div>
+    <nav class="pro-side-nav">
+      <a class="primary" href="#dashboard">⌂ <span>Рабочая панель</span></a>
+      <a href="#cleaningWizard">↳ <span>Мастер очистки</span></a>
+      <a href="#list" data-focus-search="1">⌕ <span>Справочник химии</span></a>
+      <a href="#hseBoard">! <span>HMS / SDS</span></a>
+    </nav>
+    <div class="pro-side-foot">SIR Rens & Pleie<br>Профессиональный рабочий справочник<br><span style="color:#42ddba">● система активна</span></div>`;
+  document.body.prepend(sidebar);
+
+  const mobile=document.createElement('nav');
+  mobile.className='pro-mobile-nav';
+  mobile.setAttribute('aria-label','Быстрая навигация');
+  mobile.innerHTML=`<a class="primary" href="#dashboard"><span>⌂</span>Главная</a><a href="#cleaningWizard"><span>↳</span>Мастер</a><a href="#list" data-focus-search="1"><span>⌕</span>Химия</a><a href="#hseBoard"><span>!</span>HMS</a>`;
+  document.body.appendChild(mobile);
+
+  document.querySelectorAll('[data-focus-search]').forEach(a=>a.addEventListener('click',()=>{
+    setTimeout(()=>{q?.focus();q?.scrollIntoView({behavior:'smooth',block:'center'})},180);
+  }));
+}
+function updateProStats(){
+  const chem=items.filter(x=>broad(x)==='Химия');
+  const ready=chem.filter(x=>hseFor(x).level!=='STOP'&&String(hseFor(x).verified||'').trim()&&hseFor(x).verified!=='—').length;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=String(v)};
+  set('proStatAll',items.length);set('proStatChem',chem.length);set('proStatHse',ready);
+}
+
+function render(){const s=q.value.trim();const f=items.map(x=>({x,score:searchScore(x,s)})).filter(({x,score})=>(active==='Все'||broad(x)===active)&&(!s||score>=0));const ordered=f.sort((a,b)=>s?b.score-a.score:catRank[broad(a.x)]-catRank[broad(b.x)]||(brandRank[brand(a.x)]??99)-(brandRank[brand(b.x)]??99)||brand(a.x).localeCompare(brand(b.x),'ru')||items.indexOf(a.x)-items.indexOf(b.x)).map(({x})=>x);count.textContent=s?`По запросу «${s}» найдено: ${ordered.length}`:`В справочнике: ${items.length}`;let out='';['Химия','Расходники','Оборудование'].forEach(c=>{const cc=ordered.filter(x=>broad(x)===c);if(!cc.length)return;out+=`<div class="group-title">${c}</div>`;[...new Set(cc.map(brand))].forEach(br=>{const bi=cc.filter(x=>brand(x)===br);out+=`<div class="brand-title">${br}</div>`+bi.map(card).join('')})});updateProStats();list.innerHTML=out||`<div class="empty-search"><b>Ничего не найдено</b><span>Проверьте название или напишите, что нужно очистить: пластик, кожа, сиденья, шины…</span></div>`;list.querySelectorAll('.card').forEach(el=>el.querySelector('.head').onclick=()=>el.classList.toggle('open'));guideHealth()}
+initProfessionalUI();chipsRender();q.oninput=render;render();
 })();
