@@ -11,7 +11,13 @@
     if(!form||document.getElementById('workerProgress'))return;
     const tech=document.querySelector('a[href^="technology.html?order="]');if(!tech)return;
     const orderId=new URL(tech.href,location.href).searchParams.get('order');if(!orderId)return;
-    const box=document.createElement('div');box.id='workerProgress';box.className='notice safe';box.innerHTML='<b>Ход работы</b><p class="mini">Исполнитель может только начать назначенную работу, завершить её и добавить внутреннюю заметку. Цена и клиентские данные защищены.</p><div class="toolbar"><button class="btn" type="button" data-worker-status="in_progress">Начать работу</button><button class="btn primary" type="button" data-worker-status="completed">Завершить работу</button></div><div class="mini" id="workerStatusMsg"></div>';
+    const currentStatus=form.querySelector('[name="status"]')?.value||'';
+    const action=currentStatus==='scheduled'||currentStatus==='confirmed'
+      ?'<button class="btn primary" type="button" data-worker-status="in_progress">▶ Начать работу</button>'
+      :currentStatus==='in_progress'
+        ?'<button class="btn primary" type="button" data-worker-status="completed">✓ Завершить работу</button>'
+        :'<span class="mini">Для текущего статуса рабочих действий нет.</span>';
+    const box=document.createElement('div');box.id='workerProgress';box.className='notice safe';box.innerHTML=`<b>Ход работы</b><p class="mini">Исполнитель может менять только разрешённый рабочий этап своего заказа. Цена и управление заказом защищены.</p><div class="toolbar">${action}</div><div class="mini" id="workerStatusMsg"></div>`;
     form.insertAdjacentElement('afterend',box);
     box.querySelectorAll('[data-worker-status]').forEach(btn=>btn.addEventListener('click',()=>setStatus(orderId,btn.dataset.workerStatus,btn)));
   }
@@ -24,6 +30,8 @@
         msg.textContent='STOP: работу нельзя начать или завершить, пока риск не снят ответственным лицом.';
         return;
       }
+      const valid=(status==='in_progress'&&['scheduled','confirmed'].includes(order?.status))||(status==='completed'&&order?.status==='in_progress');
+      if(!valid){msg.textContent='Статус заказа уже изменился. Обновите страницу перед действием.';return;}
       const {error}=await client.from('orders').update({status}).eq('id',id);
       if(error)throw error;
       msg.textContent=status==='in_progress'?'Работа начата.':'Работа отмечена выполненной.';
