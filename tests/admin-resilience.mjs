@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { chromium } from 'playwright';
+
+const browser=await chromium.launch({headless:true});
+
+// Critical dependency failure must be visible and fail closed.
+{
+  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,locale:'ru-RU'});
+  const page=await context.newPage();
+  const pageErrors=[];
+  page.on('pageerror',e=>pageErrors.push(e.message));
+  await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1',route=>route.abort('failed'));
+  await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'domcontentloaded'});
+  await page.locator('#sirRuntimeBanner.fatal').waitFor({timeout:15000});
+  assert.match(await page.locator('#sirRuntimeBanner').innerText(),/Критический модуль не загрузился|Ошибка SIR Admin/);
+  assert.ok(await page.evaluate(()=>!!window.SIR_ADMIN_RUNTIME));
+  assert.equal(await page.evaluate(()=>window.SIR_ADMIN_RUNTIME.client),null);
+  await context.close();
+}
+
+// Normal boot must use one shared client; offline state must be explicit.
+{
+  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,locale:'ru-RU'});
+  const page=await context.newPage();
+  const pageErrors=[];
+  page.on('pageerror',e=>pageErrors.push(e.message));
+  await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'domcontentloaded'});
+  await page.waitForSelector('#recoveryButton',{timeout:45000});
+  assert.ok(await page.evaluate(()=>!!window.SIR_ADMIN_SB));
+  assert.ok(await page.evaluate(()=>window.SIR_ADMIN_RUNTIME?.client===window.SIR_ADMIN_SB));
+
+  await context.setOffline(true);
+  await page.locator('#sirRuntimeBanner.offline').waitFor();
+  assert.match(await page.locator('#sirRuntimeBanner').innerText(),/Нет сети/);
+
+  await context.setOffline(false);
+  await page.waitForFunction(()=>!document.querySelector('#sirRuntimeBanner')?.classList.contains('offline'));
+  assert.deepEqual(pageErrors,[]);
+  await context.close();
+}
+
+await browser.close();
+console.log('ADMIN RESILIENCE PASS');
