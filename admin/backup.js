@@ -1,6 +1,6 @@
 (() => {
   const C=window.SIR_CONFIG,root=document.getElementById('backupApp');
-  const sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
+  const sb=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
   const tables=['profiles','customers','orders','order_items','appointments','order_events','audit_events','app_settings','price_rules','referrals','chemicals','procedures','order_technology_cards','order_photos'];
   let session,profile;
   init();
