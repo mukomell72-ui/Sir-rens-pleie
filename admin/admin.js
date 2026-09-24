@@ -2,8 +2,11 @@
 const workspaceCss=document.createElement('link');workspaceCss.rel='stylesheet';workspaceCss.href='workspace.css?v=20260924-translate1';document.head.appendChild(workspaceCss);
 const inspectionScript=document.createElement('script');inspectionScript.src='inspection.js?v=20260902-inspection-flow';inspectionScript.defer=true;document.head.appendChild(inspectionScript);
 const C=window.SIR_CONFIG;
-let sb=null,preview=false,currentRole='PREVIEW',activeView='dashboard',orderRealtime=null,realtimeRefreshTimer=null,realtimeRetryTimer=null,realtimeFallbackTimer=null,realtimeBackoffMs=2000;
+let sb=null,preview=false,currentRole='PREVIEW',activeView='dashboard',orderRealtime=null,realtimeRefreshTimer=null,realtimeRetryTimer=null,realtimeFallbackTimer=null,realtimeBackoffMs=2000,orderEditorDirty=false;
 const login=document.getElementById('login'),app=document.getElementById('app'),main=document.getElementById('main');
+const markOrderEditorDirty=e=>{if(main.dataset.orderId&&e.target.closest?.('#orderForm,#inspectionForm'))orderEditorDirty=true;};
+main.addEventListener('input',markOrderEditorDirty);
+main.addEventListener('change',markOrderEditorDirty);
 const connected=!!window.SIR_ADMIN_SB;
 if(connected){sb=window.SIR_ADMIN_SB;document.getElementById('setupNotice').classList.add('hidden');}
 const canAdmin=()=>['OWNER','ADMIN'].includes(currentRole);
@@ -45,7 +48,7 @@ async function enter(role){
   if(!preview){startRealtime();startRealtimeFallback();}
   render('dashboard');
 }
-async function render(view){activeView=view;delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='inventory')return inventory();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
+async function render(view){activeView=view;orderEditorDirty=false;delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='inventory')return inventory();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
 async function getOrders(limit=200){
   if(preview)return previewOrders.slice(0,limit);
   if(!sb)return null;
@@ -57,12 +60,23 @@ function showDataLoadError(title,retryView){
   main.innerHTML=`<div class="section-title"><div><h1>${esc(title)}</h1><p>Данные не загружены — ложные нули не показываются.</p></div></div><div class="notice"><b>Нет подтверждённого ответа от базы.</b><br>Проверьте подключение и повторите загрузку. Никакие данные не изменялись.</div><button class="btn primary" id="retryDataLoad">Повторить</button>`;
   main.querySelector('#retryDataLoad')?.addEventListener('click',()=>render(retryView));
 }
+function showRemoteOrderUpdate(){
+  if(document.getElementById('remoteOrderUpdate'))return;
+  const notice=document.createElement('div');
+  notice.id='remoteOrderUpdate';notice.className='notice';
+  notice.innerHTML='<b>Заказ изменился в другом окне или клиентом.</b><br>Ваши несохранённые поля не перезаписаны. Обновите заказ перед сохранением, чтобы не затереть новое состояние. <button class="btn tiny" id="reloadRemoteOrder" type="button">Обновить заказ</button>';
+  main.prepend(notice);
+  notice.querySelector('#reloadRemoteOrder')?.addEventListener('click',()=>{const id=main.dataset.orderId;orderEditorDirty=false;if(id)orderDetail(id);});
+}
 function scheduleRealtimeRefresh(orderId=null){
   if(preview)return;
   clearTimeout(realtimeRefreshTimer);
   realtimeRefreshTimer=setTimeout(()=>{
     const opened=main.dataset.orderId;
-    if(opened&&(!orderId||opened===orderId))return orderDetail(opened);
+    if(opened&&(!orderId||opened===orderId)){
+      if(orderEditorDirty){showRemoteOrderUpdate();return;}
+      return orderDetail(opened);
+    }
     if(activeView==='dashboard')return dashboard();
     if(activeView==='orders')return orders();
     if(activeView==='inventory')return inventory();
@@ -389,6 +403,7 @@ async function manualOrderForm(){
 async function orderDetail(id){
   activeView='order-detail';
   if(preview)return previewOrderDetail(id);
+  orderEditorDirty=false;
   main.dataset.orderId=id;main.dataset.preview='false';
   if(!sb){alert('Детали доступны после входа.');return;}
   const [orderRes,apptRes,staffRes,photoRes,techRes,eventRes,companyRes]=await Promise.all([
@@ -435,7 +450,7 @@ async function orderDetail(id){
         const next=e.currentTarget.dataset.quickStatus;
         e.currentTarget.disabled=true;
         if(!ensureWritable()){e.currentTarget.disabled=false;return;}
-        const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:{status:next},p_appointment:null});
+        const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:{status:next,_expected_updated_at:o.updated_at},p_appointment:null});
         if(error){
           window.SIR_ADMIN_RUNTIME?.record(error,'order.quick_status');
           e.currentTarget.disabled=false;alert(orderActionError(error));return;
@@ -445,7 +460,7 @@ async function orderDetail(id){
       main.querySelector('[data-mark-paid]')?.addEventListener('click',async e=>{
         e.currentTarget.disabled=true;
         if(!ensureWritable()){e.currentTarget.disabled=false;return;}
-        const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:{payment_status:'paid'},p_appointment:null});
+        const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:{payment_status:'paid',_expected_updated_at:o.updated_at},p_appointment:null});
         if(error){e.currentTarget.disabled=false;alert(error.message);return;}
         orderDetail(id);
       });
@@ -458,7 +473,7 @@ async function orderDetail(id){
     e.preventDefault();
     if(!ensureWritable())return;
     const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),f=new FormData(form);
-    const patch={internal_note:String(f.get('note')||'')};
+    const patch={_expected_updated_at:o.updated_at,internal_note:String(f.get('note')||'')};
     button.disabled=true;
     try{
       if(canManage()){
