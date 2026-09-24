@@ -1,12 +1,12 @@
 {
-  "name": "SIR Rens & Pleie — Рабочий справочник",
-  "short_name": "SIR Справочник",
-  "description": "Рабочий справочник SIR Rens & Pleie по химии и оборудованию",
+  "name": "SIR Rens & Pleie — Рабочая панель",
+  "short_name": "SIR Workspace",
+  "description": "Профессиональная рабочая панель SIR Rens & Pleie: химия, технологии и HMS/SDS",
   "start_url": "./index-v13.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0d1117",
-  "theme_color": "#0d1117",
+  "background_color": "#080d12",
+  "theme_color": "#080d12",
   "lang": "ru",
   "icons": [
     {
