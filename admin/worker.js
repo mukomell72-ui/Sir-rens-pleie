@@ -5,7 +5,7 @@
   const observer=new MutationObserver(enhance);observer.observe(document.getElementById('main'),{childList:true,subtree:true});enhance();
 
   function enhance(){
-    const role=(document.getElementById('roleBadge')?.textContent||'').trim().toUpperCase();
+    const badge=document.getElementById('roleBadge');const role=(badge?.dataset.role||badge?.textContent||'').trim().toUpperCase();
     if(role!=='WORKER')return;
     const form=document.getElementById('orderForm');
     if(!form||document.getElementById('workerProgress'))return;
