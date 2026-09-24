@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 const browser=await chromium.launch({headless:true});
 const context=await browser.newContext({viewport:{width:390,height:844}});
 const page=await context.newPage();
-await page.addInitScript(()=>localStorage.setItem('sir_language_policy_no_20260924_v2','1');localStorage.setItem('sir_admin_lang','ru'));
+await page.addInitScript(()=>{localStorage.setItem('sir_language_policy_no_20260924_v2','1');localStorage.setItem('sir_admin_lang','ru');});
 const errors=[];
 page.on('pageerror',e=>errors.push('pageerror: '+e.message));
 page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text())});
