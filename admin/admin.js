@@ -302,7 +302,7 @@ async function orderDetail(id){
   if(preview)return previewOrderDetail(id);
   main.dataset.orderId=id;main.dataset.preview='false';
   if(!sb){alert('Детали доступны после входа.');return;}
-  const [{data:o,error},{data:appt},{data:staff=[]},{data:photos=[]},{data:tech},{data:events=[]},{data:companyRow}]=await Promise.all([
+  const [orderRes,apptRes,staffRes,photoRes,techRes,eventRes,companyRes]=await Promise.all([
     sb.from('orders').select('*').eq('id',id).single(),
     sb.from('appointments').select('*').eq('order_id',id).order('starts_at',{ascending:false}).limit(1).maybeSingle(),
     sb.from('profiles').select('id,display_name,role,active').eq('active',true).order('display_name'),
@@ -311,18 +311,34 @@ async function orderDetail(id){
     sb.from('order_events').select('event_type,from_value,to_value,note,created_at').eq('order_id',id).order('created_at',{ascending:false}).limit(50),
     sb.from('app_settings').select('value').eq('key','company').maybeSingle()
   ]);
-  if(error||!o){alert(error?.message||'Заказ не найден');return;}
-  const signed=[];for(const p of photos){const {data}=await sb.storage.from('order-photos').createSignedUrl(p.storage_path,3600);if(data?.signedUrl)signed.push({url:data.signedUrl,id:p.id});}
+  const criticalError=orderRes.error||apptRes.error||techRes.error||(canManage()?staffRes.error:null);
+  if(criticalError||!orderRes.data){
+    window.SIR_ADMIN_RUNTIME?.record(criticalError||new Error('order not found'),'order.detail');
+    main.innerHTML='<div class="notice"><b>Карточка заказа не загружена полностью.</b><br>Чтобы не принимать решение по неполным данным, редактирование заблокировано.</div><button class="btn primary" id="retryOrderDetail">Повторить</button>';
+    main.querySelector('#retryOrderDetail')?.addEventListener('click',()=>orderDetail(id));
+    return;
+  }
+  if(photoRes.error)window.SIR_ADMIN_RUNTIME?.record(photoRes.error,'order.photos');
+  if(eventRes.error)window.SIR_ADMIN_RUNTIME?.record(eventRes.error,'order.events');
+  if(companyRes.error)window.SIR_ADMIN_RUNTIME?.record(companyRes.error,'order.company_settings');
+  const o=orderRes.data,appt=apptRes.data,staff=staffRes.data||[],photos=photoRes.data||[],tech=techRes.data,events=eventRes.data||[],companyRow=companyRes.data;
+  const signed=[];
+  for(const p of photos){
+    const {data,error:signedError}=await sb.storage.from('order-photos').createSignedUrl(p.storage_path,3600);
+    if(signedError){window.SIR_ADMIN_RUNTIME?.record(signedError,'order.photo_url');continue;}
+    if(data?.signedUrl)signed.push({url:data.signedUrl,id:p.id});
+  }
   const company=companyRow?.value||{};
   const localStart=appt?.starts_at?toLocalParts(appt.starts_at):{date:'',time:''};
-  const nextAction=o.risk_level==='stop'?'Работу не начинать: открыть карту и зафиксировать причину STOP':!tech?'Сформировать технологическую карту до подтверждения работы':!tech.reviewed_at?'Проверить материал и подтвердить карту человеком':o.final_price==null?'После осмотра согласовать окончательную цену':'Заказ готов к планированию или выполнению';
+  const workReady=!!(tech?.reviewed_at&&tech?.reviewed_by&&tech?.risk_level!=='stop'&&o.risk_level!=='stop'&&o.final_price!=null&&+o.final_price>0&&o.assigned_to);
+  const nextAction=o.risk_level==='stop'?'Работу не начинать: открыть карту и зафиксировать причину STOP':!tech?'Сформировать технологическую карту':!tech.reviewed_at?'Проверить материал и подтвердить карту человеком':o.final_price==null?'После осмотра согласовать окончательную цену':!o.assigned_to?'Назначить исполнителя перед началом работы':tech.risk_level==='stop'?'Технологическая карта имеет STOP — работу не начинать':'Заказ готов к планированию или выполнению';
   main.innerHTML=`<div class="section-title"><div><h1>${esc(o.order_no)}</h1><p>${esc(serviceLabel[o.service_type]||o.service_type)} · ${statusLabel[o.status]||esc(o.status)}</p></div><button class="btn" id="backOrders">← Заказы</button></div><div class="decision-bar"><div><span>Следующее действие</span><b>${esc(nextAction)}</b></div><a class="btn primary" href="technology.html?order=${encodeURIComponent(id)}">Открыть рабочую карту</a></div><div class="detail-grid"><section class="card"><h3>Что нужно выполнить</h3><div class="kv"><span>Клиент</span><b>${esc(o.customer_name)} · ${esc(o.phone)}</b></div><div class="kv"><span>Адрес</span><b>${esc(o.address||'—')}</b></div><div class="kv"><span>Автомобиль</span><b>${esc([o.vehicle_plate,o.vehicle_brand,o.vehicle_model,o.vehicle_year].filter(Boolean).join(' ')||'—')}</b></div><div class="kv"><span>Загрязнение</span><b>${esc(o.contamination||'—')}</b></div><div class="kv"><span>Пятна / шерсть / запах</span><b>${o.stains?'пятна ':''}${o.pet_hair?'шерсть ':''}${o.odor?'запах':''||'—'}</b></div><div class="kv"><span>Расчётное время</span><b>${o.estimated_minutes?`${Math.floor(o.estimated_minutes/60)} ч ${o.estimated_minutes%60||''}`:'—'}</b></div><div class="field"><label>Комментарий клиента</label><textarea readonly>${esc(o.customer_comment||'')}</textarea></div><div class="toolbar"><a class="btn" href="tel:${esc(o.phone)}">Позвонить</a><a class="btn" href="sms:${esc(o.phone)}">SMS</a></div></section><section class="card"><h3>Решение по заказу</h3><form id="orderForm"><div class="field"><label>Статус</label><select name="status" ${canManage()?'':'disabled'}>${allStatuses.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusLabel[s]}</option>`).join('')}</select></div><div class="field"><label>Оплата</label><select name="payment_status" ${canManage()?'':'disabled'}><option value="unpaid" ${o.payment_status==='unpaid'?'selected':''}>Не оплачено</option><option value="paid" ${o.payment_status==='paid'?'selected':''}>Оплачено</option><option value="refunded" ${o.payment_status==='refunded'?'selected':''}>Возврат</option></select></div><div class="field"><label>Риск</label><select name="risk" ${canManage()?'':'disabled'}>${['low','caution','high_risk','stop'].map(r=>`<option value="${r}" ${o.risk_level===r?'selected':''}>${r.toUpperCase()}</option>`).join('')}</select></div><div class="field"><label>Окончательная согласованная цена</label><input name="final_price" type="number" min="0" value="${o.final_price??''}" ${canManage()?'':'disabled'}><div class="mini">Цена сайта — только ориентир. Внести после осмотра и согласия клиента.</div></div><div class="field"><label>Исполнитель</label><select name="assigned_to" ${canManage()?'':'disabled'}><option value="">Не назначен</option>${staff.map(p=>`<option value="${p.id}" ${o.assigned_to===p.id?'selected':''}>${esc(p.display_name||p.role)}</option>`).join('')}</select></div><div class="field"><label>Внутренняя заметка</label><textarea name="note">${esc(o.internal_note||'')}</textarea></div>${canManage()?`<h4>Дата и время</h4><div class="settings-grid"><div class="field"><label>Дата</label><input name="date" type="date" value="${localStart.date}"></div><div class="field"><label>Время</label><input name="time" type="time" value="${localStart.time}"></div><div class="field"><label>Длительность, мин.</label><input name="duration" type="number" min="30" step="15" value="${appt?Math.max(30,Math.round((new Date(appt.ends_at)-new Date(appt.starts_at))/60000)):o.estimated_minutes||240}"></div><div class="field"><label>Бронь</label><select name="tentative"><option value="true" ${appt?.tentative!==false?'selected':''}>Ожидает подтверждения</option><option value="false" ${appt?.tentative===false?'selected':''}>Подтверждена</option></select></div></div>`:''}<button class="btn primary" type="submit">Сохранить решение</button></form></section></div>${signed.length?`<section class="panel"><div class="panel-head">Фото клиента</div><div class="photo-grid">${signed.map(p=>`<a href="${p.url}" target="_blank" rel="noopener noreferrer"><img src="${p.url}" alt="Фото заказа"></a>`).join('')}</div></section>`:'<div class="notice">Фото нет. Сложный материал или сильное загрязнение нельзя окончательно оценивать дистанционно.</div>'}<section class="panel"><div class="panel-head"><span>Готовность технологии</span><a class="btn" href="technology.html?order=${encodeURIComponent(id)}">Открыть карту</a></div><div class="cardless">${tech?`Риск: <b>${esc(tech.risk_level)}</b> · материал: ${esc(tech.material_guess||'не указан')} · ${tech.reviewed_at?'подтверждено человеком':'требуется подтверждение'}`:'Черновик ещё не сформирован. Карта подберёт проходы, сушку между проходами, инструмент, проверенную химию и условия STOP по конкретным зонам заказа.'}</div></section>`;
   main.querySelector('#backOrders').addEventListener('click',orders);
   mountClientCommunication(o,company);
   if(canManage()){
     const quick=nextStatusAction(o.status);
     const controls=[];
-    if(quick&&!(quick.status==='in_progress'&&o.risk_level==='stop'))controls.push(`<button class="btn primary" data-quick-status="${quick.status}">${quick.label}</button>`);
+    if(quick&&!(quick.status==='in_progress'&&!workReady))controls.push(`<button class="btn primary" data-quick-status="${quick.status}">${quick.label}</button>`);
     if(o.status==='completed'&&o.payment_status!=='paid')controls.push('<button class="btn" data-mark-paid>✓ Отметить оплату</button>');
     if(controls.length){
       main.querySelector('.decision-bar')?.insertAdjacentHTML('afterend',`<div class="quick-workflow"><span>Быстрое действие</span><div class="toolbar">${controls.join('')}</div></div>`);
