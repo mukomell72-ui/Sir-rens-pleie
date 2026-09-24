@@ -80,7 +80,7 @@ const hseName={verified:'Проверено',source_reviewed:'Источник �
   function procedureCard(surface,p){
     if(!p){
       const special=data.order.contamination==='special';
-      return `<article class="card"><div class="section-title"><div><h3>${esc(surfaceName[surface]||surface)}</h3><p>${special?'Особое состояние — автоматическая технология запрещена.':'Проверенной процедуры для этой комбинации пока нет.'}</p></div><span class="risk ${special?'stop':'caution'}">${special?'STOP':'CAUTION'}</span></div><div class="notice">Осмотр → фото → тест на незаметном участке → решение владельца/менеджера. Не подбирать более сильную химию методом проб.</div></article>`;
+      return `<article class="card"><div class="section-title"><div><h3>${esc(surfaceName[surface]||surface)}</h3><p>${special?'Особое состояние — автоматическая технология запрещена.':'Проверенной процедуры для этой комбинации пока нет.'}</p></div><span class="risk ${special?'stop':'caution'}">${special?'STOP':'Осторожно'}</span></div><div class="notice">Осмотр → фото → тест на незаметном участке → решение владельца/менеджера. Не подбирать более сильную химию методом проб.</div></article>`;
     }
     const steps=Array.isArray(p.steps)?p.steps:[],stops=Array.isArray(p.stop_conditions)?p.stop_conditions:[];
     const chems=chemicalCandidates(surface);
