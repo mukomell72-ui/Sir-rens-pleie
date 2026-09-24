@@ -16,6 +16,8 @@ HTML_FILES = [
     ROOT / "admin" / "guide-editor.html",
     ROOT / "admin" / "payments.html",
     ROOT / "admin" / "backup.html",
+    ROOT / "admin" / "accounting.html",
+    ROOT / "admin" / "invoice.html",
     ROOT / "order" / "index.html",
     ROOT / "status" / "index.html",
     ROOT / "q" / "index.html",
@@ -157,6 +159,62 @@ def main() -> int:
             errors.append(f"Admin control-center marker is missing: {marker}")
     if 'data-view="inventory"' not in admin_index or "Центр контроля" not in admin_index:
         errors.append("Admin navigation is missing the central control/inventory workspace")
+
+    admin_runtime = ROOT / "admin" / "runtime.js"
+    if not admin_runtime.exists():
+        errors.append("Admin runtime guard is missing")
+    else:
+        runtime_text = admin_runtime.read_text(encoding="utf-8")
+        for marker in ("SIR_ADMIN_SB", "unhandledrejection", "sirRuntimeBanner", "offline", "fatal"):
+            if marker not in runtime_text:
+                errors.append(f"Admin runtime guard marker is missing: {marker}")
+
+    admin_pages = (
+        ROOT / "admin" / "index.html",
+        ROOT / "admin" / "calendar.html",
+        ROOT / "admin" / "technology.html",
+        ROOT / "admin" / "guide-editor.html",
+        ROOT / "admin" / "payments.html",
+        ROOT / "admin" / "backup.html",
+        ROOT / "admin" / "accounting.html",
+        ROOT / "admin" / "invoice.html",
+    )
+    for page in admin_pages:
+        text = page.read_text(encoding="utf-8")
+        if "@supabase/supabase-js@2.117.1" not in text:
+            errors.append(f"Admin page does not pin Supabase JS 2.117.1: {page.relative_to(ROOT)}")
+        if 'src="runtime.js?v=20260924-audit1"' not in text:
+            errors.append(f"Admin page does not load runtime guard: {page.relative_to(ROOT)}")
+        if re.search(r"@supabase/supabase-js@2(?:[\"'/<])", text):
+            errors.append(f"Floating Supabase JS major version found: {page.relative_to(ROOT)}")
+
+    for obsolete in ("signupForm", "signupOwnerCode", 'id="ownerCode"'):
+        if obsolete in admin_index:
+            errors.append(f"Obsolete OWNER bootstrap UI is still exposed: {obsolete}")
+
+    for marker in ("SIR_ADMIN_SB", "showDataLoadError", "app_settings').upsert", "orders.load"):
+        if marker not in admin_js:
+            errors.append(f"Admin fail-safe marker is missing: {marker}")
+
+    backup_js = (ROOT / "admin" / "backup.js").read_text(encoding="utf-8")
+    for marker in ("order_assessments", "accounting_entries", "accounting_mileage", "accounting_assets", "accounting_invoices"):
+        if marker not in backup_js:
+            errors.append(f"Business backup coverage is missing: {marker}")
+
+    for migration in (
+        "20260924083540_sir_admin_final_hardening.sql",
+        "20260924084814_sir_order_stop_gate.sql",
+    ):
+        if not (ROOT / "supabase" / "migrations" / migration).exists():
+            errors.append(f"Admin hardening migration is missing: {migration}")
+
+    stop_gate = (ROOT / "supabase" / "migrations" / "20260924084814_sir_order_stop_gate.sql").read_text(encoding="utf-8")
+    if "STOP risk blocks work start/completion" not in stop_gate or "in_progress" not in stop_gate or "completed" not in stop_gate:
+        errors.append("Database STOP gate protection is incomplete")
+
+    photo_function = (ROOT / "supabase" / "functions" / "order-photo-upload" / "index.ts").read_text(encoding="utf-8")
+    if 'npm:@supabase/supabase-js@2.117.1' not in photo_function:
+        errors.append("Order photo Edge Function must pin Supabase JS 2.117.1")
 
     status_page = (ROOT / "status" / "index.html").read_text(encoding="utf-8")
     for marker in ("public_get_order_status", "setInterval", "15000", "Обновляется автоматически"):
