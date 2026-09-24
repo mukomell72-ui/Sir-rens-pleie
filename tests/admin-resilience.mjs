@@ -1,5 +1,14 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { readFile } from 'node:fs/promises';
+
+const adminSource=await readFile(new URL('../admin/admin.js',import.meta.url),'utf8');
+assert.match(adminSource,/\['CHANNEL_ERROR','TIMED_OUT','CLOSED'\]/);
+assert.match(adminSource,/scheduleRealtimeReconnect/);
+assert.match(adminSource,/realtimeBackoffMs=Math\.min\(realtimeBackoffMs\*2,30000\)/);
+assert.match(adminSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch:\{status:next\},p_appointment:null\}\)/);
+assert.match(adminSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch:\{payment_status:'paid'\},p_appointment:null\}\)/);
+assert.match(adminSource,/if\(!ensureWritable\(\)\)return/);
 
 const browser=await chromium.launch({headless:true});
 
