@@ -473,6 +473,7 @@
     return 'risk-low';
   }
   const riskRank={'LOW':0,'CAUTION':1,'HIGH RISK':2,'STOP':3};
+  const riskLabel={'LOW':'Низкий риск','CAUTION':'Осторожно','HIGH RISK':'Высокий риск','STOP':'STOP'};
   function combinedRisk(plan){
     let r=plan.risk||'LOW';
     for(const s of plan.steps||[]){
@@ -490,7 +491,7 @@
     result.innerHTML=`
       <div class="wiz-summary">
         <div><b>${h(zones[zone])}</b><span>${h(levelLabel)} · ${h(dirtLabel)}</span></div>
-        <span class="wiz-risk ${riskClass(finalRisk)}">${h(finalRisk)}</span>
+        <span class="wiz-risk ${riskClass(finalRisk)}">${h(riskLabel[finalRisk]||finalRisk)}</span>
       </div>
       <div class="wiz-note">${h(plan.note)}</div>
       <div class="wiz-steps">
