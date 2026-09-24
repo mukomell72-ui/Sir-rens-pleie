@@ -228,6 +228,9 @@
       setTimeout(()=>root.querySelector('#dilutionCalculator')?.scrollIntoView({behavior:'smooth',block:'start'}),0);
     }));
     bindDilutionCalculator();
+    if(new URLSearchParams(location.search).get('tool')==='dilution'){
+      setTimeout(()=>root.querySelector('#dilutionCalculator')?.scrollIntoView({behavior:'smooth',block:'start'}),0);
+    }
   }
   function chemicalForm(c){
     const edit=root.querySelector('#editArea');if(!edit)return;
