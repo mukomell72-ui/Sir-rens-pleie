@@ -6,7 +6,7 @@ const assert=(cond,msg)=>{if(!cond)throw new Error(msg)};
 async function openCase({abortPattern=null,viewport={width:390,height:844}}={}){
   const context=await browser.newContext({viewport,serviceWorkers:'block'});
   const page=await context.newPage();
-  await page.addInitScript(()=>localStorage.setItem('sir_admin_lang','ru'));
+  await page.addInitScript(()=>localStorage.setItem('sir_language_policy_no_20260924_v2','1');localStorage.setItem('sir_admin_lang','ru'));
   const pageErrors=[];
   page.on('pageerror',e=>pageErrors.push(e.message));
   if(abortPattern)await page.route(abortPattern,route=>route.abort());
