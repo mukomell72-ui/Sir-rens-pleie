@@ -25,16 +25,16 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
   if(!sb){alert('База SIR не подключена.');return;}
   const email=document.getElementById('email').value,password=document.getElementById('password').value;
   const {data,error}=await sb.auth.signInWithPassword({email,password});
-  if(error){const status=document.getElementById('loginStatus');if(status){status.textContent='Email или пароль неверны. Проверьте раскладку либо восстановите пароль.';status.classList.remove('hidden');}else alert('Email или пароль неверны.');return;}
+  if(error){window.SIR_ADMIN_RUNTIME?.record(error,'auth.sign_in');const status=document.getElementById('loginStatus');if(status){status.textContent='Email или пароль неверны. Проверьте данные либо восстановите пароль.';status.classList.remove('hidden');}else alert('Не удалось войти.');return;}
   const {data:profile,error:pe}=await sb.from('profiles').select('role,display_name,active').eq('id',data.user.id).single();
-  if(pe||!profile?.active){await sb.auth.signOut();alert('Доступ к SIR Admin не активирован.');return;}
+  if(pe||!profile?.active){if(pe)window.SIR_ADMIN_RUNTIME?.record(pe,'auth.profile');await sb.auth.signOut();alert('Доступ к SIR Admin не активирован.');return;}
   currentRole=(profile.role||'worker').toUpperCase();enter(currentRole);
 });
 document.getElementById('logout').addEventListener('click',async()=>{if(sb&&!preview)await sb.auth.signOut();location.reload();});
 document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;document.querySelectorAll('#nav [data-view]').forEach(x=>x.classList.toggle('active',x===b));render(b.dataset.view);});
 
 async function enter(role){login.classList.add('hidden');app.classList.remove('hidden');document.getElementById('roleBadge').textContent=role;if(!preview)startRealtime();render('dashboard');}
-async function render(view){activeView=view;delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='inventory')return inventory();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='finance')return finance();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
+async function render(view){activeView=view;delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='inventory')return inventory();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
 async function getOrders(limit=200){
   if(preview)return previewOrders.slice(0,limit);
   if(!sb)return null;
