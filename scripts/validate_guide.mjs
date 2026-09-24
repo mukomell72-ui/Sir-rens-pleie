@@ -92,8 +92,8 @@ if(!app.includes("reason:'missing-dom'"))errors.push('Missing critical DOM fail-
 if(!app.includes('SIR_DB_REJECTIONS'))errors.push('Rejected live DB diagnostics missing');
 if(!guard.includes('SIR_RUNTIME_GUARD'))errors.push('Runtime error guard missing');
 if(!guard.includes("target.tagName==='SCRIPT'"))errors.push('Critical script-load guard missing');
-if(!app.includes("verification_status==='manufacturer_verified'"))errors.push('DB technology verification gate missing');
-if(!app.includes("['verified','source_reviewed'].includes(c?.hse_status)"))errors.push('DB HSE ingestion gate missing');
+if(!app.includes("c.verification_status!=='manufacturer_verified'"))errors.push('DB technology verification gate missing');
+if(!app.includes("['verified','source_reviewed'].includes(c.hse_status)"))errors.push('DB HSE ingestion gate missing');
 if(!wiz.includes('function combinedRisk'))errors.push('Wizard combined HSE risk gate missing');
 if(wiz.includes("return step('Бесконтактная предмойка','Gtechniq W4 Citrus Foam'"))errors.push('Legacy W4 returned to automatic wizard plan');
 if(!sw.includes('ignoreSearch:true'))errors.push('Service worker query-safe offline fallback missing');
