@@ -78,10 +78,8 @@ await page.waitForSelector('.inventory-table');
 assert.equal(await page.locator('.inventory-table tbody tr').count(),3);
 assert.match(await page.locator('#main').innerText(),/Заканчивается/);
 
-await page.locator('.nav-more summary').click();
-await page.locator('[data-view="finance"]').click();
-await page.waitForSelector('.demo-purchases');
-assert.equal(await page.locator('.demo-purchases tbody tr').count(),3);
+assert.equal(await page.locator('[data-view="finance"]').count(),0);
+assert.equal(await page.getByText('Финансы / ENK',{exact:true}).count(),1);
 
 await page.locator('[data-view="guide"]').click();
 await page.waitForSelector('.guide-rules');
