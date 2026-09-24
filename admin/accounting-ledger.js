@@ -10,14 +10,31 @@
   };
 
   async function saveEntry(e){
-    e.preventDefault();const f=new FormData(e.target),file=f.get('receipt');let receiptPath=null;
-    try{if(file&&file.size)receiptPath=await A.uploadDocument(file,'entries');}catch(err){alert(err.message||String(err));return;}
-    const row={entry_date:String(f.get('date')),kind:String(f.get('kind')),category:String(f.get('category')),description:String(f.get('description')).trim(),counterparty_name:String(f.get('counterparty')||'').trim()||null,counterparty_org_no:String(f.get('counterparty_org')||'').replace(/\D/g,'')||null,document_no:String(f.get('document_no')||'').trim()||null,amount_gross:A.num(f.get('amount')),vat_rate:A.num(f.get('vat')),deductible_percent:A.num(f.get('deductible')),payment_method:String(f.get('method')),receipt_path:receiptPath,notes:String(f.get('notes')||'').trim()||null};
-    const {error}=await A.sb.from('accounting_entries').insert(row);if(error){alert(error.message);return;}await A.load();A.render();
+    e.preventDefault();
+    const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),f=new FormData(form),file=f.get('receipt');let receiptPath=null;
+    button.disabled=true;
+    try{
+      if(file&&file.size)receiptPath=await A.uploadDocument(file,'entries');
+      const row={entry_date:String(f.get('date')),kind:String(f.get('kind')),category:String(f.get('category')),description:String(f.get('description')).trim(),counterparty_name:String(f.get('counterparty')||'').trim()||null,counterparty_org_no:String(f.get('counterparty_org')||'').replace(/\D/g,'')||null,document_no:String(f.get('document_no')||'').trim()||null,amount_gross:A.num(f.get('amount')),vat_rate:A.num(f.get('vat')),deductible_percent:A.num(f.get('deductible')),payment_method:String(f.get('method')),receipt_path:receiptPath,notes:String(f.get('notes')||'').trim()||null};
+      const {error}=await A.sb.from('accounting_entries').insert(row);
+      if(error)throw error;
+      await A.load();A.render();
+    }catch(error){
+      if(receiptPath)await A.removeDocument(receiptPath);
+      window.SIR_ADMIN_RUNTIME?.record(error,'accounting.entry_save');
+      alert('Не удалось сохранить бухгалтерскую запись. Частичный документ удалён.');
+      button.disabled=false;
+    }
   }
   async function voidEntry(id){
     const reason=prompt('Причина аннулирования записи:');if(!reason?.trim())return;
-    const {error}=await A.sb.from('accounting_entries').update({voided_at:new Date().toISOString(),void_reason:reason.trim()}).eq('id',id);
-    if(error){alert(error.message);return;}await A.load();A.render();
+    try{
+      const {error}=await A.sb.from('accounting_entries').update({voided_at:new Date().toISOString(),void_reason:reason.trim()}).eq('id',id);
+      if(error)throw error;
+      await A.load();A.render();
+    }catch(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'accounting.entry_void');
+      alert('Не удалось аннулировать запись. Изменения не применены.');
+    }
   }
 })();
