@@ -27,6 +27,8 @@ const hseLabel={verified:'Проверено',source_reviewed:'Источник 
 const roleLabel={OWNER:'Владелец',ADMIN:'Администратор',MANAGER:'Менеджер',WORKER:'Исполнитель',PREVIEW:'Предпросмотр'};
 const priceServiceLabel={armchair:'Кресло',ceiling:'Потолок салона',child_seat:'Детское кресло',dashboard_console:'Панель / консоль',door_card:'Дверная карта',door_cards:'Дверные карты',extra_odor:'Удаление запаха',extra_pet_hair:'Удаление шерсти',floor_carpet:'Пол / ковролин',full_interior:'Полный салон',interior_glass:'Стёкла салона',interior_plastic:'Пластик салона',mattress_double:'Двуспальный матрас',mattress_single:'Односпальный матрас',seat:'Сиденье',seat_belt:'Ремень безопасности',seat_discounted:'Дополнительное сиденье',sofa:'Диван',textile_mats:'Текстильные коврики',trunk:'Багажник'};
 const sizeLabel={default:'Стандарт',standard:'Стандарт',large:'Большой'};
+const auditActionLabel={chemicals_created:'Создано средство',chemicals_updated:'Обновлено средство',procedures_created:'Создана процедура',procedures_updated:'Обновлена процедура',initial_owner_activated_by_project_admin:'Первичный владелец активирован администратором проекта'};
+const auditEntityLabel={chemicals:'Химия',procedures:'Процедура',profile:'Профиль'};
 function chemicalDisplayName(x){
   const brand=String(x?.brand||'').trim(),name=String(x?.name||'').trim();
   if(!brand)return name;
@@ -48,7 +50,7 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
   const {data,error}=await sb.auth.signInWithPassword({email,password});
   if(error){window.SIR_ADMIN_RUNTIME?.record(error,'auth.sign_in');const status=document.getElementById('loginStatus');if(status){status.textContent='Email или пароль неверны. Проверьте данные либо восстановите пароль.';status.classList.remove('hidden');}else alert('Не удалось войти.');return;}
   const {data:profile,error:pe}=await sb.from('profiles').select('role,display_name,active').eq('id',data.user.id).single();
-  if(pe||!profile?.active){if(pe)window.SIR_ADMIN_RUNTIME?.record(pe,'auth.profile');await sb.auth.signOut();alert('Доступ к SIR Admin не активирован.');return;}
+  if(pe||!profile?.active){if(pe)window.SIR_ADMIN_RUNTIME?.record(pe,'auth.profile');await sb.auth.signOut();alert('Доступ к админ-панели SIR не активирован.');return;}
   currentRole=(profile.role||'worker').toUpperCase();enter(currentRole);
 });
 document.getElementById('logout').addEventListener('click',async()=>{if(sb&&!preview)await sb.auth.signOut();location.reload();});
@@ -614,16 +616,16 @@ async function team(){
 async function audit(){
   activeView='audit';
   if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Журнал</h1><p>Кто и что изменил</p></div></div><div class="card empty">Доступно после входа.</div>';return;}
-  if(!canAdmin()){main.innerHTML='<div class="notice">Журнал действий доступен только владелец и администратор.</div>';return;}
+  if(!canAdmin()){main.innerHTML='<div class="notice">Журнал действий доступен только владельцу и администратору.</div>';return;}
   const {data=[],error}=await sb.from('audit_events').select('*').order('created_at',{ascending:false}).limit(300);
   if(error){window.SIR_ADMIN_RUNTIME?.record(error,'audit.load');showDataLoadError('Журнал действий','audit');return;}
-  main.innerHTML=`<div class="section-title"><div><h1>Журнал</h1><p>Критические изменения</p></div></div><div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Время</th><th>Событие</th><th>Объект</th><th>Пользователь</th></tr></thead><tbody>${data.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('ru')}</td><td>${esc(x.action)}</td><td>${esc(x.entity_type)} ${esc(x.entity_id||'')}</td><td>${esc(x.actor_email||x.actor_id||'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
+  main.innerHTML=`<div class="section-title"><div><h1>Журнал</h1><p>Критические изменения</p></div></div><div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Время</th><th>Событие</th><th>Объект</th><th>Пользователь</th></tr></thead><tbody>${data.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('ru')}</td><td>${esc(auditActionLabel[x.action]||x.action)}</td><td>${esc(auditEntityLabel[x.entity_type]||x.entity_type)} ${esc(x.entity_id||'')}</td><td>${esc(x.actor_email||x.actor_id||'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 
 async function settings(){
   activeView='settings';
   if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Настройки</h1><p>Предпросмотр</p></div></div><div class="card empty">Реальные настройки сохраняются только в базе.</div>';return;}
-  if(!canAdmin()){main.innerHTML='<div class="notice">Настройки доступны только владелец и администратор.</div>';return;}
+  if(!canAdmin()){main.innerHTML='<div class="notice">Настройки доступны только владельцу и администратору.</div>';return;}
   const [priceRes,settingsRes]=await Promise.all([sb.from('price_rules').select('*').order('service_code').order('size_key'),sb.from('app_settings').select('*').order('key')]);
   const loadError=priceRes.error||settingsRes.error;
   if(loadError){window.SIR_ADMIN_RUNTIME?.record(loadError,'settings.load');showDataLoadError('Настройки','settings');return;}
