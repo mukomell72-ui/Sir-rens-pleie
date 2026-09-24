@@ -274,6 +274,49 @@ jobs:
             end if;
           end $workflow$;
 
+          do $atomic_admin$
+          declare
+            v_owner uuid;
+            v_manual jsonb;
+            v_manual2 jsonb;
+            v_order uuid;
+            v_ref_before text;
+            v_ref_after text;
+            v_booking jsonb;
+            v_company jsonb;
+            v_saved jsonb;
+            v_phone text := 'CI-ATOMIC-'||substr(replace(gen_random_uuid()::text,'-',''),1,10);
+          begin
+            select id into v_owner from public.profiles where role='owner' and active=true limit 1;
+            if v_owner is null then raise exception 'active_owner_missing_for_atomic_admin_test'; end if;
+            perform set_config('request.jwt.claim.sub',v_owner::text,true);
+
+            v_manual:=public.create_manual_order('CI Atomic',v_phone,'car',900,'rollback-only CI');
+            v_order:=(v_manual->>'id')::uuid;
+            if not exists(select 1 from public.orders where id=v_order and status='under_review') then
+              raise exception 'atomic_manual_order_failed';
+            end if;
+
+            select referral_code into v_ref_before from public.customers where id=(v_manual->>'customer_id')::uuid;
+            v_manual2:=public.create_manual_order('CI Atomic Updated',v_phone,'chair',500,'rollback-only CI second');
+            select referral_code into v_ref_after from public.customers where id=(v_manual2->>'customer_id')::uuid;
+            if v_ref_before is distinct from v_ref_after then raise exception 'manual_order_rotated_referral_code'; end if;
+
+            v_booking:=public.save_calendar_booking(
+              v_order,'2099-12-30 10:00:00+00','2099-12-30 12:00:00+00',
+              true,'mobile','CI rollback address',30
+            );
+            if not exists(select 1 from public.appointments where id=(v_booking->>'id')::uuid and order_id=v_order) then
+              raise exception 'atomic_calendar_booking_failed';
+            end if;
+
+            select value into v_company from public.app_settings where key='company';
+            v_saved:=public.save_admin_settings_bundle(jsonb_build_object('company',v_company),'[]'::jsonb);
+            if coalesce((v_saved->>'settings_saved')::integer,0)<>1 then
+              raise exception 'atomic_settings_bundle_failed';
+            end if;
+          end $atomic_admin$;
+
           do $privileges$
           declare
             r record;
@@ -296,6 +339,26 @@ jobs:
                   raise exception '% still has REFERENCES on %',role_name,r.rel;
                 end if;
               end loop;
+            end loop;
+
+            for r in
+              select p.oid,p.prosecdef
+              from pg_proc p
+              where p.oid in (
+                'public.create_manual_order(text,text,text,numeric,text)'::regprocedure,
+                'public.save_calendar_booking(uuid,timestamptz,timestamptz,boolean,text,text,integer)'::regprocedure,
+                'public.save_admin_settings_bundle(jsonb,jsonb)'::regprocedure
+              )
+            loop
+              if has_function_privilege('anon',r.oid,'EXECUTE') then
+                raise exception 'anon_admin_atomic_rpc_execute_granted: %',r.oid::regprocedure;
+              end if;
+              if not has_function_privilege('authenticated',r.oid,'EXECUTE') then
+                raise exception 'authenticated_admin_atomic_rpc_execute_missing: %',r.oid::regprocedure;
+              end if;
+              if r.prosecdef then
+                raise exception 'admin_atomic_rpc_must_be_security_invoker: %',r.oid::regprocedure;
+              end if;
             end loop;
 
             if has_function_privilege('anon','public.save_order_decision(uuid,jsonb,jsonb)','EXECUTE') then
