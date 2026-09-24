@@ -4,6 +4,7 @@ import {chromium} from 'playwright';
 const browser=await chromium.launch({headless:true});
 const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,locale:'ru-RU'});
 const page=await context.newPage();
+await page.addInitScript(()=>{try{Object.defineProperty(globalThis,'Translator',{value:undefined,configurable:true,writable:true});}catch{}});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 
 await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'commit'});
@@ -37,6 +38,19 @@ assert.equal(await page.locator('[data-sms-status]').count(),1);
 const statusSmsHref=await page.locator('[data-sms-status]').getAttribute('href');
 assert.match(statusSmsHref,/^sms:/);
 assert.match(decodeURIComponent(statusSmsHref),/DEMO-1001/);
+
+await page.locator('#customSmsRu').fill('Здравствуйте. Машина уже готова, можете забрать её после 16:00.');
+await page.locator('#customSmsTarget').selectOption('no');
+await page.locator('#translateCustomSms').click();
+await page.locator('#openExternalTranslate:not(.hidden)').waitFor();
+const translateHref=await page.locator('#openExternalTranslate').getAttribute('href');
+assert.match(translateHref,/^https:\/\/translate\.google\.com\//);
+assert.match(decodeURIComponent(translateHref),/Машина уже готова/);
+assert.match(translateHref,/tl=no/);
+await page.locator('#customSmsTranslated').fill('Hei. Bilen er klar og kan hentes etter kl. 16:00.');
+const customSmsHref=await page.locator('[data-sms-custom]').getAttribute('href');
+assert.match(customSmsHref,/^sms:/);
+assert.match(decodeURIComponent(customSmsHref),/Bilen er klar/);
 
 await page.locator('#inspectionForm input[name="score"]').fill('9');
 await page.locator('#inspectionForm input[name="minutes"]').fill('390');
