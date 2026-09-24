@@ -2,12 +2,19 @@
 const workspaceCss=document.createElement('link');workspaceCss.rel='stylesheet';workspaceCss.href='workspace.css?v=20260924-translate1';document.head.appendChild(workspaceCss);
 const inspectionScript=document.createElement('script');inspectionScript.src='inspection.js?v=20260902-inspection-flow';inspectionScript.defer=true;document.head.appendChild(inspectionScript);
 const C=window.SIR_CONFIG;
-let sb=null,preview=false,currentRole='PREVIEW',activeView='dashboard',orderRealtime=null,realtimeRefreshTimer=null;
+let sb=null,preview=false,currentRole='PREVIEW',activeView='dashboard',orderRealtime=null,realtimeRefreshTimer=null,realtimeRetryTimer=null,realtimeFallbackTimer=null,realtimeBackoffMs=2000;
 const login=document.getElementById('login'),app=document.getElementById('app'),main=document.getElementById('main');
 const connected=!!window.SIR_ADMIN_SB;
 if(connected){sb=window.SIR_ADMIN_SB;document.getElementById('setupNotice').classList.add('hidden');}
 const canAdmin=()=>['OWNER','ADMIN'].includes(currentRole);
 const canManage=()=>['OWNER','ADMIN','MANAGER'].includes(currentRole);
+function ensureWritable(){
+  if(preview)return true;
+  if(navigator.onLine)return true;
+  window.SIR_ADMIN_RUNTIME?.refresh();
+  alert('Нет сети. Изменения не отправлены. После восстановления подключения повторите действие.');
+  return false;
+}
 const money=n=>new Intl.NumberFormat('nb-NO',{maximumFractionDigits:0}).format(+n||0)+' NOK';
 const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const statusLabel={new:'Новый',under_review:'На рассмотрении',offer_sent:'Предложение отправлено',awaiting_confirmation:'Ждёт подтверждения',confirmed:'Подтверждён',scheduled:'Запланирован',in_progress:'В работе',completed:'Выполнен',customer_requested_new_time:'Нужно другое время',cancelled_customer:'Отменён клиентом',cancelled_sir:'Отменён SIR',no_show:'Неявка'};
@@ -33,7 +40,11 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
 document.getElementById('logout').addEventListener('click',async()=>{if(sb&&!preview)await sb.auth.signOut();location.reload();});
 document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;document.querySelectorAll('#nav [data-view]').forEach(x=>x.classList.toggle('active',x===b));render(b.dataset.view);});
 
-async function enter(role){login.classList.add('hidden');app.classList.remove('hidden');document.getElementById('roleBadge').textContent=role;if(!preview)startRealtime();render('dashboard');}
+async function enter(role){
+  login.classList.add('hidden');app.classList.remove('hidden');document.getElementById('roleBadge').textContent=role;
+  if(!preview){startRealtime();startRealtimeFallback();}
+  render('dashboard');
+}
 async function render(view){activeView=view;delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='inventory')return inventory();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
 async function getOrders(limit=200){
   if(preview)return previewOrders.slice(0,limit);
@@ -57,22 +68,76 @@ function scheduleRealtimeRefresh(orderId=null){
     if(activeView==='inventory')return inventory();
   },180);
 }
+function refreshActiveListView(){
+  if(preview||!sb||!navigator.onLine||document.visibilityState==='hidden')return;
+  if(activeView==='dashboard')return dashboard();
+  if(activeView==='orders')return orders();
+  if(activeView==='inventory')return inventory();
+}
+function releaseRealtimeChannel(){
+  if(!orderRealtime||!sb)return;
+  const channel=orderRealtime;orderRealtime=null;
+  Promise.resolve(sb.removeChannel(channel)).catch(error=>window.SIR_ADMIN_RUNTIME?.record(error,'realtime.remove'));
+}
+function scheduleRealtimeReconnect(){
+  if(preview||!sb||!navigator.onLine||realtimeRetryTimer)return;
+  const delay=realtimeBackoffMs;
+  realtimeBackoffMs=Math.min(realtimeBackoffMs*2,30000);
+  realtimeRetryTimer=setTimeout(()=>{
+    realtimeRetryTimer=null;
+    releaseRealtimeChannel();
+    startRealtime();
+    refreshActiveListView();
+  },delay);
+}
+function startRealtimeFallback(){
+  if(realtimeFallbackTimer)return;
+  realtimeFallbackTimer=setInterval(()=>{
+    if(document.documentElement.dataset.realtime!=='online')refreshActiveListView();
+  },45000);
+}
 function startRealtime(){
-  if(preview||!sb||orderRealtime)return;
+  if(preview||!sb||orderRealtime||!navigator.onLine)return;
+  document.documentElement.dataset.realtime='connecting';
   orderRealtime=sb.channel('sir-admin-control-center')
     .on('postgres_changes',{event:'*',schema:'public',table:'orders'},payload=>scheduleRealtimeRefresh(payload.new?.id||payload.old?.id||null))
     .on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>scheduleRealtimeRefresh())
     .on('postgres_changes',{event:'*',schema:'public',table:'chemicals'},()=>scheduleRealtimeRefresh())
     .subscribe(status=>{
-      if(status==='SUBSCRIBED'){document.documentElement.dataset.realtime='online';if(activeView==='dashboard')scheduleRealtimeRefresh();return;}
-      if(['CHANNEL_ERROR','TIMED_OUT'].includes(status)){
+      if(status==='SUBSCRIBED'){
+        document.documentElement.dataset.realtime='online';
+        realtimeBackoffMs=2000;
+        clearTimeout(realtimeRetryTimer);realtimeRetryTimer=null;
+        if(activeView==='dashboard')scheduleRealtimeRefresh();
+        return;
+      }
+      if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){
         document.documentElement.dataset.realtime='degraded';
         window.SIR_ADMIN_RUNTIME?.record(new Error('Realtime '+status),'realtime');
+        scheduleRealtimeReconnect();
         return;
       }
       document.documentElement.dataset.realtime='connecting';
     });
 }
+addEventListener('online',()=>{
+  if(preview||!sb)return;
+  releaseRealtimeChannel();
+  startRealtime();
+  refreshActiveListView();
+});
+addEventListener('offline',()=>{
+  clearTimeout(realtimeRetryTimer);realtimeRetryTimer=null;
+  document.documentElement.dataset.realtime='offline';
+});
+addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible'||preview||!sb||!navigator.onLine)return;
+  if(document.documentElement.dataset.realtime!=='online'){
+    releaseRealtimeChannel();
+    startRealtime();
+  }
+  refreshActiveListView();
+});
 
 async function dashboard(){
   activeView='dashboard';
@@ -308,7 +373,7 @@ async function manualOrderForm(){
   main.innerHTML=`<div class="section-title"><div><h1>Ручной заказ</h1><p>Для звонка или сообщения клиента</p></div><button class="btn" id="backOrders">← Заказы</button></div><form class="card" id="manualForm"><div class="settings-grid"><div class="field"><label>Имя</label><input name="name" required></div><div class="field"><label>Телефон</label><input name="phone" required></div><div class="field"><label>Услуга</label><select name="service"><option value="car">Салон автомобиля</option><option value="sofa">Диван</option><option value="chair">Кресло</option><option value="mattress">Матрас</option></select></div><div class="field"><label>Предварительная цена</label><input name="price" type="number" min="0"></div></div><div class="field"><label>Комментарий</label><textarea name="comment"></textarea></div><button class="btn primary">Создать</button></form>`;
   main.querySelector('#backOrders').addEventListener('click',orders);
   main.querySelector('#manualForm').addEventListener('submit',async e=>{
-    e.preventDefault();const f=new FormData(e.target),name=String(f.get('name')).trim(),phone=String(f.get('phone')).trim();
+    e.preventDefault();if(!ensureWritable())return;const f=new FormData(e.target),name=String(f.get('name')).trim(),phone=String(f.get('phone')).trim();
     const referral='SIR-'+crypto.randomUUID().slice(0,8).toUpperCase();
     const {data:c,error:ce}=await sb.from('customers').upsert({name,phone,referral_code:referral},{onConflict:'phone'}).select('id').single();
     if(ce){alert(ce.message);return;}
@@ -365,7 +430,8 @@ async function orderDetail(id){
       main.querySelector('[data-quick-status]')?.addEventListener('click',async e=>{
         const next=e.currentTarget.dataset.quickStatus;
         e.currentTarget.disabled=true;
-        const {error}=await sb.from('orders').update({status:next}).eq('id',id);
+        if(!ensureWritable()){e.currentTarget.disabled=false;return;}
+        const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:{status:next},p_appointment:null});
         if(error){
           window.SIR_ADMIN_RUNTIME?.record(error,'order.quick_status');
           e.currentTarget.disabled=false;alert(orderActionError(error));return;
@@ -374,7 +440,8 @@ async function orderDetail(id){
       });
       main.querySelector('[data-mark-paid]')?.addEventListener('click',async e=>{
         e.currentTarget.disabled=true;
-        const {error}=await sb.from('orders').update({payment_status:'paid'}).eq('id',id);
+        if(!ensureWritable()){e.currentTarget.disabled=false;return;}
+        const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:{payment_status:'paid'},p_appointment:null});
         if(error){e.currentTarget.disabled=false;alert(error.message);return;}
         orderDetail(id);
       });
@@ -385,6 +452,7 @@ async function orderDetail(id){
   }
   main.querySelector('#orderForm').addEventListener('submit',async e=>{
     e.preventDefault();
+    if(!ensureWritable())return;
     const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),f=new FormData(form);
     const patch={internal_note:String(f.get('note')||'')};
     button.disabled=true;
@@ -488,6 +556,7 @@ async function inventory(){
     </div>
     ${!canAdmin()&&!preview?'<div class="notice">Менять наличие могут OWNER и ADMIN. Остальные роли видят состояние склада.</div>':''}`;
   main.querySelectorAll('.save-stock').forEach(btn=>btn.addEventListener('click',async()=>{
+    if(!ensureWritable())return;
     const tr=btn.closest('[data-chemical]'),patch={stock_status:tr.querySelector('.stock-status').value,stock_note:tr.querySelector('.stock-note').value.trim()||null};
     btn.disabled=true;
     const {error}=await sb.from('chemicals').update(patch).eq('id',tr.dataset.chemical);
@@ -505,7 +574,7 @@ async function team(){
   const {data=[],error}=await sb.from('profiles').select('*').order('created_at');
   if(error){window.SIR_ADMIN_RUNTIME?.record(error,'team.load');showDataLoadError('Команда','team');return;}
   main.innerHTML=`<div class="section-title"><div><h1>Команда</h1><p>Раздельные аккаунты и роли</p></div></div><div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Имя</th><th>Роль</th><th>Активен</th><th></th></tr></thead><tbody>${data.map(p=>`<tr data-profile="${p.id}"><td>${esc(p.display_name||p.id)}</td><td><select class="role" ${canAdmin()?'':'disabled'}>${['owner','admin','manager','worker'].map(r=>`<option value="${r}" ${p.role===r?'selected':''}>${r.toUpperCase()}</option>`).join('')}</select></td><td><input class="active" type="checkbox" ${p.active?'checked':''} ${canAdmin()?'':'disabled'}></td><td>${canAdmin()?'<button class="btn save-profile">Сохранить</button>':''}</td></tr>`).join('')}</tbody></table></div></div><div class="notice">Пароли сотрудников никогда не показываются владельцу. Новый сотрудник создаёт собственный пароль через Supabase Auth.</div>`;
-  main.querySelectorAll('.save-profile').forEach(b=>b.addEventListener('click',async()=>{const tr=b.closest('[data-profile]'),id=tr.dataset.profile,role=tr.querySelector('.role').value,active=tr.querySelector('.active').checked;const {error}=await sb.from('profiles').update({role,active}).eq('id',id);if(error)alert(error.message);else alert('Сохранено');}));
+  main.querySelectorAll('.save-profile').forEach(b=>b.addEventListener('click',async()=>{if(!ensureWritable())return;const tr=b.closest('[data-profile]'),id=tr.dataset.profile,role=tr.querySelector('.role').value,active=tr.querySelector('.active').checked;const {error}=await sb.from('profiles').update({role,active}).eq('id',id);if(error)alert(error.message);else alert('Сохранено');}));
 }
 async function audit(){
   activeView='audit';
@@ -528,7 +597,7 @@ async function settings(){
   main.innerHTML=`<div class="section-title"><div><h1>Настройки</h1><p>Изменения применяются к сайту без редактирования кода</p></div></div>${canAdmin()?'':'<div class="notice">Изменять настройки могут OWNER и ADMIN.</div>'}<form id="settingsForm"><div class="settings-grid"><div class="card"><h3>Компания</h3>${input('phone_primary','Основной телефон',company.phone_primary||C.phonePrimary)}${input('phone_secondary','Второй телефон',company.phone_secondary||C.phoneSecondary)}${input('radius_km','Радиус, км',company.radius_km||40,'number')}${input('review_url','Ссылка для отзыва (Google / сайт)',company.review_url||'','url')}<div class="mini">Если ссылка пустая, SMS попросит клиента ответить оценкой 1–5.</div></div><div class="card"><h3>Выезд</h3>${input('travel_0_10','0–10 км',travel['0_10']??0,'number')}${input('travel_11_20','11–20 км',travel['11_20']??150,'number')}${input('travel_21_30','21–30 км',travel['21_30']??250,'number')}${input('travel_31_40','31–40 км',travel['31_40']??350,'number')}${input('minimum_mobile_order','Минимальный выездной заказ',travel.minimum_mobile_order??750,'number')}</div><div class="card"><h3>Рекомендации</h3>${input('referrer_credit','Бонус рекомендателю',ref.referrer_credit??200,'number')}${input('new_customer_discount','Скидка новому клиенту',ref.new_customer_discount??100,'number')}${input('ref_minimum_order','Минимальный заказ',ref.minimum_order??750,'number')}</div><div class="card"><h3>Рабочее время</h3>${input('working_day_start','Начало',work.working_day_start||'08:00','time')}${input('working_day_end','Конец',work.working_day_end||'20:00','time')}${input('default_buffer_minutes','Буфер между работами, мин.',work.default_buffer_minutes??30,'number')}</div></div><div class="panel"><div class="panel-head">Стартовые цены</div><div class="table-wrap"><table class="table"><thead><tr><th>Услуга</th><th>Размер</th><th>Лёгкое</th><th>Среднее</th><th>Сильное</th></tr></thead><tbody>${prices.map(p=>`<tr data-price="${p.id}"><td>${esc(p.service_code)}</td><td>${esc(p.size_key)}</td><td><input class="p-light" type="number" min="0" value="${p.light_price??''}"></td><td><input class="p-medium" type="number" min="0" value="${p.medium_price??''}"></td><td><input class="p-heavy" type="number" min="0" value="${p.heavy_price??''}"></td></tr>`).join('')}</tbody></table></div></div>${canAdmin()?'<button class="btn primary save-settings" type="submit">Сохранить все настройки</button>':''}</form>`;
   if(!canAdmin())return;
   main.querySelector('#settingsForm').addEventListener('submit',async e=>{
-    e.preventDefault();const f=new FormData(e.target),updates=[
+    e.preventDefault();if(!ensureWritable())return;const f=new FormData(e.target),updates=[
       ['company',{...company,phone_primary:String(f.get('phone_primary')),phone_secondary:String(f.get('phone_secondary')),radius_km:+f.get('radius_km'),review_url:safeHttpUrl(f.get('review_url'))||null}],
       ['travel',{'0_10':+f.get('travel_0_10'),'11_20':+f.get('travel_11_20'),'21_30':+f.get('travel_21_30'),'31_40':+f.get('travel_31_40'),minimum_mobile_order:+f.get('minimum_mobile_order')}],
       ['referral',{referrer_credit:+f.get('referrer_credit'),new_customer_discount:+f.get('new_customer_discount'),minimum_order:+f.get('ref_minimum_order')}],
