@@ -161,6 +161,78 @@ function guideHealth(){
 function chipsRender(){chips.innerHTML=broadCats.map(c=>`<button class="chip ${c===active?'active':''}" data-c="${c}">${c}</button>`).join('');chips.querySelectorAll('button').forEach(b=>b.onclick=()=>{active=b.dataset.c;chipsRender();render()})}
 function h(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function safeUrl(v){try{const u=new URL(String(v||''),location.href);return ['https:','http:'].includes(u.protocol)?u.href:'#'}catch{return'#'}}
+function dilutionSpec(text){
+  const raw=String(text||'').replace(/,/g,'.');
+  const ranges=[];
+  const exact=new Set();
+  const rangeRe=/1\s*:\s*(\d+(?:\.\d+)?)\s*[–—-]\s*1\s*:\s*(\d+(?:\.\d+)?)/g;
+  let m;
+  while((m=rangeRe.exec(raw))){
+    const a=Number(m[1]),b=Number(m[2]);
+    if(Number.isFinite(a)&&Number.isFinite(b)&&a>0&&b>0&&a<=1000&&b<=1000)ranges.push([Math.min(a,b),Math.max(a,b)]);
+  }
+  const exactRe=/1\s*:\s*(\d+(?:\.\d+)?)/g;
+  while((m=exactRe.exec(raw))){
+    const n=Number(m[1]);
+    if(Number.isFinite(n)&&n>0&&n<=1000)exact.add(n);
+  }
+  return {exact:[...exact],ranges};
+}
+function dilutionAllowed(spec,ratio){
+  if(!Number.isFinite(ratio)||ratio<=0)return false;
+  if(spec.exact.some(x=>Math.abs(x-ratio)<1e-9))return true;
+  return spec.ranges.some(([min,max])=>ratio>=min&&ratio<=max);
+}
+function dilutionCalculator(x,hs,hasSource,hasSds){
+  if(broad(x)!=='Химия'||hs.level==='STOP'||!hasSource||!hasSds)return'';
+  const spec=dilutionSpec(x.d);
+  if(!spec.exact.length&&!spec.ranges.length)return'';
+  const candidates=[...spec.exact,...spec.ranges.flat()];
+  const defaultRatio=Math.max(...candidates);
+  const exact=spec.exact.join(',');
+  const ranges=spec.ranges.map(([a,b])=>a+'-'+b).join(';');
+  return `<div class="sec dilution-calc" data-dilution-calc data-exact="${h(exact)}" data-ranges="${h(ranges)}">
+    <b>Калькулятор разведения 1:X</b>
+    <p class="mini">Калькулятор только считает объёмы. Значение X берите из подтверждённой инструкции «Разведение» выше — он не разрешает усиливать смесь вне указанного диапазона.</p>
+    <div style="display:grid;grid-template-columns:minmax(110px,.7fr) minmax(140px,1fr);gap:8px;align-items:end">
+      <label class="mini">X в пропорции 1:X<input data-role="ratio" type="number" min="0.1" max="1000" step="0.1" inputmode="decimal" value="${h(defaultRatio)}" style="width:100%;margin-top:5px"></label>
+      <label class="mini">Готовый раствор, мл<input data-role="total" type="number" min="50" max="10000" step="10" inputmode="numeric" value="500" style="width:100%;margin-top:5px"></label>
+    </div>
+    <p data-role="result" class="mini" style="margin-top:8px"></p>
+  </div>`;
+}
+function bindDilutionCalculators(){
+  list.querySelectorAll('[data-dilution-calc]').forEach(calc=>{
+    const ratioEl=calc.querySelector('[data-role="ratio"]');
+    const totalEl=calc.querySelector('[data-role="total"]');
+    const out=calc.querySelector('[data-role="result"]');
+    const exact=String(calc.dataset.exact||'').split(',').filter(Boolean).map(Number).filter(Number.isFinite);
+    const ranges=String(calc.dataset.ranges||'').split(';').filter(Boolean).map(v=>v.split('-').map(Number)).filter(v=>v.length===2&&v.every(Number.isFinite));
+    const spec={exact,ranges};
+    const format=n=>Number.isInteger(n)?String(n):n.toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
+    const update=()=>{
+      const ratio=Number(String(ratioEl?.value||'').replace(',','.'));
+      const total=Number(String(totalEl?.value||'').replace(',','.'));
+      if(!dilutionAllowed(spec,ratio)){
+        out.textContent='STOP: выбранное 1:'+String(ratioEl?.value||'—')+' не входит в подтверждённое разведение этой карточки.';
+        out.classList.add('warn');
+        return;
+      }
+      if(!Number.isFinite(total)||total<50||total>10000){
+        out.textContent='Введите итоговый объём от 50 до 10 000 мл.';
+        out.classList.add('warn');
+        return;
+      }
+      const chemical=total/(ratio+1);
+      const water=total-chemical;
+      out.textContent=`1:${format(ratio)} · ${format(total)} мл = ${format(chemical)} мл средства + ${format(water)} мл воды.`;
+      out.classList.remove('warn');
+    };
+    ratioEl?.addEventListener('input',update);
+    totalEl?.addEventListener('input',update);
+    update();
+  });
+}
 function card(x){
   const image=x.photo&&photos[x.photo]?photos[x.photo]:'';
   const thumb=image?`<div class="thumb"><img src="${h(image)}" alt="${h(x.n)}"></div>`:`<div class="thumb empty">Фото<br>не добавлено</div>`;
@@ -181,6 +253,7 @@ function card(x){
       <div class="sec"><b>Что чистить / назначение</b><p>${h(x.f)}</p></div>
       ${x.t?`<div class="sec"><b>Способ нанесения / инструмент</b><p>${h(x.t)}</p></div>`:''}
       <div class="sec"><b>Разведение</b><p>${h(x.d)}</p></div>
+      ${dilutionCalculator(x,hs,hasSource,hasSds)}
       <div class="sec"><b>Как чистить / применять</b><p>${h(x.u)}</p></div>
       <div class="sec"><b>Что делать после</b><p>${h(x.a)}</p></div>
       <div class="sec"><b>Риски и ограничения</b><p class="warn">${h(x.w)}</p></div>
@@ -256,6 +329,6 @@ function updateProStats(){
   set('proStatAll',items.length);set('proStatChem',chem.length);set('proStatHse',ready);
 }
 
-function render(){const s=q.value.trim();const f=items.map(x=>({x,score:searchScore(x,s)})).filter(({x,score})=>(active==='Все'||broad(x)===active)&&(!s||score>=0));const ordered=f.sort((a,b)=>s?b.score-a.score:catRank[broad(a.x)]-catRank[broad(b.x)]||(brandRank[brand(a.x)]??99)-(brandRank[brand(b.x)]??99)||brand(a.x).localeCompare(brand(b.x),'ru')||items.indexOf(a.x)-items.indexOf(b.x)).map(({x})=>x);count.textContent=s?`По запросу «${s}» найдено: ${ordered.length}`:`В справочнике: ${items.length}`;let out='';['Химия','Расходники','Оборудование'].forEach(c=>{const cc=ordered.filter(x=>broad(x)===c);if(!cc.length)return;out+=`<div class="group-title">${c}</div>`;[...new Set(cc.map(brand))].forEach(br=>{const bi=cc.filter(x=>brand(x)===br);out+=`<div class="brand-title">${br}</div>`+bi.map(card).join('')})});updateProStats();list.innerHTML=out||`<div class="empty-search"><b>Ничего не найдено</b><span>Проверьте название или напишите, что нужно очистить: пластик, кожа, сиденья, шины…</span></div>`;list.querySelectorAll('.card').forEach(el=>el.querySelector('.head').onclick=()=>el.classList.toggle('open'));guideHealth()}
+function render(){const s=q.value.trim();const f=items.map(x=>({x,score:searchScore(x,s)})).filter(({x,score})=>(active==='Все'||broad(x)===active)&&(!s||score>=0));const ordered=f.sort((a,b)=>s?b.score-a.score:catRank[broad(a.x)]-catRank[broad(b.x)]||(brandRank[brand(a.x)]??99)-(brandRank[brand(b.x)]??99)||brand(a.x).localeCompare(brand(b.x),'ru')||items.indexOf(a.x)-items.indexOf(b.x)).map(({x})=>x);count.textContent=s?`По запросу «${s}» найдено: ${ordered.length}`:`В справочнике: ${items.length}`;let out='';['Химия','Расходники','Оборудование'].forEach(c=>{const cc=ordered.filter(x=>broad(x)===c);if(!cc.length)return;out+=`<div class="group-title">${c}</div>`;[...new Set(cc.map(brand))].forEach(br=>{const bi=cc.filter(x=>brand(x)===br);out+=`<div class="brand-title">${br}</div>`+bi.map(card).join('')})});updateProStats();list.innerHTML=out||`<div class="empty-search"><b>Ничего не найдено</b><span>Проверьте название или напишите, что нужно очистить: пластик, кожа, сиденья, шины…</span></div>`;list.querySelectorAll('.card').forEach(el=>el.querySelector('.head').onclick=()=>el.classList.toggle('open'));bindDilutionCalculators();guideHealth()}
 initProfessionalUI();chipsRender();q.oninput=render;render();
 })();
