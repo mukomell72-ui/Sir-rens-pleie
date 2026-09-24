@@ -32,6 +32,12 @@ assert.match(await page.locator('#main').innerText(),/5 сидений, ремн
 assert.match(await page.locator('#main').innerText(),/Повторный проход/);
 assert.match(await page.locator('#inspectionWorkspace').innerText(),/Осмотр на месте/);
 assert.match(await page.locator('#inspectionWorkspace').innerText(),/Химия и дозировка/);
+assert.equal(await page.locator('.client-communication').count(),1);
+assert.equal(await page.locator('[data-sms-status]').count(),1);
+const statusSmsHref=await page.locator('[data-sms-status]').getAttribute('href');
+assert.match(statusSmsHref,/^sms:/);
+assert.match(decodeURIComponent(statusSmsHref),/DEMO-1001/);
+
 await page.locator('#inspectionForm input[name="score"]').fill('9');
 await page.locator('#inspectionForm input[name="minutes"]').fill('390');
 await page.locator('#recalcAssessment').click();
@@ -44,6 +50,13 @@ await page.locator('#demoOrderForm').locator('button[type="submit"]').click();
 assert.match(await page.locator('#demoSaveStatus').innerText(),/Сохранено/);
 await page.locator('#backOrders').click();
 assert.equal(await page.locator('.order-row').count(),3);
+await page.locator('.order-row').nth(2).click();
+await page.waitForSelector('.client-communication');
+assert.equal(await page.locator('[data-sms-review]').count(),1);
+const reviewSmsHref=await page.locator('[data-sms-review]').getAttribute('href');
+assert.match(decodeURIComponent(reviewSmsHref),/vurdering fra 1 til 5/);
+assert.match(decodeURIComponent(reviewSmsHref),/Sir-rens-pleie/i);
+await page.locator('#backOrders').click();
 
 await page.locator('[data-view="inventory"]').click();
 await page.waitForSelector('.inventory-table');
