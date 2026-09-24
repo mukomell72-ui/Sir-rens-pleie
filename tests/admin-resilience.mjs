@@ -1,5 +1,25 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { readFile } from 'node:fs/promises';
+
+const adminSource=await readFile(new URL('../admin/admin.js',import.meta.url),'utf8');
+assert.match(adminSource,/\['CHANNEL_ERROR','TIMED_OUT','CLOSED'\]/);
+assert.match(adminSource,/scheduleRealtimeReconnect/);
+assert.match(adminSource,/realtimeBackoffMs=Math\.min\(realtimeBackoffMs\*2,30000\)/);
+assert.match(adminSource,/orderEditorDirty/);
+assert.match(adminSource,/remoteOrderUpdate/);
+assert.match(adminSource,/_expected_updated_at:o\.updated_at/);
+assert.match(adminSource,/p_patch:\{status:next,_expected_updated_at:o\.updated_at\}/);
+assert.match(adminSource,/p_patch:\{payment_status:'paid',_expected_updated_at:o\.updated_at\}/);
+assert.match(adminSource,/if\(!ensureWritable\(\)\)return/);
+
+const calendarSource=await readFile(new URL('../admin/calendar.js',import.meta.url),'utf8');
+const paymentsSource=await readFile(new URL('../admin/payments.js',import.meta.url),'utf8');
+assert.match(adminSource,/sb\.rpc\('create_manual_order'/);
+assert.match(adminSource,/sb\.rpc\('save_admin_settings_bundle'/);
+assert.match(calendarSource,/sb\.rpc\('save_calendar_booking'/);
+assert.doesNotMatch(calendarSource,/\.from\('appointments'\)\.insert/);
+assert.match(paymentsSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch:\{payment_status:status,_expected_updated_at:row\?\.updated_at\},p_appointment:null\}\)/);
 
 const browser=await chromium.launch({headless:true});
 

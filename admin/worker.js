@@ -22,7 +22,9 @@
     box.querySelectorAll('[data-worker-status]').forEach(btn=>btn.addEventListener('click',()=>setStatus(orderId,btn.dataset.workerStatus,btn)));
   }
   async function setStatus(id,status,btn){
-    btn.disabled=true;const msg=document.getElementById('workerStatusMsg');
+    const msg=document.getElementById('workerStatusMsg');
+    if(!navigator.onLine){window.SIR_ADMIN_RUNTIME?.refresh();msg.textContent='Нет сети. Статус не изменён. После восстановления подключения повторите действие.';return;}
+    btn.disabled=true;
     try{
       const {data:order,error:readError}=await client.from('orders').select('status,risk_level,assigned_to').eq('id',id).single();
       if(readError)throw readError;
@@ -32,8 +34,9 @@
       }
       const valid=(status==='in_progress'&&['scheduled','confirmed'].includes(order?.status))||(status==='completed'&&order?.status==='in_progress');
       if(!valid){msg.textContent='Статус заказа уже изменился. Обновите страницу перед действием.';return;}
-      const {error}=await client.from('orders').update({status}).eq('id',id);
+      const {data:updated,error}=await client.from('orders').update({status}).eq('id',id).select('id').single();
       if(error)throw error;
+      if(!updated?.id)throw new Error('order status update was not applied');
       msg.textContent=status==='in_progress'?'Работа начата.':'Работа отмечена выполненной.';
       setTimeout(()=>location.reload(),500);
     }catch(error){
