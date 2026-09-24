@@ -22,6 +22,14 @@ const money=n=>new Intl.NumberFormat('nb-NO',{maximumFractionDigits:0}).format(+
 const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const statusLabel={new:'Новый',under_review:'На рассмотрении',offer_sent:'Предложение отправлено',awaiting_confirmation:'Ждёт подтверждения',confirmed:'Подтверждён',scheduled:'Запланирован',in_progress:'В работе',completed:'Выполнен',customer_requested_new_time:'Нужно другое время',cancelled_customer:'Отменён клиентом',cancelled_sir:'Отменён SIR',no_show:'Неявка'};
 const serviceLabel={car:'Салон автомобиля',sofa:'Диван',chair:'Кресло',mattress:'Матрас',rug:'Ковёр'};
+const riskLabel={low:'Низкий риск',caution:'Осторожно',high_risk:'Высокий риск',stop:'STOP'};
+const hseLabel={verified:'Проверено',source_reviewed:'Источник проверен',unverified:'Не проверено',stop:'STOP',stop_no_exact_sds:'STOP — нет точного SDS'};
+function chemicalDisplayName(x){
+  const brand=String(x?.brand||'').trim(),name=String(x?.name||'').trim();
+  if(!brand)return name;
+  if(!name)return brand;
+  return name.toLowerCase().startsWith(brand.toLowerCase())?name:`${brand} ${name}`;
+}
 const allStatuses=Object.keys(statusLabel);
 const previewOrders=[
   {id:'demo-car',order_no:'DEMO-1001',created_at:'2026-09-02T08:30:00Z',customer_name:'Анна Л.',phone:'+47 ••• •• 101',service_type:'car',status:'new',payment_status:'unpaid',preliminary_price:2400,risk_level:'caution',vehicle_plate:'DR 12345',vehicle_brand:'Volkswagen',vehicle_model:'Passat',vehicle_year:2018,registered_seats:5,address:'Storgata 12, 3611 Kongsberg',distance_km:3.8,material:'Ткань + экокожа',cleaning_scope:'Отдельные элементы салона',selected_areas:'5 сидений, ремни безопасности, пол / ковролин, багажник',contamination:'Сильная',stains:true,pet_hair:true,odor:false,customer_comment:'Пятно от кофе на переднем сиденье, шерсть собаки сзади. Просьба аккуратно обработать боковины из экокожи.',estimated_minutes:270,chemical_cost:180,consumables_cost:70,internal_note:'Перед началом сделать фото пятна и тест на незаметном участке.'},
@@ -563,7 +571,7 @@ async function inventory(options={}){
   const hseProblem=x=>x.risk_level==='stop'||!['verified','source_reviewed'].includes(x.hse_status);
   const low=rows.filter(x=>x.stock_status==='low').length,out=rows.filter(x=>x.stock_status==='out').length,stops=rows.filter(hseProblem).length;
   const visibleRows=options.hseOnly?rows.filter(hseProblem):rows;
-  const hseReason=x=>x.risk_level==='stop'?'STOP: средство заблокировано':!['verified','source_reviewed'].includes(x.hse_status)?`HMS не подтверждён: ${x.hse_status||'unverified'}`:'';
+  const hseReason=x=>x.risk_level==='stop'?'STOP: средство заблокировано':!['verified','source_reviewed'].includes(x.hse_status)?`HMS не подтверждён: ${hseLabel[x.hse_status]||x.hse_status||'не проверено'}`:'';
   main.innerHTML=`<div class="section-title"><div><h1>${options.hseOnly?'HMS / STOP — заблокированные средства':'Склад и химия'}</h1><p>${options.hseOnly?'Показаны только средства, которые требуют проверки безопасности или имеют STOP':'Наличие средств и контроль HMS в одном списке'}</p></div><div class="toolbar">${options.hseOnly?'<button class="btn" id="showAllInventory">Показать весь склад</button>':''}<a class="btn" href="guide-editor.html">Карточки химии</a></div></div>
     <div class="control-grid inventory-metrics">
       <div class="card metric"><span>${options.hseOnly?'Показано проблемных':'Всего активных'}</span><strong>${options.hseOnly?visibleRows.length:rows.length}</strong></div>
@@ -574,7 +582,7 @@ async function inventory(options={}){
     ${preview?'<div class="notice">Предпросмотр — статусы склада демонстрационные.</div>':''}
     <div class="panel"><div class="panel-head"><span>${options.hseOnly?'Требует проверки безопасности':'Контроль наличия'}</span><span class="mini">${options.hseOnly?visibleRows.length+' средств':'Есть · Заканчивается · Нет'}</span></div>
       ${visibleRows.length?`<div class="table-wrap"><table class="table inventory-table"><thead><tr><th>Средство</th><th>HMS</th>${options.hseOnly?'<th>Причина</th>':''}<th>Наличие</th><th>Заметка</th><th></th></tr></thead><tbody>
-      ${visibleRows.map(x=>`<tr data-chemical="${x.id}"><td><b>${esc([x.brand,x.name].filter(Boolean).join(' '))}</b></td><td><span class="risk ${x.risk_level==='stop'?'stop':(x.risk_level||'caution').replace('_','-')}">${esc((x.risk_level||'caution').toUpperCase())}</span><div class="mini">${esc(x.hse_status||'unverified')}</div></td>${options.hseOnly?`<td><b>${esc(hseReason(x))}</b></td>`:''}<td><select class="stock-status" ${canAdmin()&&!preview?'':'disabled'}><option value="ok" ${x.stock_status==='ok'?'selected':''}>Есть</option><option value="low" ${x.stock_status==='low'?'selected':''}>Заканчивается</option><option value="out" ${x.stock_status==='out'?'selected':''}>Нет</option></select></td><td><input class="stock-note" value="${esc(x.stock_note||'')}" placeholder="Например: заказать 1 л" ${canAdmin()&&!preview?'':'disabled'}></td><td>${canAdmin()&&!preview?'<button class="btn save-stock">Сохранить</button>':''}</td></tr>`).join('')}
+      ${visibleRows.map(x=>`<tr data-chemical="${x.id}"><td><b>${esc(chemicalDisplayName(x))}</b></td><td><span class="risk ${x.risk_level==='stop'?'stop':(x.risk_level||'caution').replace('_','-')}">${esc(riskLabel[x.risk_level]||x.risk_level||'Осторожно')}</span><div class="mini">${esc(hseLabel[x.hse_status]||x.hse_status||'Не проверено')}</div></td>${options.hseOnly?`<td><b>${esc(hseReason(x))}</b></td>`:''}<td><select class="stock-status" ${canAdmin()&&!preview?'':'disabled'}><option value="ok" ${x.stock_status==='ok'?'selected':''}>Есть</option><option value="low" ${x.stock_status==='low'?'selected':''}>Заканчивается</option><option value="out" ${x.stock_status==='out'?'selected':''}>Нет</option></select></td><td><input class="stock-note" value="${esc(x.stock_note||'')}" placeholder="Например: заказать 1 л" ${canAdmin()&&!preview?'':'disabled'}></td><td>${canAdmin()&&!preview?'<button class="btn save-stock">Сохранить</button>':''}</td></tr>`).join('')}
       </tbody></table></div>`:'<div class="empty">Заблокированных средств нет.</div>'}
     </div>
     ${!canAdmin()&&!preview?'<div class="notice">Менять наличие могут OWNER и ADMIN. Остальные роли видят состояние склада.</div>':''}`;
