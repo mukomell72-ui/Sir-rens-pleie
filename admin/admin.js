@@ -4,8 +4,8 @@ const inspectionScript=document.createElement('script');inspectionScript.src='in
 const C=window.SIR_CONFIG;
 let sb=null,preview=false,currentRole='PREVIEW',calendarCursor=new Date(),activeView='dashboard',orderRealtime=null,realtimeRefreshTimer=null;
 const login=document.getElementById('login'),app=document.getElementById('app'),main=document.getElementById('main');
-const connected=!!(C.supabaseUrl&&C.supabasePublishableKey&&window.supabase?.createClient);
-if(connected){sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);document.getElementById('setupNotice').classList.add('hidden');}
+const connected=!!window.SIR_ADMIN_SB;
+if(connected){sb=window.SIR_ADMIN_SB;document.getElementById('setupNotice').classList.add('hidden');}
 const canAdmin=()=>['OWNER','ADMIN'].includes(currentRole);
 const canManage=()=>['OWNER','ADMIN','MANAGER'].includes(currentRole);
 const money=n=>new Intl.NumberFormat('nb-NO',{maximumFractionDigits:0}).format(+n||0)+' NOK';
