@@ -118,6 +118,11 @@ jobs:
         run: |
           set -euo pipefail
           timeout 60s node tests/poster-navigation.mjs
+      - name: Run public order live-status regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 45s node tests/status-sync.mjs
       - name: Run admin mobile workspace regression
         shell: bash
         run: |
