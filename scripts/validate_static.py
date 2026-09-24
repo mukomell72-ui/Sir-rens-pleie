@@ -152,7 +152,7 @@ def main() -> int:
         errors.append("Admin navigation is missing Guide Editor")
 
     admin_js = (ROOT / "admin" / "admin.js").read_text(encoding="utf-8")
-    for marker in ("sir-admin-control-center", "table:'orders'", "table:'appointments'", "table:'chemicals'", "nextStatusAction", "order_events", "stock_status", "payment_status"):
+    for marker in ("sir-admin-control-center", "table:'orders'", "table:'appointments'", "table:'chemicals'", "nextStatusAction", "order_events", "stock_status", "payment_status", "data-sms-status", "data-sms-review", "smsReviewText", "review_url"):
         if marker not in admin_js:
             errors.append(f"Admin control-center marker is missing: {marker}")
     if 'data-view="inventory"' not in admin_index or "Центр контроля" not in admin_index:
