@@ -132,8 +132,8 @@
   const canEdit=()=>['owner','admin'].includes(profile?.role);
   function render(){
     root.innerHTML=`<div class="section-title"><div><h1>Редактор справочника</h1><p>Химия и технологические процедуры меняются здесь без редактирования кода сайта.</p></div><div class="toolbar"><button class="btn ${tab==='chemicals'?'primary':''}" data-tab="chemicals">Химия</button><button class="btn ${tab==='procedures'?'primary':''}" data-tab="procedures">Процедуры</button></div></div>
-      <div class="notice safe"><b>Правило SIR:</b> статус «проверено по инструкции производителя» (<code>manufacturer_verified</code>) ставим только после сверки с официальной инструкцией. В таблице рабочие значения показаны по-русски, исходные данные производителя в базе сохраняются без изменений.</div>
-      ${canEdit()?'':'<div class="notice">У вас режим просмотра. Редактирование доступно OWNER и ADMIN.</div>'}
+      <div class="notice safe"><b>Правило SIR:</b> статус «Проверено по инструкции производителя» ставим только после сверки с официальной инструкцией. Рабочие инструкции в интерфейсе и базе ведём по-русски; ссылки на оригинальные документы производителя и SDS сохраняются без изменений.</div>
+      ${canEdit()?'':'<div class="notice">У вас режим просмотра. Редактирование доступно владельцу и администратору.</div>'}
       <div id="guideBody"></div>`;
     root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;render();}));
     tab==='chemicals'?renderChemicals():renderProcedures();
@@ -251,7 +251,7 @@
       <div class="field"><label>HMS / SDS статус</label><select name="hse_status"><option value="unverified" ${(c.hse_status||'unverified')==='unverified'?'selected':''}>Не проверено — STOP для автоподбора</option><option value="source_reviewed" ${c.hse_status==='source_reviewed'?'selected':''}>Источник проверен</option><option value="verified" ${c.hse_status==='verified'?'selected':''}>Проверено</option><option value="stop" ${c.hse_status==='stop'?'selected':''}>STOP — применение запрещено</option></select></div>
       <div class="field"><label>Риск</label><select name="risk_level"><option value="low" ${c.risk_level==='low'?'selected':''}>Низкий риск</option><option value="caution" ${(c.risk_level||'caution')==='caution'?'selected':''}>Осторожно</option><option value="high_risk" ${c.risk_level==='high_risk'?'selected':''}>Высокий риск</option><option value="stop" ${c.risk_level==='stop'?'selected':''}>STOP</option></select></div>
       <div class="field"><label>Требует подтверждения</label><select name="approval_required"><option value="false" ${!c.approval_required?'selected':''}>Нет</option><option value="true" ${c.approval_required?'selected':''}>Да</option></select></div>
-      ${field('sds_url','SDS / HMS URL',c.sds_url||'',false,'url')}${field('sds_language','Язык SDS',c.sds_language||'no')}${field('sds_revision','Версия / дата SDS',c.sds_revision||'')}${field('hse_verified_at','Дата проверки HMS',c.hse_verified_at||'',false,'date')}
+      ${field('sds_url','Ссылка на SDS / HMS',c.sds_url||'',false,'url')}${field('sds_language','Язык SDS',c.sds_language||'no')}${field('sds_revision','Версия / дата SDS',c.sds_revision||'')}${field('hse_verified_at','Дата проверки HMS',c.hse_verified_at||'',false,'date')}
       <div class="field"><label>Активно</label><select name="active"><option value="true" ${c.active!==false?'selected':''}>Да</option><option value="false" ${c.active===false?'selected':''}>Нет / архив</option></select></div></div>
       ${area('application','Как применять',c.application_method)}${area('follow','Что делать после',c.follow_up)}${area('warnings','Предупреждения / STOP',c.warnings)}
       ${area('hse_hazards','HMS: опасности / hazard summary',c.hse_hazards||'')}${area('hse_ppe','HMS: СИЗ / PPE',c.hse_ppe||'')}${area('hse_first_aid','HMS: первая помощь',c.hse_first_aid||'')}${area('hse_storage','HMS: хранение / обращение',c.hse_storage||'')}
