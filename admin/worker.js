@@ -1,7 +1,7 @@
 (() => {
   const C=window.SIR_CONFIG;
   if(!C?.supabaseUrl||!C?.supabasePublishableKey||!window.supabase)return;
-  const client=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey,{auth:{persistSession:true}});
+  const client=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey,{auth:{persistSession:true}});
   const observer=new MutationObserver(enhance);observer.observe(document.getElementById('main'),{childList:true,subtree:true});enhance();
 
   function enhance(){
