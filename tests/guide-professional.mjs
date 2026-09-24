@@ -11,6 +11,11 @@ const assert=(cond,msg)=>{if(!cond)throw new Error(msg)};
 try{
   await page.goto('http://127.0.0.1:4173/guide-app/index-v13.html',{waitUntil:'domcontentloaded'});
   await page.waitForSelector('#guideHealth',{timeout:15000});
+  assert(await page.locator('#dashboard').isVisible(),'Professional dashboard must be visible on mobile');
+  assert(await page.locator('.pro-mobile-nav').isVisible(),'Mobile bottom navigation must be visible');
+  assert(!(await page.locator('.pro-sidebar').isVisible()),'Desktop sidebar must be hidden on mobile');
+  assert(await page.locator('.pro-action').count()===3,'Dashboard must expose exactly 3 primary quick actions');
+
   const health=await page.locator('#guideHealth').innerText();
   assert(health.includes('Контроль справочника: OK'),'Guide health failed: '+health);
   assert(health.includes('следующая обязательная перепроверка'),'Guide must display HMS re-verification deadline');
