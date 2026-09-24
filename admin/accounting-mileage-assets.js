@@ -6,7 +6,12 @@
     view.querySelector('#mileageForm').addEventListener('submit',saveMileage);
     view.querySelector('[data-export="mileage"]').addEventListener('click',()=>A.exportCsv('mileage'));
   };
-  async function saveMileage(e){e.preventDefault();const f=new FormData(e.target),row={trip_date:String(f.get('date')),vehicle_plate:String(f.get('plate')).trim().toUpperCase(),start_place:String(f.get('start')).trim(),end_place:String(f.get('end')).trim(),purpose:String(f.get('purpose')).trim(),kilometers:A.num(f.get('km')),order_id:f.get('order')||null,notes:String(f.get('notes')||'').trim()||null};const {error}=await A.sb.from('accounting_mileage').insert(row);if(error){alert(error.message);return;}await A.load();A.render();}
+  async function saveMileage(e){
+    e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),f=new FormData(form),row={trip_date:String(f.get('date')),vehicle_plate:String(f.get('plate')).trim().toUpperCase(),start_place:String(f.get('start')).trim(),end_place:String(f.get('end')).trim(),purpose:String(f.get('purpose')).trim(),kilometers:A.num(f.get('km')),order_id:f.get('order')||null,notes:String(f.get('notes')||'').trim()||null};
+    button.disabled=true;
+    try{const {error}=await A.sb.from('accounting_mileage').insert(row);if(error)throw error;await A.load();A.render();}
+    catch(error){window.SIR_ADMIN_RUNTIME?.record(error,'accounting.mileage_save');alert('Не удалось сохранить поездку. Изменения не применены.');button.disabled=false;}
+  }
 
   A.views.assets=view=>{
     const s=A.state,threshold=A.num(s.settings.asset_capitalization_threshold||30000);
@@ -15,5 +20,17 @@
     view.querySelector('[data-export="assets"]').addEventListener('click',()=>A.exportCsv('assets'));
     view.querySelectorAll('.open-doc').forEach(b=>b.addEventListener('click',()=>A.openDocument(b.dataset.path)));
   };
-  async function saveAsset(e){e.preventDefault();const f=new FormData(e.target),file=f.get('receipt');let receiptPath=null;try{if(file&&file.size)receiptPath=await A.uploadDocument(file,'assets');}catch(err){alert(err.message||String(err));return;}const row={purchase_date:String(f.get('date')),name:String(f.get('name')).trim(),supplier:String(f.get('supplier')||'').trim()||null,document_no:String(f.get('document_no')||'').trim()||null,purchase_price:A.num(f.get('price')),vat_rate:A.num(f.get('vat')),business_use_percent:A.num(f.get('business')),expected_use_years:f.get('years')?A.num(f.get('years')):null,receipt_path:receiptPath,notes:String(f.get('notes')||'').trim()||null};const {error}=await A.sb.from('accounting_assets').insert(row);if(error){alert(error.message);return;}await A.load();A.render();}
+  async function saveAsset(e){
+    e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),f=new FormData(form),file=f.get('receipt');let receiptPath=null;button.disabled=true;
+    try{
+      if(file&&file.size)receiptPath=await A.uploadDocument(file,'assets');
+      const row={purchase_date:String(f.get('date')),name:String(f.get('name')).trim(),supplier:String(f.get('supplier')||'').trim()||null,document_no:String(f.get('document_no')||'').trim()||null,purchase_price:A.num(f.get('price')),vat_rate:A.num(f.get('vat')),business_use_percent:A.num(f.get('business')),expected_use_years:f.get('years')?A.num(f.get('years')):null,receipt_path:receiptPath,notes:String(f.get('notes')||'').trim()||null};
+      const {error}=await A.sb.from('accounting_assets').insert(row);if(error)throw error;await A.load();A.render();
+    }catch(error){
+      if(receiptPath)await A.removeDocument(receiptPath);
+      window.SIR_ADMIN_RUNTIME?.record(error,'accounting.asset_save');
+      alert('Не удалось сохранить оборудование. Частичный документ удалён.');
+      button.disabled=false;
+    }
+  }
 })();
