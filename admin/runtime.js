@@ -10,7 +10,7 @@
     el.className='sir-runtime-banner hidden';
     el.setAttribute('role','status');
     el.setAttribute('aria-live','polite');
-    el.innerHTML='<div><b id="sirRuntimeTitle">SIR Admin</b><span id="sirRuntimeText"></span></div><button type="button" id="sirRuntimeReload">Обновить</button>';
+    el.innerHTML='<div><b id="sirRuntimeTitle">Админ-панель SIR</b><span id="sirRuntimeText"></span></div><button type="button" id="sirRuntimeReload">Обновить</button>';
     (document.body||document.documentElement).appendChild(el);
     el.querySelector('#sirRuntimeReload')?.addEventListener('click',()=>location.reload());
     return el;
@@ -19,7 +19,7 @@
   function paint(){
     const el=ensureBanner(),title=el.querySelector('#sirRuntimeTitle'),text=el.querySelector('#sirRuntimeText');
     if(state.fatal){
-      title.textContent='Ошибка SIR Admin';
+      title.textContent='Ошибка админ-панели SIR';
       text.textContent='Критический модуль не загрузился. Данные не изменялись. Обновите страницу.';
       el.classList.remove('hidden','offline');el.classList.add('fatal');return;
     }
@@ -29,7 +29,7 @@
       el.classList.remove('hidden','fatal');el.classList.add('offline');return;
     }
     if(state.errors.length){
-      title.textContent='SIR Admin восстановился после ошибки';
+      title.textContent='Админ-панель SIR восстановилась после ошибки';
       text.textContent='Если раздел работает необычно, обновите страницу перед изменением данных.';
       el.classList.remove('hidden','offline','fatal');return;
     }
