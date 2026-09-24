@@ -2,6 +2,7 @@
   const C=window.SIR_CONFIG,root=document.getElementById('paymentsApp');
   const sb=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const ensureWritable=()=>{if(navigator.onLine)return true;window.SIR_ADMIN_RUNTIME?.refresh();alert('Нет сети. Изменения не отправлены. После восстановления подключения повторите действие.');return false;};
   const money=v=>`${new Intl.NumberFormat('nb-NO',{maximumFractionDigits:0}).format(+v||0)} NOK`;
   let session,profile,orders=[],referrals=[],customers=[];
   init();
@@ -45,6 +46,7 @@
     root.querySelectorAll('.copy-ref').forEach(b=>b.addEventListener('click',async()=>{const link=referralUrl(b.dataset.code);try{await navigator.clipboard.writeText(link);b.textContent='Скопировано';setTimeout(()=>b.textContent='Копировать ссылку',1600);}catch(_e){prompt('Скопируйте ссылку:',link);}}));
   }
   async function applyCredit(id,maxAvailable){
+    if(!ensureWritable())return;
     const row=orders.find(o=>o.id===id);if(!row)return;
     const current=+row.customer_credit_applied||0;
     const raw=prompt(`Сколько бонуса применить? Доступно: ${money(maxAvailable)}. Введите 0, чтобы вернуть ранее применённый бонус на баланс.`,String(current||Math.min(maxAvailable,+row.final_price||0)));
@@ -65,7 +67,8 @@
     const id=tr.dataset.order,status=tr.querySelector('.pay-status').value;
     const row=orders.find(o=>o.id===id);
     if(status==='paid'&&row?.status!=='completed'&&!confirm('Заказ ещё не имеет статус «Выполнен». Отметить оплату всё равно? Бонус рекомендателю начислится только после завершения заказа.'))return;
-    const {error}=await sb.from('orders').update({payment_status:status}).eq('id',id);
+    if(!ensureWritable())return;
+    const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:{payment_status:status},p_appointment:null});
     if(error){window.SIR_ADMIN_RUNTIME?.record(error,'payments.update');alert('Не удалось изменить оплату. Изменения не применены.');return;}
     if(await load())render();
   }
