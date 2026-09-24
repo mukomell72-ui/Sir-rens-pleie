@@ -151,6 +151,22 @@ def main() -> int:
     if "guide-editor.html" not in admin_index:
         errors.append("Admin navigation is missing Guide Editor")
 
+    admin_js = (ROOT / "admin" / "admin.js").read_text(encoding="utf-8")
+    for marker in ("sir-admin-control-center", "table:'orders'", "table:'appointments'", "table:'chemicals'", "nextStatusAction", "order_events", "stock_status", "payment_status"):
+        if marker not in admin_js:
+            errors.append(f"Admin control-center marker is missing: {marker}")
+    if 'data-view="inventory"' not in admin_index or "Центр контроля" not in admin_index:
+        errors.append("Admin navigation is missing the central control/inventory workspace")
+
+    status_page = (ROOT / "status" / "index.html").read_text(encoding="utf-8")
+    for marker in ("public_get_order_status", "setInterval", "15000", "Обновляется автоматически"):
+        if marker not in status_page:
+            errors.append(f"Public order live-status marker is missing: {marker}")
+
+    control_migration = ROOT / "supabase" / "migrations" / "20260924073831_sir_admin_control_center_realtime_inventory.sql"
+    if not control_migration.exists():
+        errors.append("Control-center realtime/inventory migration is missing")
+
     guide = (ROOT / "guide-app" / "index-v13.html").read_text(encoding="utf-8")
     guide_scripts = ("photos-v13.js", "inventory-v13-1.js", "inventory-v13-2.js", "inventory-v13-3.js", "inventory-v13-4.js", "hse-v13.js", "guide-wizard.js", "app-v13.js")
     guide_positions = [guide.find(script) for script in guide_scripts]
