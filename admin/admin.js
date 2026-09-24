@@ -52,7 +52,13 @@ document.getElementById('logout').addEventListener('click',async()=>{if(sb&&!pre
 document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;document.querySelectorAll('#nav [data-view]').forEach(x=>x.classList.toggle('active',x===b));render(b.dataset.view);});
 
 async function enter(role){
-  login.classList.add('hidden');app.classList.remove('hidden');document.getElementById('roleBadge').textContent=role;
+  const normalized=String(role||'PREVIEW').trim().toUpperCase();
+  currentRole=normalized;
+  const badge=document.getElementById('roleBadge');
+  document.documentElement.dataset.adminRole=normalized;
+  if(badge){badge.dataset.role=normalized;badge.textContent=normalized;}
+  window.SIR_ROLE_UI?.apply?.();
+  login.classList.add('hidden');app.classList.remove('hidden');
   if(!preview){startRealtime();startRealtimeFallback();}
   render('dashboard');
 }
