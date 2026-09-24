@@ -149,6 +149,13 @@ def main() -> int:
     if "technology-procedures.js" not in technology:
         errors.append("SIR Technology is missing the editable procedure integration")
 
+    technology_js = (ROOT / "admin" / "technology.js").read_text(encoding="utf-8")
+    for marker in ("approve_order_technology_card", "raise_order_stop", "service_type==='rug'", "wanted.add('carpet')", "technology.load"):
+        if marker not in technology_js:
+            errors.append(f"SIR Technology hardening marker is missing: {marker}")
+    if "technology.js?v=20260924-audit2" not in technology:
+        errors.append("SIR Technology cache-bust is stale")
+
     admin_index = (ROOT / "admin" / "index.html").read_text(encoding="utf-8")
     if "guide-editor.html" not in admin_index:
         errors.append("Admin navigation is missing Guide Editor")
@@ -208,6 +215,10 @@ def main() -> int:
         "20260924085408_sir_order_workflow_gate.sql",
         "20260924085616_sir_atomic_order_decision.sql",
         "20260924085757_sir_order_completion_review_gate.sql",
+        "20260924090641_sir_atomic_technology_approval.sql",
+        "20260924090749_sir_rug_technology_flow.sql",
+        "20260924091915_sir_atomic_stop_and_clearance_gate.sql",
+        "20260924092025_sir_owner_admin_risk_downgrade.sql",
     ):
         if not (ROOT / "supabase" / "migrations" / migration).exists():
             errors.append(f"Admin hardening migration is missing: {migration}")
@@ -230,6 +241,21 @@ def main() -> int:
     for marker in ("revoke truncate", "trigger", "references", "anon", "authenticated", "alter default privileges"):
         if marker not in privilege_hardening:
             errors.append(f"Dangerous privilege hardening is missing: {marker}")
+
+    rug_flow = (ROOT / "supabase" / "migrations" / "20260924090749_sir_rug_technology_flow.sql").read_text(encoding="utf-8")
+    for marker in ("service_type='rug'", "array['carpet']", "high_risk", "Ковёр: STOP"):
+        if marker not in rug_flow:
+            errors.append(f"Rug technology fail-safe is missing: {marker}")
+
+    stop_clearance = (ROOT / "supabase" / "migrations" / "20260924091915_sir_atomic_stop_and_clearance_gate.sql").read_text(encoding="utf-8")
+    for marker in ("raise_order_stop", "reviewed_by=null", "reviewed_at=null", "sir_guard_order_risk_downgrade"):
+        if marker not in stop_clearance:
+            errors.append(f"Atomic STOP protection is missing: {marker}")
+
+    risk_downgrade = (ROOT / "supabase" / "migrations" / "20260924092025_sir_owner_admin_risk_downgrade.sql").read_text(encoding="utf-8")
+    for marker in ("owner','admin", "v_new_rank < v_old_rank", "newly reviewed technology card"):
+        if marker not in risk_downgrade:
+            errors.append(f"Risk downgrade protection is missing: {marker}")
 
     photo_function = (ROOT / "supabase" / "functions" / "order-photo-upload" / "index.ts").read_text(encoding="utf-8")
     if 'npm:@supabase/supabase-js@2.117.1' not in photo_function:
