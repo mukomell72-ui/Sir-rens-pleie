@@ -27,6 +27,7 @@ const browser=await chromium.launch({headless:true});
 {
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,locale:'ru-RU'});
   const page=await context.newPage();
+  await page.addInitScript(()=>localStorage.setItem('sir_admin_lang','ru'));
   const pageErrors=[];
   page.on('pageerror',e=>pageErrors.push(e.message));
   await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1',route=>route.abort('failed'));
@@ -42,6 +43,7 @@ const browser=await chromium.launch({headless:true});
 {
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,locale:'ru-RU'});
   const page=await context.newPage();
+  await page.addInitScript(()=>localStorage.setItem('sir_admin_lang','ru'));
   const pageErrors=[];
   page.on('pageerror',e=>pageErrors.push(e.message));
   await page.goto('http://127.0.0.1:4173/admin/',{waitUntil:'domcontentloaded'});
