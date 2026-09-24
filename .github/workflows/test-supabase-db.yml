@@ -167,6 +167,110 @@ jobs:
             values(v_order_after,v_expired_start+interval '30 minutes',v_expired_start+interval '90 minutes',false,0);
           end $$;
 
+          do $workflow$
+          declare
+            v_owner uuid;
+            v_order uuid;
+            caught boolean;
+          begin
+            select id into v_owner from public.profiles where role='owner' and active=true limit 1;
+            if v_owner is null then raise exception 'active_owner_missing'; end if;
+
+            insert into public.orders(
+              customer_name,phone,service_type,status,risk_level,final_price,assigned_to
+            )
+            values('CI Workflow','9000000021','car','confirmed','caution',1000,v_owner)
+            returning id into v_order;
+
+            caught:=false;
+            begin
+              update public.orders set status='in_progress' where id=v_order;
+            exception when others then
+              caught:=position('reviewed technology card required' in SQLERRM)>0;
+            end;
+            if not caught then raise exception 'work_started_without_reviewed_technology'; end if;
+
+            insert into public.order_technology_cards(
+              order_id,risk_level,reviewed_by,reviewed_at,instructions,stop_conditions
+            )
+            values(v_order,'caution',v_owner,now(),'[]'::jsonb,'[]'::jsonb);
+
+            update public.orders set status='in_progress' where id=v_order;
+
+            update public.orders set risk_level='stop' where id=v_order;
+            caught:=false;
+            begin
+              update public.orders set status='completed' where id=v_order;
+            exception when others then
+              caught:=position('STOP risk blocks work completion' in SQLERRM)>0;
+            end;
+            if not caught then raise exception 'stop_order_completed'; end if;
+
+            update public.orders set risk_level='caution' where id=v_order;
+            update public.order_technology_cards set reviewed_by=null,reviewed_at=null where order_id=v_order;
+            caught:=false;
+            begin
+              update public.orders set status='completed' where id=v_order;
+            exception when others then
+              caught:=position('reviewed technology card required before completion' in SQLERRM)>0;
+            end;
+            if not caught then raise exception 'work_completed_without_reviewed_technology'; end if;
+
+            update public.order_technology_cards set reviewed_by=v_owner,reviewed_at=now() where order_id=v_order;
+            update public.orders set status='completed' where id=v_order;
+            if (select completed_at is null from public.orders where id=v_order) then
+              raise exception 'completed_at_not_normalized';
+            end if;
+
+            update public.orders set status='confirmed' where id=v_order;
+            if (select completed_at is not null from public.orders where id=v_order) then
+              raise exception 'completed_at_not_cleared_on_reopen';
+            end if;
+
+            caught:=false;
+            begin
+              update public.orders set status='completed' where id=v_order;
+            exception when others then
+              caught:=position('must be in progress before completion' in SQLERRM)>0;
+            end;
+            if not caught then raise exception 'completed_without_in_progress'; end if;
+          end $workflow$;
+
+          do $privileges$
+          declare
+            r record;
+            role_name text;
+          begin
+            foreach role_name in array array['anon','authenticated'] loop
+              for r in
+                select c.oid::regclass as rel
+                from pg_class c
+                join pg_namespace n on n.oid=c.relnamespace
+                where n.nspname='public' and c.relkind in ('r','p')
+              loop
+                if has_table_privilege(role_name,r.rel,'TRUNCATE') then
+                  raise exception '% still has TRUNCATE on %',role_name,r.rel;
+                end if;
+                if has_table_privilege(role_name,r.rel,'TRIGGER') then
+                  raise exception '% still has TRIGGER on %',role_name,r.rel;
+                end if;
+                if has_table_privilege(role_name,r.rel,'REFERENCES') then
+                  raise exception '% still has REFERENCES on %',role_name,r.rel;
+                end if;
+              end loop;
+            end loop;
+
+            if has_function_privilege('anon','public.save_order_decision(uuid,jsonb,jsonb)','EXECUTE') then
+              raise exception 'anon_atomic_order_decision_execute_granted';
+            end if;
+            if not has_function_privilege('authenticated','public.save_order_decision(uuid,jsonb,jsonb)','EXECUTE') then
+              raise exception 'authenticated_atomic_order_decision_execute_missing';
+            end if;
+            if (select prosecdef from pg_proc where oid='public.save_order_decision(uuid,jsonb,jsonb)'::regprocedure) then
+              raise exception 'atomic_order_decision_must_be_security_invoker';
+            end if;
+          end $privileges$;
+
           do $hse$
           declare
             caught boolean;
