@@ -129,14 +129,18 @@
     tab==='chemicals'?renderChemicals():renderProcedures();
   }
   const hseBlocked=c=>!!c&&(c.risk_level==='stop'||!['verified','source_reviewed'].includes(c.hse_status));
-  const readyToUse=c=>/ready to use|do not dilute|undiluted|не разбавлять|готово к применению/i.test(String(c?.dilution||''));
+  const readyToUse=c=>/ready to use|do not dilute|undiluted|use as supplied|no dilution step|не разбавлять|готово к применению/i.test(String(c?.dilution||''));
   function ratioOptions(text){
     const src=String(text||'').replace(/,/g,'.'),values=[];
     for(const m of src.matchAll(/1\s*:\s*(\d+(?:\.\d+)?)/g)){const n=Number(m[1]);if(n>0)values.push(n);}
     if(/50\s*:\s*50/.test(src))values.push(1);
     const dose=src.match(/(\d+(?:\.\d+)?)\s*ml[^\d]{0,40}(\d+(?:\.\d+)?)\s*l/i);
     if(dose){const product=Number(dose[1]),water=Number(dose[2])*1000;if(product>0&&water>0)values.push(water/product);}
-    return [...new Set(values.map(v=>Number(v.toFixed(4))))];
+    for(const m of src.matchAll(/(\d+(?:\.\d+)?)\s*[–-]\s*(\d+(?:\.\d+)?)\s*%/g)){
+      for(const p of [Number(m[1]),Number(m[2])])if(p>0&&p<100)values.push((100-p)/p);
+    }
+    for(const m of src.matchAll(/(?:^|[^\d.])(\d+(?:\.\d+)?)\s*%/g)){const p=Number(m[1]);if(p>0&&p<100)values.push((100-p)/p);}
+    return [...new Set(values.map(v=>Number(v.toFixed(4))))].sort((a,b)=>a-b);
   }
   function calcMix(ratio,volume,mode){
     const r=Number(ratio),v=Number(volume);
@@ -156,7 +160,7 @@
   function calculatorMarkup(){
     const selected=chemicals.find(c=>c.id===calcChemicalId)||null;
     const ratios=selected?ratioOptions(selected.dilution):[];
-    const blocked=hseBlocked(selected),ready=readyToUse(selected);
+    const blocked=hseBlocked(selected),ready=readyToUse(selected),unparsed=!!selected&&!blocked&&!ready&&!ratios.length;
     const ratioButtons=ratios.length?`<div class="toolbar" id="ratioPresets">${ratios.map(r=>`<button class="btn ratio-preset" type="button" data-ratio="${r}">1:${r}</button>`).join('')}</div>`:'';
     const guidance=selected?trDilution(selected.dilution||'Разведение не указано'):'Выберите средство или введите пропорцию вручную.';
     const safety=!selected
@@ -165,14 +169,16 @@
         ?'<div class="notice"><b>STOP:</b> выбранное средство не прошло HMS/SDS-проверку или заблокировано. Рабочий расчёт для него отключён.</div>'
         :ready
           ?'<div class="notice safe"><b>Готово к применению.</b> Для выбранного средства разведение не требуется.</div>'
-          :'<div class="notice safe"><b>Разведение из карточки:</b> '+esc(guidance)+'</div>';
+          :unparsed
+            ?'<div class="notice"><b>Расчёт заблокирован:</b> из карточки не удалось однозначно определить пропорцию. Сначала уточните официальное разведение производителя.</div>'
+            :'<div class="notice safe"><b>Разведение из карточки:</b> '+esc(guidance)+'<br><span class="mini">По умолчанию выбирается самое слабое из распознанных допустимых разведений.</span></div>';
     return `<div class="card" id="dilutionCalculator">
       <div class="section-title"><div><h2>Калькулятор разбавления</h2><p>Считает точное количество химии и воды для нужного объёма.</p></div></div>
       <div class="settings-grid">
         <div class="field"><label>Средство</label><select id="calcChemical"><option value="">Без привязки — ручной расчёт</option>${chemicals.filter(c=>c.active!==false).map(c=>`<option value="${c.id}" ${c.id===calcChemicalId?'selected':''}>${esc([c.brand,c.name].filter(Boolean).join(' '))}</option>`).join('')}</select></div>
-        <div class="field"><label>Пропорция</label><div class="mini">1 часть средства + X частей воды</div><input id="calcRatio" type="number" min="0.01" step="0.01" value="${esc(calcRatio)}" ${blocked||ready?'disabled':''}></div>
-        <div class="field"><label>${calcMode==='water'?'Сколько воды уже налито, мл':'Нужный итоговый объём, мл'}</label><input id="calcVolume" type="number" min="1" step="1" value="${esc(calcVolume)}" ${blocked||ready?'disabled':''}></div>
-        <div class="field"><label>Как считать</label><select id="calcMode" ${blocked||ready?'disabled':''}><option value="final" ${calcMode==='final'?'selected':''}>Итоговый объём раствора</option><option value="water" ${calcMode==='water'?'selected':''}>Вода уже налита</option></select></div>
+        <div class="field"><label>Пропорция</label><div class="mini">1 часть средства + X частей воды</div><input id="calcRatio" type="number" min="0.01" step="0.01" value="${esc(calcRatio)}" ${blocked||ready||unparsed?'disabled':''}></div>
+        <div class="field"><label>${calcMode==='water'?'Сколько воды уже налито, мл':'Нужный итоговый объём, мл'}</label><input id="calcVolume" type="number" min="1" step="1" value="${esc(calcVolume)}" ${blocked||ready||unparsed?'disabled':''}></div>
+        <div class="field"><label>Как считать</label><select id="calcMode" ${blocked||ready||unparsed?'disabled':''}><option value="final" ${calcMode==='final'?'selected':''}>Итоговый объём раствора</option><option value="water" ${calcMode==='water'?'selected':''}>Вода уже налита</option></select></div>
       </div>
       ${ratioButtons}
       ${safety}
@@ -188,7 +194,7 @@
       if(volume&&!volume.disabled)calcVolume=Number(volume.value)||0;
       if(mode&&!mode.disabled)calcMode=mode.value;
       const selected=chemicals.find(c=>c.id===calcChemicalId)||null;
-      if(selected&&(hseBlocked(selected)||readyToUse(selected))){result.innerHTML='';return;}
+      if(selected&&(hseBlocked(selected)||readyToUse(selected)||!ratioOptions(selected.dilution).length)){result.innerHTML='';return;}
       const out=calcMix(calcRatio,calcVolume,calcMode);
       if(!out){result.innerHTML='<div class="notice">Введите корректную пропорцию и объём больше нуля.</div>';return;}
       result.innerHTML=`<div class="notice safe"><b>Результат 1:${esc(calcRatio)}</b><br>Средство: <b>${ml(out.chemical)}</b><br>Вода: <b>${ml(out.water)}</b><br>Итого: <b>${ml(out.total)}</b><br><span class="mini">Концентрация средства в готовом растворе: ${out.concentration.toFixed(2).replace(/0+$/,'').replace(/\.$/,'')}%</span></div>`;
@@ -196,7 +202,7 @@
     product?.addEventListener('change',()=>{
       calcChemicalId=product.value;
       const selected=chemicals.find(c=>c.id===calcChemicalId)||null,opts=selected?ratioOptions(selected.dilution):[];
-      if(opts.length===1)calcRatio=opts[0];
+      if(opts.length)calcRatio=Math.max(...opts);
       renderChemicals();
       setTimeout(()=>root.querySelector('#dilutionCalculator')?.scrollIntoView({behavior:'smooth',block:'start'}),0);
     });
@@ -217,7 +223,7 @@
     body.querySelectorAll('.calc-chemical').forEach(b=>b.addEventListener('click',()=>{
       calcChemicalId=b.dataset.id;
       const selected=chemicals.find(x=>x.id===calcChemicalId),opts=selected?ratioOptions(selected.dilution):[];
-      if(opts.length===1)calcRatio=opts[0];
+      if(opts.length)calcRatio=Math.max(...opts);
       renderChemicals();
       setTimeout(()=>root.querySelector('#dilutionCalculator')?.scrollIntoView({behavior:'smooth',block:'start'}),0);
     }));
