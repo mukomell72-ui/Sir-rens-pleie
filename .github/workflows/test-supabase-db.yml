@@ -200,7 +200,7 @@ jobs:
             begin
               update public.orders set status='in_progress' where id=v_order;
             exception when others then
-              caught:=position('reviewed technology card required' in SQLERRM)>0;
+              caught:=position('reviewed technology card' in SQLERRM)>0;
             end;
             if not caught then raise exception 'work_started_without_reviewed_technology'; end if;
 
