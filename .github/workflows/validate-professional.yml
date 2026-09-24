@@ -88,6 +88,11 @@ jobs:
           done
           cat /tmp/sir-http.log
           exit 1
+      - name: Run admin and Guide NO/RU language regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s node tests/admin-i18n.mjs
       - name: Run SIR Guide professional/HMS/offline regression
         shell: bash
         run: |
@@ -133,8 +138,3 @@ jobs:
         run: |
           set -euo pipefail
           timeout 60s node tests/admin-workspace.mjs
-      - name: Run admin and Guide NO/RU language regression
-        shell: bash
-        run: |
-          set -euo pipefail
-          timeout 60s node tests/admin-i18n.mjs
