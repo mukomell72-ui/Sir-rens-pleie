@@ -452,7 +452,7 @@ async function settings(){
       ['referral',{referrer_credit:+f.get('referrer_credit'),new_customer_discount:+f.get('new_customer_discount'),minimum_order:+f.get('ref_minimum_order')}],
       ['work_rules',{working_day_start:String(f.get('working_day_start')),working_day_end:String(f.get('working_day_end')),default_buffer_minutes:+f.get('default_buffer_minutes')}]
     ];
-    for(const [key,value] of updates){const {error}=await sb.from('app_settings').update({value}).eq('key',key);if(error){alert(error.message);return;}}
+    for(const [key,value] of updates){const {error}=await sb.from('app_settings').upsert({key,value},{onConflict:'key'});if(error){window.SIR_ADMIN_RUNTIME?.record(error,'settings.upsert');alert('Не удалось сохранить настройки. Изменения не применены.');return;}}
     for(const tr of main.querySelectorAll('[data-price]')){const {error}=await sb.from('price_rules').update({light_price:numOrNull(tr.querySelector('.p-light').value),medium_price:numOrNull(tr.querySelector('.p-medium').value),heavy_price:numOrNull(tr.querySelector('.p-heavy').value)}).eq('id',tr.dataset.price);if(error){alert(error.message);return;}}
     alert('Настройки сохранены. Клиентский калькулятор получит новые цены автоматически.');settings();
   });
