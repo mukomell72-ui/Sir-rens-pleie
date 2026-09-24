@@ -134,6 +134,17 @@ function nextStatusAction(status){
     completed:{status:'in_progress',label:'↩ Вернуть в работу'}
   }[status]||null;
 }
+function orderActionError(error){
+  const m=String(error?.message||error||'').toLowerCase();
+  if(m.includes('reviewed technology card'))return'Сначала сформируйте и подтвердите технологическую карту.';
+  if(m.includes('worker must be assigned'))return'Перед началом работы назначьте исполнителя.';
+  if(m.includes('final price'))return'Перед началом работы согласуйте итоговую цену.';
+  if(m.includes('stop risk'))return'STOP: работу нельзя начать или завершить, пока риск не снят и не перепроверен.';
+  if(m.includes('must be in progress'))return'Сначала переведите заказ в статус «В работе».';
+  if(m.includes('confirmed or scheduled'))return'Сначала подтвердите или запланируйте заказ.';
+  if(m.includes('appointment'))return'Не удалось сохранить время работы. Проверьте дату и интервал.';
+  return'Изменение не сохранено. Проверьте данные и подключение, затем повторите.';
+}
 function normalizeSmsPhone(phone){
   const raw=String(phone||'').trim();
   if(!raw)return'';
@@ -343,12 +354,13 @@ async function orderDetail(id){
     if(controls.length){
       main.querySelector('.decision-bar')?.insertAdjacentHTML('afterend',`<div class="quick-workflow"><span>Быстрое действие</span><div class="toolbar">${controls.join('')}</div></div>`);
       main.querySelector('[data-quick-status]')?.addEventListener('click',async e=>{
-        const next=e.currentTarget.dataset.quickStatus,patch={status:next};
-        if(next==='completed')patch.completed_at=new Date().toISOString();
-        if(next==='in_progress'&&o.status==='completed')patch.completed_at=null;
+        const next=e.currentTarget.dataset.quickStatus;
         e.currentTarget.disabled=true;
-        const {error}=await sb.from('orders').update(patch).eq('id',id);
-        if(error){e.currentTarget.disabled=false;alert(error.message);return;}
+        const {error}=await sb.from('orders').update({status:next}).eq('id',id);
+        if(error){
+          window.SIR_ADMIN_RUNTIME?.record(error,'order.quick_status');
+          e.currentTarget.disabled=false;alert(orderActionError(error));return;
+        }
         orderDetail(id);
       });
       main.querySelector('[data-mark-paid]')?.addEventListener('click',async e=>{
@@ -363,14 +375,41 @@ async function orderDetail(id){
     main.insertAdjacentHTML('beforeend',`<section class="panel order-history"><div class="panel-head"><span>История статусов</span><span class="mini">${events.length} событий</span></div><div class="activity-list">${events.map(x=>`<div class="activity-row"><span>${new Date(x.created_at).toLocaleString('ru')}</span><b>${esc(statusLabel[x.from_value]||x.from_value||'—')} → ${esc(statusLabel[x.to_value]||x.to_value||'—')}</b><small>${esc(x.note||'Статус синхронизирован с заказом')}</small></div>`).join('')}</div></section>`);
   }
   main.querySelector('#orderForm').addEventListener('submit',async e=>{
-    e.preventDefault();const f=new FormData(e.target),patch={internal_note:String(f.get('note')||'')};
-    if(canManage()){patch.status=String(f.get('status'));patch.payment_status=String(f.get('payment_status')||'unpaid');patch.risk_level=String(f.get('risk'));patch.final_price=numOrNull(f.get('final_price'));patch.assigned_to=f.get('assigned_to')||null;if(patch.status==='completed'&&!o.completed_at)patch.completed_at=new Date().toISOString();if(patch.status!=='completed'&&o.status==='completed')patch.completed_at=null;}if(patch.status==='in_progress'&&patch.risk_level==='stop'){alert('STOP: работу нельзя начинать, пока риск STOP не устранён и не перепроверен.');return;}
-    const {error:ue}=await sb.from('orders').update(patch).eq('id',id);if(ue){alert(ue.message);return;}
-    if(canManage()){
-      const date=String(f.get('date')||''),time=String(f.get('time')||'');
-      if(date&&time){const start=new Date(`${date}T${time}:00`),duration=Math.max(30,+f.get('duration')||240),row={order_id:id,starts_at:start.toISOString(),ends_at:new Date(start.getTime()+duration*60000).toISOString(),tentative:String(f.get('tentative'))==='true',address:o.address||null};if(appt?.id)await sb.from('appointments').update(row).eq('id',appt.id);else await sb.from('appointments').insert(row);}
+    e.preventDefault();
+    const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),f=new FormData(form);
+    const patch={internal_note:String(f.get('note')||'')};
+    button.disabled=true;
+    try{
+      if(canManage()){
+        patch.status=String(f.get('status'));
+        patch.payment_status=String(f.get('payment_status')||'unpaid');
+        patch.risk_level=String(f.get('risk'));
+        patch.final_price=numOrNull(f.get('final_price'));
+        patch.assigned_to=f.get('assigned_to')||null;
+        if(patch.status==='in_progress'&&patch.risk_level==='stop')throw new Error('STOP risk blocks work start');
+
+        const date=String(f.get('date')||''),time=String(f.get('time')||'');
+        if((date&&!time)||(!date&&time))throw new Error('invalid appointment interval');
+        let appointment=null;
+        if(date&&time){
+          const start=new Date(`${date}T${time}:00`);
+          if(Number.isNaN(start.getTime()))throw new Error('invalid appointment interval');
+          const duration=Math.max(30,+f.get('duration')||240);
+          appointment={id:appt?.id||null,starts_at:start.toISOString(),ends_at:new Date(start.getTime()+duration*60000).toISOString(),tentative:String(f.get('tentative'))==='true',address:o.address||null};
+        }
+        const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:patch,p_appointment:appointment});
+        if(error)throw error;
+      }else{
+        const {error}=await sb.from('orders').update(patch).eq('id',id);
+        if(error)throw error;
+      }
+      alert('Сохранено');orderDetail(id);
+    }catch(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'order.save');
+      alert(orderActionError(error));
+    }finally{
+      button.disabled=false;
     }
-    alert('Сохранено');orderDetail(id);
   });
 }
 
