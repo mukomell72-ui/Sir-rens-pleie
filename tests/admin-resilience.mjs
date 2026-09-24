@@ -6,8 +6,11 @@ const adminSource=await readFile(new URL('../admin/admin.js',import.meta.url),'u
 assert.match(adminSource,/\['CHANNEL_ERROR','TIMED_OUT','CLOSED'\]/);
 assert.match(adminSource,/scheduleRealtimeReconnect/);
 assert.match(adminSource,/realtimeBackoffMs=Math\.min\(realtimeBackoffMs\*2,30000\)/);
-assert.match(adminSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch:\{status:next\},p_appointment:null\}\)/);
-assert.match(adminSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch:\{payment_status:'paid'\},p_appointment:null\}\)/);
+assert.match(adminSource,/orderEditorDirty/);
+assert.match(adminSource,/remoteOrderUpdate/);
+assert.match(adminSource,/_expected_updated_at:o\.updated_at/);
+assert.match(adminSource,/p_patch:\{status:next,_expected_updated_at:o\.updated_at\}/);
+assert.match(adminSource,/p_patch:\{payment_status:'paid',_expected_updated_at:o\.updated_at\}/);
 assert.match(adminSource,/if\(!ensureWritable\(\)\)return/);
 
 const calendarSource=await readFile(new URL('../admin/calendar.js',import.meta.url),'utf8');
