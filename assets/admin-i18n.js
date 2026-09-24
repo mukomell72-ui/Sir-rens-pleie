@@ -110,23 +110,10 @@
     return lead+value+tail;
   }
 
-  const rxEscape=v=>String(v).replace(/[.*+?^{}$()|[\]\\]/g,'\\  function translate(raw){
-    if(raw==null)return raw;
-    const s=String(raw),t=s.trim();
-    if(!t)return s;
-    const hit=exact.get(t);
-    if(hit)return preserveSpace(s,hit[lang]);
-    let out=t;
-    if(lang==='no' && /[А-Яа-яЁё]/.test(out)){
-      for(const [ru,no] of ruParts)out=out.split(ru).join(no);
-    }else if(lang==='ru' && /[A-Za-zÆØÅæøå]/.test(out)){
-      for(const [no,ru] of noParts)out=out.split(no).join(ru);
-    }
-    return out===t?s:preserveSpace(s,out);
-  }');
+  const rxEscape=v=>String(v).replace(/[.*+?^$(){}|[\]\\]/g,'\\$&');
   function replacePart(value,from,to){
     if(!from)return value;
-    if(/^[\\p{L}\\p{N}_]+$/u.test(from)){
+    if(/^[\p{L}\p{N}_]+$/u.test(from)){
       const re=new RegExp('(^|[^\\p{L}\\p{N}_])'+rxEscape(from)+'(?=$|[^\\p{L}\\p{N}_])','gu');
       return value.replace(re,(m,prefix)=>prefix+to);
     }
@@ -135,17 +122,17 @@
 
   function translate(raw){
     if(raw==null)return raw;
-    const s=String(raw),t=s.trim();
-    if(!t)return s;
-    const hit=exact.get(t);
-    if(hit)return preserveSpace(s,hit[lang]);
-    let out=t;
+    const source=String(raw),trimmed=source.trim();
+    if(!trimmed)return source;
+    const hit=exact.get(trimmed);
+    if(hit)return preserveSpace(source,hit[lang]);
+    let out=trimmed;
     if(lang==='no' && /[А-Яа-яЁё]/.test(out)){
       for(const [ru,no] of ruParts)out=replacePart(out,ru,no);
     }else if(lang==='ru' && /[A-Za-zÆØÅæøå]/.test(out)){
       for(const [no,ru] of noParts)out=replacePart(out,no,ru);
     }
-    return out===t?s:preserveSpace(s,out);
+    return out===trimmed?source:preserveSpace(source,out);
   }
 
   let applying=false;
