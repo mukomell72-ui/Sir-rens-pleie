@@ -2,7 +2,7 @@
   const C=window.SIR_CONFIG;
   const root=document.getElementById('techApp');
   const orderId=new URLSearchParams(location.search).get('order');
-  const sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
+  const sb=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const safeUrl=v=>{try{const u=new URL(String(v||''));return u.protocol==='https:'?u.href:'';}catch{return'';}};
   const riskRank={low:1,caution:2,high_risk:3,stop:4};
