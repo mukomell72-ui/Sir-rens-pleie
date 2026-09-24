@@ -2,7 +2,7 @@
 const workspaceCss=document.createElement('link');workspaceCss.rel='stylesheet';workspaceCss.href='workspace.css';document.head.appendChild(workspaceCss);
 const inspectionScript=document.createElement('script');inspectionScript.src='inspection.js?v=20260902-inspection-flow';inspectionScript.defer=true;document.head.appendChild(inspectionScript);
 const C=window.SIR_CONFIG;
-let sb=null,preview=false,currentRole='PREVIEW',calendarCursor=new Date();
+let sb=null,preview=false,currentRole='PREVIEW',calendarCursor=new Date(),activeView='dashboard',orderRealtime=null,realtimeRefreshTimer=null;
 const login=document.getElementById('login'),app=document.getElementById('app'),main=document.getElementById('main');
 const connected=!!(C.supabaseUrl&&C.supabasePublishableKey&&window.supabase?.createClient);
 if(connected){sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);document.getElementById('setupNotice').classList.add('hidden');}
@@ -38,9 +38,28 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
 document.getElementById('logout').addEventListener('click',async()=>{if(sb&&!preview)await sb.auth.signOut();location.reload();});
 document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;document.querySelectorAll('#nav [data-view]').forEach(x=>x.classList.toggle('active',x===b));render(b.dataset.view);});
 
-async function enter(role){login.classList.add('hidden');app.classList.remove('hidden');document.getElementById('roleBadge').textContent=role;render('dashboard');}
-async function render(view){delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='calendar')return calendar();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='finance')return finance();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
+async function enter(role){login.classList.add('hidden');app.classList.remove('hidden');document.getElementById('roleBadge').textContent=role;if(!preview)startRealtime();render('dashboard');}
+async function render(view){activeView=view;delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='calendar')return calendar();if(view==='inventory')return inventory();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='finance')return finance();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
 async function getOrders(limit=200){if(preview)return previewOrders.slice(0,limit);if(!sb)return[];const {data,error}=await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(limit);if(error){console.error(error);return[];}return data||[];}
+function scheduleRealtimeRefresh(orderId=null){
+  if(preview)return;
+  clearTimeout(realtimeRefreshTimer);
+  realtimeRefreshTimer=setTimeout(()=>{
+    const opened=main.dataset.orderId;
+    if(opened&&(!orderId||opened===orderId))return orderDetail(opened);
+    if(activeView==='dashboard')return dashboard();
+    if(activeView==='orders')return orders();
+    if(activeView==='inventory')return inventory();
+  },180);
+}
+function startRealtime(){
+  if(preview||!sb||orderRealtime)return;
+  orderRealtime=sb.channel('sir-admin-control-center')
+    .on('postgres_changes',{event:'*',schema:'public',table:'orders'},payload=>scheduleRealtimeRefresh(payload.new?.id||payload.old?.id||null))
+    .on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>scheduleRealtimeRefresh())
+    .on('postgres_changes',{event:'*',schema:'public',table:'chemicals'},()=>scheduleRealtimeRefresh())
+    .subscribe(status=>{document.documentElement.dataset.realtime=status==='SUBSCRIBED'?'online':'connecting';});
+}
 
 async function dashboard(){
   const o=await getOrders(),today=new Date().toLocaleDateString('sv-SE');
