@@ -17,7 +17,7 @@
     ['Logg inn i administrasjonspanelet','Вход в админ-панель'],['SIR-databasen er ikke koblet til denne versjonen ennå.','База SIR ещё не подключена к этой сборке.'],
     ['E-post','Эл. почта'],['Passord','Пароль'],['Logg inn','Войти'],['Glemt passord?','Забыли пароль?'],['Logg inn i','Сначала войдите в'],['Logg inn i SIR Admin først.','Сначала войдите в SIR Admin.'],['åpne deretter teknologikortet fra bestillingen.','затем откройте технологическую карту из заказа.'],[', åpne deretter teknologikortet fra bestillingen.',', затем откройте технологическую карту из заказа.'],['Åpne sikker forhåndsvisning','Открыть безопасный предпросмотр'],
     ['Innlogging skjer via sikker Supabase-autentisering. Ansattes passord vises ikke til eieren; tilgang styres av roller.','Вход выполняется через защищённую авторизацию Supabase. Пароли сотрудников владельцу не показываются; доступ ограничивается ролями.'],
-    ['← Til SIR Rens & Pleie-nettstedet','← На сайт SIR Rens & Pleie'],['Åpne nettstedet','Открыть сайт'],['Logg ut','Выйти'],
+    ['← Til SIR Rens & Pleie-nettstedet','← На сайт SIR Rens & Pleie'],['← Admin','← Админка'],['Åpne nettstedet','Открыть сайт'],['Logg ut','Выйти'],
     ['Arbeid','Работа'],['Kontrollsenter','Центр контроля'],['Bestillinger','Заказы'],['Kalender','Календарь'],['Lager','Склад'],
     ['Kunnskap','Знания'],['Utstyr og veiledning','Арсенал и справочник'],['Kjemi og prosedyrer','Химия и процедуры'],['Fortynningskalkulator','Калькулятор разбавления'],
     ['Administrasjon','Управление'],['Kunder','Клиенты'],['Økonomi / ENK','Финансы / ENK'],['Betalinger og anbefalinger','Оплаты и рекомендации'],['Team','Команда'],
