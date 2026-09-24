@@ -5,7 +5,7 @@
   if(!valid.has(lang))lang='no';
 
   const rows=[
-    ['SIR Admin','Админка SIR'],['ADMIN','АДМИНКА'],['WORK CENTER','РАБОЧИЙ ЦЕНТР'],
+    ['SIR Admin','Админка SIR'],['ADMIN','АДМИНКА'],['ARBEIDSSENTER','РАБОЧИЙ ЦЕНТР'],['KALENDER','КАЛЕНДАРЬ'],['SIKKERHETSKOPI','РЕЗЕРВНАЯ КОПИЯ'],['VEILEDNING · REDIGERING','СПРАВОЧНИК · РЕДАКТОР'],
     ['Logg inn i administrasjonspanelet','Вход в админ-панель'],['SIR-databasen er ikke koblet til denne versjonen ennå.','База SIR ещё не подключена к этой сборке.'],
     ['E-post','Эл. почта'],['Passord','Пароль'],['Logg inn','Войти'],['Åpne sikker forhåndsvisning','Открыть безопасный предпросмотр'],
     ['Innlogging skjer via sikker Supabase-autentisering. Ansattes passord vises ikke til eieren; tilgang styres av roller.','Вход выполняется через защищённую авторизацию Supabase. Пароли сотрудников владельцу не показываются; доступ ограничивается ролями.'],
@@ -151,17 +151,24 @@
 
   function makeSwitch(){
     if(document.querySelector('.sir-lang-switch'))return;
-    const wrap=document.createElement('div');wrap.className='sir-lang-switch';wrap.setAttribute('role','group');
-    wrap.innerHTML='<button type="button" data-sir-lang="no">NO</button><button type="button" data-sir-lang="ru">RU</button>';
-    const host=document.querySelector('.admin-top-actions')||document.querySelector('.admin-top .toolbar')||document.querySelector('.admin-top')||document.querySelector('.nav')||document.body;
-    host.appendChild(wrap);
-    wrap.querySelectorAll('[data-sir-lang]').forEach(b=>b.addEventListener('click',()=>select(b.dataset.sirLang)));
+    const hosts=[];
+    const login=document.querySelector('#login');if(login)hosts.push(login);
+    const topActions=document.querySelector('.admin-top-actions');if(topActions)hosts.push(topActions);
+    if(!topActions){const toolbar=document.querySelector('.admin-top .toolbar');if(toolbar)hosts.push(toolbar);}
+    if(!hosts.length){const top=document.querySelector('.admin-top')||document.querySelector('.nav');if(top)hosts.push(top);}
+    if(!hosts.length)hosts.push(document.body);
+    for(const host of hosts){
+      const wrap=document.createElement('div');wrap.className='sir-lang-switch';wrap.setAttribute('role','group');
+      wrap.innerHTML='<button type="button" data-sir-lang="no">NO</button><button type="button" data-sir-lang="ru">RU</button>';
+      host.appendChild(wrap);
+      wrap.querySelectorAll('[data-sir-lang]').forEach(b=>b.addEventListener('click',()=>select(b.dataset.sirLang)));
+    }
   }
 
   function style(){
     if(document.getElementById('sirLangStyle'))return;
     const s=document.createElement('style');s.id='sirLangStyle';
-    s.textContent='.sir-lang-switch{display:inline-flex;gap:3px;padding:3px;border:1px solid #39444f;border-radius:999px;background:#0b1116;align-items:center;flex:0 0 auto}.sir-lang-switch button{border:0;background:transparent;color:#9eabb5;font:800 12px/1 system-ui;padding:7px 9px;border-radius:999px;cursor:pointer}.sir-lang-switch button.active{background:#38d3ae;color:#07120f}@media(max-width:700px){.sir-lang-switch{position:fixed;right:12px;bottom:14px;z-index:10000;box-shadow:0 6px 24px #0008}}@media print{.sir-lang-switch{display:none!important}}';
+    s.textContent='.sir-lang-switch{display:inline-flex;gap:3px;padding:3px;border:1px solid #39444f;border-radius:999px;background:#0b1116;align-items:center;flex:0 0 auto}.login>.sir-lang-switch{margin:0 0 12px auto}.sir-lang-switch button{border:0;background:transparent;color:#9eabb5;font:800 12px/1 system-ui;padding:7px 9px;border-radius:999px;cursor:pointer}.sir-lang-switch button.active{background:#38d3ae;color:#07120f}@media(max-width:700px){.admin-top .sir-lang-switch,.nav>.sir-lang-switch{margin-left:auto}.login>.sir-lang-switch{position:static;box-shadow:none}}@media print{.sir-lang-switch{display:none!important}}';
     document.head.appendChild(s);
   }
 
