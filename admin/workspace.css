@@ -25,3 +25,5 @@
 .order-history{margin-top:14px}.inventory-table select,.inventory-table input{min-height:40px;border:1px solid var(--line);border-radius:10px;background:#0c1317;color:var(--text);padding:8px;font:inherit}.inventory-table input{min-width:220px}.notice.compact{padding:9px 12px;margin-bottom:10px}.link-btn{border:0;background:transparent;color:var(--accent);font:inherit;font-weight:900;cursor:pointer;padding:0 4px}
 @media(max-width:1100px){.control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.control-grid{grid-template-columns:1fr 1fr;gap:8px}.control-grid .metric{min-height:112px;padding:12px}.control-grid .metric strong{font-size:28px}.quick-workflow{align-items:stretch;flex-direction:column}.activity-row{grid-template-columns:1fr;gap:3px}.inventory-table input{min-width:180px}.order-filters{grid-template-columns:1fr}}
+
+.order-filters{grid-template-columns:minmax(220px,1fr) 220px 180px}@media(max-width:900px){.order-filters{grid-template-columns:1fr 1fr}}@media(max-width:650px){.order-filters{grid-template-columns:1fr}}
