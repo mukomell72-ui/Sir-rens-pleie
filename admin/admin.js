@@ -167,19 +167,84 @@ function smsReviewText(order,lang='no',reviewUrl=''){
     ?`Takk for at du valgte SIR Rens & Pleie! Vi setter pris på en ærlig vurdering av ordre ${order.order_no}: ${link} Nettsiden vår: ${site}`
     :`Takk for at du valgte SIR Rens & Pleie! Svar gjerne på denne SMS-en med en vurdering fra 1 til 5 og en kort kommentar om ordre ${order.order_no}. Nettsiden vår: ${site}`;
 }
+function googleTranslateUrl(text,target){
+  const u=new URL('https://translate.google.com/');
+  u.searchParams.set('sl','ru');u.searchParams.set('tl',target);u.searchParams.set('text',text);u.searchParams.set('op','translate');
+  return u.href;
+}
+async function translateRuText(text,target,onProgress){
+  const input=String(text||'').trim();
+  if(!input)throw new Error('Введите текст по-русски.');
+  if(target==='ru')return input;
+  if('Translator' in self){
+    const availability=await Translator.availability({sourceLanguage:'ru',targetLanguage:target});
+    if(!['available','downloadable'].includes(availability))throw new Error('Встроенный перевод для этой пары языков недоступен.');
+    const translator=await Translator.create({
+      sourceLanguage:'ru',
+      targetLanguage:target,
+      monitor(m){m.addEventListener('downloadprogress',e=>onProgress?.(Math.round(e.loaded*100)));}
+    });
+    return await translator.translate(input);
+  }
+  return null;
+}
 function mountClientCommunication(order,company={}){
   const host=main.querySelector('.detail-grid')||main.querySelector('.decision-bar');
   if(!host||main.querySelector('.client-communication'))return;
-  host.insertAdjacentHTML('afterend',`<section class="panel client-communication"><div class="panel-head"><span>Связь с клиентом</span><span class="mini">Бесплатно через SMS-приложение телефона</span></div><div class="communication-body"><div class="field compact-field"><label>Язык SMS</label><select id="smsLanguage"><option value="no">NO</option><option value="en">EN</option><option value="ru">RU</option></select></div><div class="toolbar communication-actions"><a class="btn primary" data-sms-status href="#">SMS: статус заказа</a>${order.status==='completed'?'<a class="btn" data-sms-review href="#">⭐ Попросить отзыв</a>':''}</div><div class="mini communication-note">Сообщение откроется готовым в приложении SMS. Отправку подтверждаешь ты; сайт не считает SMS отправленным автоматически.</div></div></section>`);
+  host.insertAdjacentHTML('afterend',`<section class="panel client-communication"><div class="panel-head"><span>Связь с клиентом</span><span class="mini">SMS + перевод RU → NO / EN</span></div><div class="communication-body">
+    <div class="field compact-field"><label>Язык SMS</label><select id="smsLanguage"><option value="no">NO</option><option value="en">EN</option><option value="ru">RU</option></select></div>
+    <div class="toolbar communication-actions"><a class="btn primary" data-sms-status href="#">SMS: статус заказа</a>${order.status==='completed'?'<a class="btn" data-sms-review href="#">⭐ Попросить отзыв</a>':''}</div>
+    <div class="mini communication-note">Готовое SMS открывается в приложении телефона. Отправку подтверждаешь ты.</div>
+    <div class="custom-message-box">
+      <div class="custom-message-head"><b>Свободное сообщение</b><span>Пиши по-русски — клиенту подготовим NO или EN</span></div>
+      <div class="field"><label>Твой текст на русском</label><textarea id="customSmsRu" rows="4" maxlength="1000" placeholder="Например: Здравствуйте. Машина уже готова, можете забрать её после 16:00."></textarea></div>
+      <div class="custom-message-controls"><div class="field compact-field"><label>Перевести на</label><select id="customSmsTarget"><option value="no">Норвежский (NO)</option><option value="en">Английский (EN)</option></select></div><button class="btn primary" type="button" id="translateCustomSms">Перевести</button><a class="btn hidden" id="openExternalTranslate" target="_blank" rel="noopener noreferrer">Открыть Google Translate</a></div>
+      <div id="translateCustomStatus" class="mini"></div>
+      <div class="field"><label>Текст, который получит клиент</label><textarea id="customSmsTranslated" rows="4" maxlength="1000" placeholder="Здесь появится перевод. Перед отправкой его можно исправить вручную."></textarea></div>
+      <a class="btn sms-send-translated disabled-link" data-sms-custom href="#" aria-disabled="true">Открыть SMS с переводом</a>
+    </div>
+  </div></section>`);
   const lang=main.querySelector('#smsLanguage');
   const statusLink=main.querySelector('[data-sms-status]');
   const reviewLink=main.querySelector('[data-sms-review]');
-  const update=()=>{
+  const source=main.querySelector('#customSmsRu');
+  const target=main.querySelector('#customSmsTarget');
+  const translated=main.querySelector('#customSmsTranslated');
+  const translateBtn=main.querySelector('#translateCustomSms');
+  const translateStatus=main.querySelector('#translateCustomStatus');
+  const external=main.querySelector('#openExternalTranslate');
+  const customLink=main.querySelector('[data-sms-custom]');
+  const updateStandard=()=>{
     const l=lang?.value||'no';
     if(statusLink)statusLink.href=smsHref(order.phone,smsStatusText(order,l));
     if(reviewLink)reviewLink.href=smsHref(order.phone,smsReviewText(order,l,company.review_url||''));
   };
-  lang?.addEventListener('change',update);update();
+  const updateCustomLink=()=>{
+    const text=translated?.value.trim()||'';
+    if(customLink){customLink.href=text?smsHref(order.phone,text):'#';customLink.classList.toggle('disabled-link',!text);customLink.setAttribute('aria-disabled',text?'false':'true');}
+  };
+  translated?.addEventListener('input',updateCustomLink);
+  target?.addEventListener('change',()=>{
+    translated.value='';updateCustomLink();translateStatus.textContent='';external.classList.add('hidden');
+  });
+  translateBtn?.addEventListener('click',async()=>{
+    const text=source.value.trim(),to=target.value;
+    translateStatus.textContent='Перевожу…';translateBtn.disabled=true;external.classList.add('hidden');
+    try{
+      const result=await translateRuText(text,to,p=>translateStatus.textContent=`Загрузка языкового пакета: ${p}%`);
+      if(result){
+        translated.value=result;translateStatus.textContent='Перевод готов. Проверь текст перед отправкой.';updateCustomLink();
+      }else{
+        external.href=googleTranslateUrl(text,to);external.classList.remove('hidden');
+        translateStatus.textContent='На этом телефоне встроенный перевод недоступен. Открой Google Translate, затем вставь готовый перевод в поле ниже.';
+      }
+    }catch(err){
+      external.href=googleTranslateUrl(text,to);external.classList.remove('hidden');
+      translateStatus.textContent=err?.message||'Не удалось выполнить перевод. Можно открыть Google Translate.';
+    }finally{translateBtn.disabled=false;}
+  });
+  customLink?.addEventListener('click',e=>{if(customLink.classList.contains('disabled-link'))e.preventDefault();});
+  lang?.addEventListener('change',updateStandard);updateStandard();updateCustomLink();
 }
 function orderTable(rows){return `<div class="table-wrap"><table class="table"><thead><tr><th>Заказ</th><th>Клиент</th><th>Услуга</th><th>Статус</th><th>Оплата</th><th>Цена</th><th>Риск</th></tr></thead><tbody>${rows.map(x=>`<tr class="order-row" data-id="${x.id}" tabindex="0"><td><b>${esc(x.order_no||'—')}</b><div class="mini">${new Date(x.created_at).toLocaleDateString('ru')}</div></td><td>${esc(x.customer_name||'—')}<div class="mini">${esc(x.phone||'')}</div></td><td>${esc(serviceLabel[x.service_type]||x.service_type||'—')}</td><td>${statusLabel[x.status]||esc(x.status||'—')}</td><td><span class="payment-pill ${(x.payment_status||'unpaid')}">${x.payment_status==='paid'?'Оплачено':x.payment_status==='refunded'?'Возврат':'Не оплачено'}</span></td><td>${x.final_price!=null?money(x.final_price):x.preliminary_price!=null?`${money(x.preliminary_price)} ориентир`:'—'}</td><td><span class="risk ${(x.risk_level||'low').replace('_','-')}">${esc((x.risk_level||'LOW').toUpperCase())}</span></td></tr>`).join('')}</tbody></table></div>`;}
 function bindOrderRows(){main.querySelectorAll('.order-row').forEach(r=>{const open=()=>orderDetail(r.dataset.id);r.addEventListener('click',open);r.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});});}
