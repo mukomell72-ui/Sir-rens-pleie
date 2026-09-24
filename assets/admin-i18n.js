@@ -51,7 +51,7 @@
     ['Kritisk modul ble ikke lastet. Ingen data ble endret. Oppdater siden.','Критический модуль не загрузился. Данные не изменялись. Обновите страницу.'],
     ['Visningen kan være ufullstendig. Ikke send endringer før tilkoblingen er gjenopprettet.','Просмотр может быть неполным. Изменения не отправляйте до восстановления подключения.'],
     ['Hvis delen oppfører seg uvanlig, oppdater siden før du endrer data.','Если раздел работает необычно, обновите страницу перед изменением данных.'],
-    ['Søk','Поиск'],['Søk etter navn, merke, bruksområde eller materiale…','Поиск по названию, бренду, назначению или материалу…'],['Alle','Все'],['Ingen resultater','Ничего не найдено'],
+    ['Søk','Поиск'],['Søk etter navn, merke, bruksområde eller materiale…','Поиск по названию, бренду, назначению или материалу…'],['Alle','Все'],['Ingen resultater','Ничего не найдено'],['Skriv inn e-postadressen til SIR-kontoen først.','Сначала введите эл. почту аккаунта SIR.'],
     ['Arbeidspanel','Рабочая панель'],['PROFESJONELL MODUS','ПРОФЕССИОНАЛЬНЫЙ РЕЖИМ'],['Sikkerhet','Безопасность'],['Bruk','Применение'],['Advarsler','Предупреждения'],['Oppbevaring','Хранение'],['Førstehjelp','Первая помощь'],
     ['Personlig verneutstyr','Средства индивидуальной защиты'],['HMS / kjemikalieregister','HMS / реестр химических веществ'],['Bygg arbeidsplan','Составить план работы'],['Arbeidsplan','План работы'],
     ['Overflate','Поверхность'],['Forurensning','Загрязнение'],['Materiale','Материал'],['Metode','Метод'],['Kjemiregel','Правило химии'],['Mekanisk metode','Механический метод'],['Stoppbetingelser','Условия STOP'],
@@ -69,7 +69,7 @@
     ['source_reviewed','Источник проверен'],['manufacturer_verified','Проверено по инструкции производителя'],['unverified','Не проверено'],['verified','Проверено'],['draft','Черновик'],
     ['pending','Ожидает'],['issued','Выставлен'],['credited','Исправлен кредит-нотой'],['cancelled','Отменён'],['paid','Оплачен'],
     ['bank','Банковский перевод'],['card','Карта'],['cash','Наличные'],['other','Другое'],
-    ['Admin','Админка'],['Regnskap','Бухгалтерия'],['Faktura','Счёт'],['Kreditnota','Кредит-нота'],['Email','Эл. почта']
+    ['Admin','Админка'],['Regnskap','Бухгалтерия'],['Faktura','Счёт'],['Kreditnota','Кредит-нота'],['Email','Эл. почта'],['email','эл. почта'],['Stoffkartotek','реестр химических веществ'],['Arbeidstilsynet','Норвежская инспекция труда'],['Giftinformasjonen','токсикологическая служба'],['legacy','старая версия'],['paint-prep','средство подготовки ЛКП'],['soft-touch','мягкое покрытие']
   ];
 
   const ruToNo=[
@@ -110,7 +110,7 @@
     return lead+value+tail;
   }
 
-  function translate(raw){
+  const rxEscape=v=>String(v).replace(/[.*+?^{}$()|[\]\\]/g,'\\  function translate(raw){
     if(raw==null)return raw;
     const s=String(raw),t=s.trim();
     if(!t)return s;
@@ -121,6 +121,29 @@
       for(const [ru,no] of ruParts)out=out.split(ru).join(no);
     }else if(lang==='ru' && /[A-Za-zÆØÅæøå]/.test(out)){
       for(const [no,ru] of noParts)out=out.split(no).join(ru);
+    }
+    return out===t?s:preserveSpace(s,out);
+  }');
+  function replacePart(value,from,to){
+    if(!from)return value;
+    if(/^[\\p{L}\\p{N}_]+$/u.test(from)){
+      const re=new RegExp('(^|[^\\p{L}\\p{N}_])'+rxEscape(from)+'(?=$|[^\\p{L}\\p{N}_])','gu');
+      return value.replace(re,(m,prefix)=>prefix+to);
+    }
+    return value.split(from).join(to);
+  }
+
+  function translate(raw){
+    if(raw==null)return raw;
+    const s=String(raw),t=s.trim();
+    if(!t)return s;
+    const hit=exact.get(t);
+    if(hit)return preserveSpace(s,hit[lang]);
+    let out=t;
+    if(lang==='no' && /[А-Яа-яЁё]/.test(out)){
+      for(const [ru,no] of ruParts)out=replacePart(out,ru,no);
+    }else if(lang==='ru' && /[A-Za-zÆØÅæøå]/.test(out)){
+      for(const [no,ru] of noParts)out=replacePart(out,no,ru);
     }
     return out===t?s:preserveSpace(s,out);
   }
