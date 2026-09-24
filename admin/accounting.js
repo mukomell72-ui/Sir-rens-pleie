@@ -2,7 +2,7 @@
   const A=window.SIR_ACCT={};
   const C=window.SIR_CONFIG;
   A.root=document.getElementById('accountingApp');
-  A.sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
+  A.sb=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
   A.money=v=>`${new Intl.NumberFormat('nb-NO',{minimumFractionDigits:0,maximumFractionDigits:2}).format(+v||0)} NOK`;
   A.num=v=>Number(v||0);
   A.esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
