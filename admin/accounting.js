@@ -77,7 +77,7 @@
 
   A.render=()=>{
     const s=A.state;
-    A.root.innerHTML=`<div class="section-title"><div><h1>ENK / Regnskap</h1><p>Внутренний учёт SIR: доходы, расходы, MVA, счета, поездки и документы</p></div><div class="toolbar"><button class="btn" id="refresh">Обновить</button><a class="btn" href="./">← Admin</a></div></div><div class="acct-tabs">${[['dashboard','Обзор'],['ledger','Доходы / расходы'],['invoices','Счета'],['mileage','Поездки'],['assets','Оборудование'],['settings','Настройки ENK']].map(([id,l])=>`<button class="acct-tab ${s.tab===id?'active':''}" data-tab="${id}">${l}</button>`).join('')}</div><div id="acctView"></div>`;
+    A.root.innerHTML=`<div class="section-title"><div><h1>ENK / Бухгалтерия</h1><p>Внутренний учёт SIR: доходы, расходы, MVA, счета, поездки и документы</p></div><div class="toolbar"><button class="btn" id="refresh">Обновить</button><a class="btn" href="./">← Админка</a></div></div><div class="acct-tabs">${[['dashboard','Обзор'],['ledger','Доходы / расходы'],['invoices','Счета'],['mileage','Поездки'],['assets','Оборудование'],['settings','Настройки ENK']].map(([id,l])=>`<button class="acct-tab ${s.tab===id?'active':''}" data-tab="${id}">${l}</button>`).join('')}</div><div id="acctView"></div>`;
     A.root.querySelector('#refresh').addEventListener('click',async()=>{A.root.querySelector('#acctView').innerHTML='<div class="empty">Обновляю…</div>';try{await A.load();A.render();}catch(_e){A.root.innerHTML='<div class="notice"><b>Бухгалтерские данные не загружены.</b><br>Нет подтверждённого ответа от базы. Ложные суммы не показываются.</div><button class="btn primary" id="acctRetry">Повторить</button>';A.root.querySelector('#acctRetry')?.addEventListener('click',init);}});
     A.root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{s.tab=b.dataset.tab;A.render();}));
     const view=A.root.querySelector('#acctView'),fn=A.views[s.tab];if(fn)fn(view);
@@ -87,7 +87,7 @@
     const {data:{session}}=await A.sb.auth.getSession();A.state.session=session;
     if(!session){A.root.innerHTML='<div class="notice">Сначала войдите в <a href="./">SIR Admin</a>.</div>';return;}
     const {data:p,error}=await A.sb.from('profiles').select('role,active,display_name').eq('id',session.user.id).single();
-    if(error||!p?.active||!['owner','admin'].includes(p.role)){A.root.innerHTML='<div class="notice">Раздел ENK / Regnskap доступен только OWNER и ADMIN.</div>';return;}
+    if(error||!p?.active||!['owner','admin'].includes(p.role)){A.root.innerHTML='<div class="notice">Раздел ENK / Бухгалтерия доступен только владельцу и администратору.</div>';return;}
     A.state.profile=p;
     try{await A.load();A.render();}
     catch(_e){
