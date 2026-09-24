@@ -1,6 +1,6 @@
 (() => {
   const C=window.SIR_CONFIG,root=document.getElementById('invoiceApp');
-  const sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
+  const sb=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const money=v=>`${new Intl.NumberFormat('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2}).format(+v||0)} NOK`;
   document.getElementById('printBtn').addEventListener('click',()=>window.print());
