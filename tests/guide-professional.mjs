@@ -13,6 +13,7 @@ try{
   await page.waitForSelector('#guideHealth',{timeout:15000});
   const health=await page.locator('#guideHealth').innerText();
   assert(health.includes('Контроль справочника: OK'),'Guide health failed: '+health);
+  assert(health.includes('следующая обязательная перепроверка'),'Guide must display HMS re-verification deadline');
 
   const width=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth}));
   assert(width.sw<=width.cw+1,'Horizontal overflow: '+JSON.stringify(width));
