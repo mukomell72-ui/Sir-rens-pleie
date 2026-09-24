@@ -12,20 +12,28 @@
     if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">SIR Admin</a>.</div>';return;}
     const {data:p}=await sb.from('profiles').select('role,active').eq('id',session.user.id).single();profile=p;
     if(!profile?.active||!['owner','admin','manager'].includes(profile.role)){root.innerHTML='<div class="notice">Календарь управления доступен OWNER, ADMIN и MANAGER.</div>';return;}
-    await load();render();
+    if(await load())render();
   }
 
   function monthBounds(){const start=new Date(cursor.getFullYear(),cursor.getMonth(),1,0,0,0,0);const end=new Date(cursor.getFullYear(),cursor.getMonth()+1,1,0,0,0,0);return{start,end};}
   async function load(){
     const {start,end}=monthBounds();
-    const [{data:a=[],error:ae},{data:o=[]},{data:s=[]}]=await Promise.all([
+    const [apptRes,orderRes,settingsRes]=await Promise.all([
       sb.from('appointments').select('id,order_id,starts_at,ends_at,tentative,location_mode,address,buffer_minutes,orders!inner(id,order_no,customer_name,phone,status,service_type,estimated_minutes,address,final_price,preliminary_price)').lt('starts_at',end.toISOString()).gt('ends_at',start.toISOString()).order('starts_at'),
       sb.from('orders').select('id,order_no,customer_name,phone,status,service_type,estimated_minutes,address,preliminary_price,final_price').not('status','in','(completed,cancelled_customer,cancelled_sir,no_show)').order('created_at',{ascending:false}).limit(300),
       sb.from('app_settings').select('value').eq('key','work_rules')
     ]);
-    if(ae){root.innerHTML=`<div class="notice">Ошибка календаря: ${esc(ae.message)}</div>`;return;}
-    appointments=a;orders=o;
-    const v=s?.[0]?.value||{};work={start:v.working_day_start||'08:00',end:v.working_day_end||'20:00',buffer:+v.default_buffer_minutes||30};
+    const error=apptRes.error||orderRes.error||settingsRes.error;
+    if(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'calendar.load');
+      root.innerHTML='<div class="notice"><b>Календарь не загружен.</b><br>Нет подтверждённого ответа от базы. Никакие данные не изменялись.</div><button class="btn primary" id="calendarRetry">Повторить</button>';
+      root.querySelector('#calendarRetry')?.addEventListener('click',reload);
+      return false;
+    }
+    appointments=apptRes.data||[];orders=orderRes.data||[];
+    const v=settingsRes.data?.[0]?.value||{};
+    work={start:v.working_day_start||'08:00',end:v.working_day_end||'20:00',buffer:+v.default_buffer_minutes||30};
+    return true;
   }
 
   function render(){
@@ -36,7 +44,7 @@
     root.querySelectorAll('.cal-event').forEach(b=>b.addEventListener('click',()=>openEvent(b.dataset.id)));
   }
   async function move(n){cursor=new Date(cursor.getFullYear(),cursor.getMonth()+n,1,12);await reload();}
-  async function reload(){root.innerHTML='<div class="empty">Обновляю календарь…</div>';await load();render();}
+  async function reload(){root.innerHTML='<div class="empty">Обновляю календарь…</div>';if(await load())render();}
 
   function calendarCells(){
     const y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1),offset=(first.getDay()+6)%7,start=new Date(y,m,1-offset,12);let html='';
@@ -66,8 +74,12 @@
     const orderId=document.getElementById('calOrder').value,startVal=document.getElementById('calStart').value,duration=Math.max(30,+document.getElementById('calDuration').value||120),mode=document.getElementById('calMode').value,address=document.getElementById('calAddress').value.trim();if(!orderId||!startVal)return;
     const start=new Date(startVal),end=new Date(start.getTime()+duration*60000),button=document.getElementById('calSave');button.disabled=true;button.textContent='Сохраняю…';
     const {error}=await sb.from('appointments').insert({order_id:orderId,starts_at:start.toISOString(),ends_at:end.toISOString(),tentative:true,location_mode:mode,address:address||null,buffer_minutes:work.buffer,created_by:session.user.id});
-    if(error){alert(error.message);button.disabled=false;button.textContent='Сохранить временный слот';return;}
-    const row=orders.find(o=>o.id===orderId);if(row&&row.status==='new')await sb.from('orders').update({status:'under_review'}).eq('id',orderId);
+    if(error){window.SIR_ADMIN_RUNTIME?.record(error,'calendar.create_booking');alert('Не удалось сохранить слот. Изменения не применены.');button.disabled=false;button.textContent='Сохранить временный слот';return;}
+    const row=orders.find(o=>o.id===orderId);
+    if(row&&row.status==='new'){
+      const {error:statusError}=await sb.from('orders').update({status:'under_review'}).eq('id',orderId);
+      if(statusError){window.SIR_ADMIN_RUNTIME?.record(statusError,'calendar.order_status');alert('Слот сохранён, но статус заказа не обновился. Откройте заказ и проверьте статус вручную.');}
+    }
     closeDialog();await reload();
   }
   function openEvent(id){const a=appointments.find(x=>x.id===id);if(!a)return;const o=a.orders||{};dialog(`<h2>${esc(o.order_no||'Заказ')}</h2><div class="status-row"><b>${esc(o.customer_name||'')}</b><div class="mini">${esc(o.phone||'')}</div></div><p><b>${hm(a.starts_at)}–${hm(a.ends_at)}</b> · ${esc(statusLabel[o.status]||o.status||'')}</p><p>${a.tentative?'Временный слот — клиент ещё не подтвердил.':'Слот подтверждён.'}</p><p>${esc(a.address||o.address||'')}</p><p>Оценка времени: ${+o.estimated_minutes||'—'} мин · Цена: ${o.final_price??o.preliminary_price??'—'} NOK</p>`,`<button class="btn" data-close>Закрыть</button><a class="btn" href="tel:${esc(o.phone||'')}">Позвонить</a><a class="btn primary" href="./?order=${encodeURIComponent(o.id)}">Открыть заказ</a>`);}
