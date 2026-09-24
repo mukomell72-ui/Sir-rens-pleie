@@ -1,6 +1,7 @@
 window.SIR_HSE_META={
   version:'2026-09-23-hse2',
   verified:'2026-09-23',
+  reviewDays:365,
   norway:{
     title:'SIR HMS / stoffkartotek',
     note:'Dette laget er laget for profesjonell bruk i Norge. Sikkerhetsdatablad (SDS) og leverandørens etikett har alltid forrang ved konflikt. For farlige kjemikalier som brukes yrkesmessig skal virksomheten ha stoffkartotek, og arbeidstakerne skal ha tilgang til relevant informasjon.',
