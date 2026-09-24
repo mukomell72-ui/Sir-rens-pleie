@@ -11,14 +11,23 @@
     if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">SIR Admin</a>.</div>';return;}
     const {data:p}=await sb.from('profiles').select('role,active').eq('id',session.user.id).single();profile=p;
     if(!profile?.active||!['owner','admin','manager'].includes(profile.role)){root.innerHTML='<div class="notice">Нет доступа к оплатам и реферальным начислениям.</div>';return;}
-    await load();render();
+    if(await load())render();
   }
   async function load(){
-    const [{data:o=[]},{data:r=[]},{data:c=[]}]=await Promise.all([
+    const [orderRes,referralRes,customerRes]=await Promise.all([
       sb.from('orders').select('id,order_no,customer_id,customer_name,phone,status,final_price,preliminary_price,payment_status,paid_at,referral_discount,referral_code_used,created_at').order('created_at',{ascending:false}).limit(300),
       sb.from('referrals').select('*').order('created_at',{ascending:false}).limit(300),
       sb.from('customers').select('id,name,phone,referral_code,credit_balance').order('created_at',{ascending:false}).limit(500)
-    ]);orders=o;referrals=r;customers=c;
+    ]);
+    const error=orderRes.error||referralRes.error||customerRes.error;
+    if(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'payments.load');
+      root.innerHTML='<div class="notice"><b>Оплаты не загружены.</b><br>Нет подтверждённого ответа от базы. Ложные суммы не показываются.</div><button class="btn primary" id="paymentsRetry">Повторить</button>';
+      root.querySelector('#paymentsRetry')?.addEventListener('click',async()=>{root.innerHTML='<div class="empty">Обновляю…</div>';if(await load())render();});
+      return false;
+    }
+    orders=orderRes.data||[];referrals=referralRes.data||[];customers=customerRes.data||[];
+    return true;
   }
   function referralUrl(code){const u=new URL('../',location.href);u.searchParams.set('ref',code);return u.href;}
   function render(){
@@ -39,7 +48,7 @@
     const row=orders.find(o=>o.id===id);
     if(status==='paid'&&row?.status!=='completed'&&!confirm('Заказ ещё не имеет статус «Выполнен». Отметить оплату всё равно? Бонус рекомендателю начислится только после завершения заказа.'))return;
     const {error}=await sb.from('orders').update({payment_status:status}).eq('id',id);
-    if(error){alert(error.message);return;}
-    await load();render();
+    if(error){window.SIR_ADMIN_RUNTIME?.record(error,'payments.update');alert('Не удалось изменить оплату. Изменения не применены.');return;}
+    if(await load())render();
   }
 })();
