@@ -38,6 +38,9 @@
     'carpet':'ковролин',
     'wheels':'колёсные диски',
     'textile':'текстиль',
+    'child_seat':'детское кресло',
+    'mattress':'матрас',
+    'seat_belt':'ремень безопасности',
     'interior_plastic':'пластик салона',
     'interior_rubber':'резина салона'
   };
@@ -75,6 +78,8 @@
   const RU_VERIFY={draft:'черновик',source_reviewed:'источник проверен',manufacturer_verified:'проверено по инструкции производителя'};
   const RU_HSE={unverified:'не проверено',source_reviewed:'источник проверен',verified:'проверено',stop:'STOP — применение запрещено'};
   const RU_RISK={low:'низкий риск',caution:'осторожно',high_risk:'высокий риск',stop:'STOP'};
+  const RU_CONTAMINATION={light:'лёгкое',medium:'среднее',heavy:'сильное',special:'особое'};
+  const trContamination=v=>RU_CONTAMINATION[String(v??'').trim()]||String(v??'').replace(/_/g,' ');
   const trSurface=v=>{
     const raw=String(v??'').trim();
     if(RU_SURFACE[raw])return RU_SURFACE[raw];
@@ -283,7 +288,7 @@
   function renderProcedures(){
     const body=root.querySelector('#guideBody');
     body.innerHTML=`<div class="section-title"><div><h2>Процедуры</h2><p>Проходы, сушка, механика и условия STOP</p></div>${canEdit()?'<button class="btn primary" id="addProcedure">+ Добавить процедуру</button>':''}</div>
-      <div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Процедура</th><th>Поверхность</th><th>Загрязнение</th><th>Риск</th><th>Версия</th><th></th></tr></thead><tbody>${procedures.map(p=>`<tr><td><b>${esc(p.name)}</b><div class="mini">${esc(p.code||'')}</div></td><td>${esc(p.surface_type||'—')}</td><td>${esc(p.contamination||'—')}</td><td><span class="risk ${(p.risk_level||'low').replace('_','-')}">${esc((p.risk_level||'low').toUpperCase())}</span></td><td>${p.version||1}${p.verified?' · verified':''}</td><td><button class="btn edit-procedure" data-id="${p.id}">${canEdit()?'Редактировать':'Открыть'}</button></td></tr>`).join('')||'<tr><td colspan="6">Процедур пока нет.</td></tr>'}</tbody></table></div></div><div id="editArea"></div>`;
+      <div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Процедура</th><th>Поверхность</th><th>Загрязнение</th><th>Риск</th><th>Версия</th><th></th></tr></thead><tbody>${procedures.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td>${esc(trSurface(p.surface_type||'—'))}</td><td>${esc(trContamination(p.contamination||'—'))}</td><td><span class="risk ${(p.risk_level||'low').replace('_','-')}">${esc(trRisk(p.risk_level||'low'))}</span></td><td>${p.version||1}${p.verified?' · проверено':''}</td><td><button class="btn edit-procedure" data-id="${p.id}">${canEdit()?'Редактировать':'Открыть'}</button></td></tr>`).join('')||'<tr><td colspan="6">Процедур пока нет.</td></tr>'}</tbody></table></div></div><div id="editArea"></div>`;
     body.querySelector('#addProcedure')?.addEventListener('click',()=>procedureForm(null));
     body.querySelectorAll('.edit-procedure').forEach(b=>b.addEventListener('click',()=>procedureForm(procedures.find(x=>x.id===b.dataset.id))));
   }
@@ -291,7 +296,7 @@
     const edit=root.querySelector('#editArea');if(!edit)return;
     p=p||{name:'',code:'',surface_type:'',contamination:'medium',risk_level:'caution',steps:[],stop_conditions:[],pass_plan:'',drying_rule:'',mechanical_method:'',chemical_rule:'',source_note:'',verified:false,version:1};
     edit.innerHTML=`<form class="card" id="procedureForm"><div class="section-title"><div><h2>${p.id?'Процедура':'Новая процедура'}</h2><p>При обновлении существующей процедуры версия увеличивается автоматически.</p></div><button class="btn" type="button" id="closeEditor">Закрыть</button></div><div class="settings-grid">
-      ${field('name','Название',p.name,true)}${field('code','Код',p.code,true)}${field('surface','Поверхность',p.surface_type,true)}<div class="field"><label>Загрязнение</label><select name="condition"><option value="light" ${p.contamination==='light'?'selected':''}>light</option><option value="medium" ${p.contamination==='medium'?'selected':''}>medium</option><option value="heavy" ${p.contamination==='heavy'?'selected':''}>heavy</option><option value="special" ${p.contamination==='special'?'selected':''}>special</option></select></div><div class="field"><label>Риск</label><select name="risk"><option value="low" ${p.risk_level==='low'?'selected':''}>LOW</option><option value="caution" ${p.risk_level==='caution'?'selected':''}>CAUTION</option><option value="high_risk" ${p.risk_level==='high_risk'?'selected':''}>HIGH RISK</option><option value="stop" ${p.risk_level==='stop'?'selected':''}>STOP</option></select></div>${field('source','Источник / основание',p.source_note,'text')}<div class="field"><label>Проверено SIR</label><select name="verified"><option value="false" ${!p.verified?'selected':''}>Нет</option><option value="true" ${p.verified?'selected':''}>Да</option></select></div></div>
+      ${field('name','Название',p.name,true)}${field('code','Код',p.code,true)}${field('surface','Поверхность',p.surface_type,true)}<div class="field"><label>Загрязнение</label><select name="condition"><option value="light" ${p.contamination==='light'?'selected':''}>Лёгкое</option><option value="medium" ${p.contamination==='medium'?'selected':''}>Среднее</option><option value="heavy" ${p.contamination==='heavy'?'selected':''}>Сильное</option><option value="special" ${p.contamination==='special'?'selected':''}>Особое</option></select></div><div class="field"><label>Риск</label><select name="risk"><option value="low" ${p.risk_level==='low'?'selected':''}>Низкий риск</option><option value="caution" ${p.risk_level==='caution'?'selected':''}>Осторожно</option><option value="high_risk" ${p.risk_level==='high_risk'?'selected':''}>Высокий риск</option><option value="stop" ${p.risk_level==='stop'?'selected':''}>STOP</option></select></div>${field('source','Источник / основание',p.source_note,'text')}<div class="field"><label>Проверено SIR</label><select name="verified"><option value="false" ${!p.verified?'selected':''}>Нет</option><option value="true" ${p.verified?'selected':''}>Да</option></select></div></div>
       ${area('pass_plan','Количество/логика проходов',p.pass_plan)}${area('drying_rule','Нужно ли ждать высыхания между проходами',p.drying_rule)}${area('mechanical','Механическое воздействие / инструмент',p.mechanical_method)}${area('chemical_rule','Правило выбора химии',p.chemical_rule)}${area('steps','Шаги — по одному на строку',safeArray(p.steps).join('\n'))}${area('stops','STOP — по одному условию на строку',safeArray(p.stop_conditions).join('\n'))}
       ${canEdit()?'<button class="btn primary" type="submit">Сохранить</button>':''}</form>`;
     edit.querySelector('#closeEditor').addEventListener('click',()=>{edit.innerHTML='';});
