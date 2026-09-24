@@ -10,16 +10,26 @@
   async function init(){
     const id=new URLSearchParams(location.search).get('id');
     if(!id){root.innerHTML='<div class="notice">Не указан счёт.</div>';return;}
-    const {data:{session}}=await sb.auth.getSession();
-    if(!session){root.innerHTML='<div class="notice">Сначала войдите в SIR Admin.</div>';return;}
-    const [{data:p},{data:i,error},{data:s}]=await Promise.all([
-      sb.from('profiles').select('role,active').eq('id',session.user.id).single(),
-      sb.from('accounting_invoices').select('*').eq('id',id).single(),
-      sb.from('app_settings').select('value').eq('key','accounting').maybeSingle()
-    ]);
-    if(!p?.active||!['owner','admin'].includes(p.role)){root.innerHTML='<div class="notice">Нет доступа.</div>';return;}
-    if(error||!i){root.innerHTML='<div class="notice">Счёт не найден.</div>';return;}
-    render(i,s?.value||{});
+    try{
+      const {data:{session},error:sessionError}=await sb.auth.getSession();
+      if(sessionError)throw sessionError;
+      if(!session){root.innerHTML='<div class="notice">Сначала войдите в SIR Admin.</div>';return;}
+      const [profileRes,invoiceRes,settingsRes]=await Promise.all([
+        sb.from('profiles').select('role,active').eq('id',session.user.id).single(),
+        sb.from('accounting_invoices').select('*').eq('id',id).single(),
+        sb.from('app_settings').select('value').eq('key','accounting').maybeSingle()
+      ]);
+      if(profileRes.error)throw profileRes.error;
+      const p=profileRes.data;
+      if(!p?.active||!['owner','admin'].includes(p.role)){root.innerHTML='<div class="notice">Нет доступа.</div>';return;}
+      if(invoiceRes.error||!invoiceRes.data)throw invoiceRes.error||new Error('invoice not found');
+      if(settingsRes.error)window.SIR_ADMIN_RUNTIME?.record(settingsRes.error,'invoice.settings');
+      render(invoiceRes.data,settingsRes.data?.value||{});
+    }catch(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'invoice.load');
+      root.innerHTML='<div class="notice"><b>Счёт не загружен.</b><br>Печать заблокирована до успешной загрузки подтверждённых данных.</div>';
+      document.getElementById('printBtn').disabled=true;
+    }
   }
 
   function render(i,s){
