@@ -1,6 +1,6 @@
 (() => {
   const C=window.SIR_CONFIG,root=document.getElementById('calendarApp');
-  const sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
+  const sb=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const statusLabel={new:'Новый',under_review:'На рассмотрении',offer_sent:'Предложение отправлено',awaiting_confirmation:'Ждёт подтверждения',confirmed:'Подтверждён',scheduled:'Запланирован',in_progress:'В работе',completed:'Выполнен',customer_requested_new_time:'Нужно другое время',cancelled_customer:'Отменён клиентом',cancelled_sir:'Отменён SIR',no_show:'Неявка'};
   let session,profile,cursor=new Date(),appointments=[],orders=[],work={start:'08:00',end:'20:00',buffer:30};
