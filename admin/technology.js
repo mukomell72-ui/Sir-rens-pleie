@@ -6,6 +6,8 @@
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const safeUrl=v=>{try{const u=new URL(String(v||''));return u.protocol==='https:'?u.href:'';}catch{return'';}};
   const riskRank={low:1,caution:2,high_risk:3,stop:4};
+  const riskLabel={low:'Низкий риск',caution:'Осторожно',high_risk:'Высокий риск',stop:'STOP'};
+  const hseLabel={verified:'Проверено',source_reviewed:'Источник проверен',unverified:'Не проверено',stop:'STOP',stop_no_exact_sds:'STOP — нет точного SDS'};
   const managerRoles=['owner','admin','manager'];
   let session,profile,order,card,items=[],photos=[],chemicals=[];
 
@@ -15,12 +17,12 @@
       const {data:{session:s},error:sessionError}=await sb.auth.getSession();
       if(sessionError)throw sessionError;
       session=s;
-      if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">SIR Admin</a>, затем откройте технологическую карту из заказа.</div>';return;}
+      if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">Админ-панель SIR</a>, затем откройте технологическую карту из заказа.</div>';return;}
       const {data:p,error:profileError}=await sb.from('profiles').select('role,display_name,active').eq('id',session.user.id).single();
       if(profileError)throw profileError;
       profile=p;
       if(!profile?.active){root.innerHTML='<div class="notice">Доступ отключён.</div>';return;}
-      if(!orderId){root.innerHTML='<div class="notice safe">Откройте конкретный заказ в SIR Admin и нажмите «Открыть SIR Технолог». Технологическая карта всегда должна быть связана с реальным заказом и его фотографиями.</div>';return;}
+      if(!orderId){root.innerHTML='<div class="notice safe">Откройте конкретный заказ в Админ-панель SIR и нажмите «Открыть SIR Технолог». Технологическая карта всегда должна быть связана с реальным заказом и его фотографиями.</div>';return;}
       if(await load())render();
     }catch(error){
       window.SIR_ADMIN_RUNTIME?.record(error,'technology.init');
@@ -57,7 +59,8 @@
 
   function render(){
     const canManage=managerRoles.includes(profile.role);
-    const risk=(card?.risk_level||order.risk_level||'caution').toUpperCase();
+    const riskCode=card?.risk_level||order.risk_level||'caution';
+    const risk=riskCode.toUpperCase(),riskText=riskLabel[riskCode]||riskCode;
     const steps=Array.isArray(card?.instructions)?card.instructions:[];
     const stops=Array.isArray(card?.stop_conditions)?card.stop_conditions:[];
     const orderItems=order.service_type==='rug'
@@ -65,16 +68,16 @@
       :items.length?items.map(x=>`${esc(itemLabel(x.item_code))} × ${x.quantity}`).join(', '):(order.package_code==='full'?'Полный салон':esc(order.package_code||'—'));
     const matched=matchedChemicals();
     root.innerHTML=`
-      <div class="section-title"><div><h1>${esc(order.order_no)} · SIR Технолог</h1><p>${esc(order.customer_name)} · ${esc(serviceLabel(order.service_type))} · загрязнение: ${esc(conditionLabel(order.contamination))}</p></div><a class="btn" href="./">← Admin</a></div>
+      <div class="section-title"><div><h1>${esc(order.order_no)} · SIR Технолог</h1><p>${esc(order.customer_name)} · ${esc(serviceLabel(order.service_type))} · загрязнение: ${esc(conditionLabel(order.contamination))}</p></div><a class="btn" href="./">← Админка</a></div>
       <div class="notice safe"><b>Принцип:</b> карта задаёт безопасную последовательность, а не разрешение «усиливать до результата». Реальный материал, цветостойкость, клей и повреждения проверяются на месте.</div>
       <div class="settings-grid">
-        <section class="card"><h3>Заказ</h3><div class="kv"><span>Работы</span><b>${orderItems}</b></div><div class="kv"><span>Пятна</span><b>${order.stains?'да':'нет'}</b></div><div class="kv"><span>Шерсть</span><b>${order.pet_hair?'да':'нет'}</b></div><div class="kv"><span>Запах</span><b>${order.odor?'да':'нет'}</b></div><div class="kv"><span>Расчётное время</span><b>${timeLabel(order.estimated_minutes)}</b></div><div class="kv"><span>Текущий риск</span><b class="risk ${risk==='STOP'?'stop':risk==='HIGH_RISK'?'high':risk==='CAUTION'?'caution':'low'}">${risk}</b></div>${canManage?'<button class="btn primary" id="generate">Сформировать безопасный черновик</button>':''}<button class="btn" id="raiseStop" style="margin-left:8px">STOP — остановить работу</button></section>
-        <section class="card"><h3>Подтверждение материала</h3><div class="field"><label>Материал после осмотра</label><input id="material" value="${esc(card?.material_guess||'Требуется проверка материала на месте')}" ${canManage?'':'disabled'}></div><div class="field"><label>Оценка загрязнения 1–10</label><input id="score" type="number" min="1" max="10" value="${card?.contamination_score??''}" ${canManage?'':'disabled'}></div><div class="field"><label>Риск</label><select id="risk" ${canManage?'':'disabled'}>${['low','caution','high_risk','stop'].map(x=>`<option value="${x}" ${(card?.risk_level||order.risk_level)===x?'selected':''}>${x.toUpperCase()}</option>`).join('')}</select></div><div class="field"><label>Заметка владельца/менеджера</label><textarea id="ownerNote" ${canManage?'':'disabled'}>${esc(card?.owner_note||'')}</textarea></div>${canManage?'<button class="btn primary" id="approve">Подтвердить карту</button>':''}<p class="mini">${card?.reviewed_at?`Подтверждено человеком: ${new Date(card.reviewed_at).toLocaleString('ru')}`:'Пока не подтверждено человеком.'}</p></section>
+        <section class="card"><h3>Заказ</h3><div class="kv"><span>Работы</span><b>${orderItems}</b></div><div class="kv"><span>Пятна</span><b>${order.stains?'да':'нет'}</b></div><div class="kv"><span>Шерсть</span><b>${order.pet_hair?'да':'нет'}</b></div><div class="kv"><span>Запах</span><b>${order.odor?'да':'нет'}</b></div><div class="kv"><span>Расчётное время</span><b>${timeLabel(order.estimated_minutes)}</b></div><div class="kv"><span>Текущий риск</span><b class="risk ${risk==='STOP'?'stop':risk==='HIGH_RISK'?'high':risk==='CAUTION'?'caution':'low'}">${esc(riskText)}</b></div>${canManage?'<button class="btn primary" id="generate">Сформировать безопасный черновик</button>':''}<button class="btn" id="raiseStop" style="margin-left:8px">STOP — остановить работу</button></section>
+        <section class="card"><h3>Подтверждение материала</h3><div class="field"><label>Материал после осмотра</label><input id="material" value="${esc(card?.material_guess||'Требуется проверка материала на месте')}" ${canManage?'':'disabled'}></div><div class="field"><label>Оценка загрязнения 1–10</label><input id="score" type="number" min="1" max="10" value="${card?.contamination_score??''}" ${canManage?'':'disabled'}></div><div class="field"><label>Риск</label><select id="risk" ${canManage?'':'disabled'}>${['low','caution','high_risk','stop'].map(x=>`<option value="${x}" ${(card?.risk_level||order.risk_level)===x?'selected':''}>${riskLabel[x]}</option>`).join('')}</select></div><div class="field"><label>Заметка владельца/менеджера</label><textarea id="ownerNote" ${canManage?'':'disabled'}>${esc(card?.owner_note||'')}</textarea></div>${canManage?'<button class="btn primary" id="approve">Подтвердить карту</button>':''}<p class="mini">${card?.reviewed_at?`Подтверждено человеком: ${new Date(card.reviewed_at).toLocaleString('ru')}`:'Пока не подтверждено человеком.'}</p></section>
       </div>
       ${photos.length?`<section class="panel"><div class="panel-head">Фото клиента</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:14px">${photos.map(x=>`<a href="${x.url}" target="_blank" rel="noopener noreferrer"><img src="${x.url}" alt="Фото заказа" style="width:100%;height:160px;object-fit:cover;border-radius:12px"></a>`).join('')}</div></section>`:'<div class="notice">Фото клиента не загружены. Для спорного материала итоговую технологию не подтверждать без осмотра.</div>'}
-      <section class="panel"><div class="panel-head"><span>Последовательность работ</span><span>${risk}</span></div><div style="padding:16px">${steps.length?`<ol>${steps.map(x=>`<li style="margin:10px 0">${esc(x)}</li>`).join('')}</ol>`:'<p>Черновик ещё не сформирован.</p>'}</div></section>
+      <section class="panel"><div class="panel-head"><span>Последовательность работ</span><span>${esc(riskText)}</span></div><div style="padding:16px">${steps.length?`<ol>${steps.map(x=>`<li style="margin:10px 0">${esc(x)}</li>`).join('')}</ol>`:'<p>Черновик ещё не сформирован.</p>'}</div></section>
       <section class="panel"><div class="panel-head">Обязательные условия STOP</div><div style="padding:16px">${stops.length?`<ul>${stops.map(x=>`<li style="margin:10px 0">${esc(x)}</li>`).join('')}</ul>`:'<p>После формирования карты здесь появятся условия остановки.</p>'}</div></section>
-      <section class="panel"><div class="panel-head"><span>Химия, совпадающая по области применения</span><span class="mini">manufacturer_verified + HMS gate · ${matched.length}</span></div><div class="notice safe" style="margin:14px"><b>Это только безопасные кандидаты после HMS-фильтра.</b> HIGH RISK, STOP, непроверенный HMS и средства с обязательным подтверждением исключены из автоподбора. Перед использованием всё равно обязательны осмотр материала и spot-test.</div>${chemTable(matched)}</section>
+      <section class="panel"><div class="panel-head"><span>Химия, совпадающая по области применения</span><span class="mini">проверено по инструкции производителя + HMS-фильтр · ${matched.length}</span></div><div class="notice safe" style="margin:14px"><b>Это только безопасные кандидаты после HMS-фильтра.</b> Средства высокого риска, STOP, непроверенный HMS и средства с обязательным подтверждением исключены из автоподбора. Перед использованием всё равно обязательны осмотр материала и тест на незаметном участке.</div>${chemTable(matched)}</section>
       <details class="panel"><summary class="panel-head">Показать всю проверенную базу SIR (${chemicals.length})</summary>${chemTable(chemicals)}</details>`;
 
     document.getElementById('generate')?.addEventListener('click',generate);
@@ -94,12 +97,12 @@
     });
   }
   function chemTable(rows){
-    if(!rows.length)return'<div class="empty">Нет химии, прошедшей одновременно технологическую и HMS-проверку для безопасного автоматического подбора. Используйте SIR Guide и ручное подтверждение, не придумывайте смесь/разведение.</div>';
+    if(!rows.length)return'<div class="empty">Нет химии, прошедшей одновременно технологическую и HMS-проверку для безопасного автоматического подбора. Используйте справочник SIR и ручное подтверждение, не придумывайте смесь/разведение.</div>';
     return `<div class="table-wrap"><table class="table"><thead><tr><th>Средство</th><th>Риск / HMS</th><th>Разведение</th><th>Как применять</th><th>Выдержка</th><th>После</th><th>STOP / предупреждение</th></tr></thead><tbody>${rows.map(x=>{
       const src=safeUrl(x.source_note),sds=safeUrl(x.sds_url);
       const risk=String(x.risk_level||'caution');
       const manual=x.approval_required||risk==='high_risk'||risk==='stop';
-      return `<tr><td><b>${esc(x.brand||'')} ${esc(x.name)}</b><div class="mini">${src?`<a href="${esc(src)}" target="_blank" rel="noopener noreferrer">официальный источник</a>`:'источник не привязан'}</div></td><td><span class="risk ${risk.replace('_','-')}">${esc(risk.toUpperCase())}</span><div class="mini">HMS: ${esc(x.hse_status||'unverified')}${manual?' · только с подтверждением':''}</div>${sds?`<div class="mini"><a href="${esc(sds)}" target="_blank" rel="noopener noreferrer">SDS/HMS</a></div>`:''}</td><td>${esc(x.dilution||'—')}</td><td>${esc(x.application_method||'—')}</td><td>${esc(x.dwell_time||'—')}</td><td>${esc(x.follow_up||'—')}</td><td>${esc(x.warnings||'—')}${x.hse_ppe?`<div class="mini">СИЗ: ${esc(x.hse_ppe)}</div>`:''}</td></tr>`;
+      return `<tr><td><b>${esc(x.brand||'')} ${esc(x.name)}</b><div class="mini">${src?`<a href="${esc(src)}" target="_blank" rel="noopener noreferrer">официальный источник</a>`:'источник не привязан'}</div></td><td><span class="risk ${risk.replace('_','-')}">${esc(riskLabel[risk]||risk)}</span><div class="mini">HMS: ${esc(hseLabel[x.hse_status]||x.hse_status||'Не проверено')}${manual?' · только с подтверждением':''}</div>${sds?`<div class="mini"><a href="${esc(sds)}" target="_blank" rel="noopener noreferrer">SDS/HMS</a></div>`:''}</td><td>${esc(x.dilution||'—')}</td><td>${esc(x.application_method||'—')}</td><td>${esc(x.dwell_time||'—')}</td><td>${esc(x.follow_up||'—')}</td><td>${esc(x.warnings||'—')}${x.hse_ppe?`<div class="mini">СИЗ: ${esc(x.hse_ppe)}</div>`:''}</td></tr>`;
     }).join('')}</tbody></table></div>`;
   }
 
@@ -134,7 +137,7 @@
     }catch(error){
       window.SIR_ADMIN_RUNTIME?.record(error,'technology.approve');
       const msg=String(error?.message||'');
-      alert(/HIGH_RISK\/STOP/i.test(msg)?'Понижать HIGH_RISK/STOP после проверки может только OWNER или ADMIN.':'Не удалось подтвердить карту. Изменения не применены.');
+      alert(/HIGH_RISK\/STOP/i.test(msg)?'Понижать высокий риск/STOP после проверки может только владелец или администратор.':'Не удалось подтвердить карту. Изменения не применены.');
       button.disabled=false;
     }
   }
