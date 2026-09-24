@@ -62,25 +62,80 @@ function startRealtime(){
 }
 
 async function dashboard(){
-  const o=await getOrders(),today=new Date().toLocaleDateString('sv-SE');
-  const count=s=>o.filter(x=>x.status===s).length;
-  const revenue=o.filter(x=>x.status==='completed'&&localDate(x.completed_at)===today).reduce((a,x)=>a+(+x.final_price||0),0);
-  const todayOrders=o.filter(x=>x.status==='in_progress'||x.status==='scheduled');
-  const attention=o.filter(x=>['high_risk','stop'].includes(x.risk_level)||['new','customer_requested_new_time'].includes(x.status)).slice(0,10);
-  main.innerHTML=`<div class="section-title"><div><h1>Сегодня</h1><p>Только то, что требует решения или действия</p></div><button class="btn primary" id="openOrders">Все заказы</button></div>${preview?'<div class="notice">Безопасный предпросмотр — реальная база не изменяется.</div>':''}<div class="grid"><button class="card metric metric-action" data-status="new"><span>Разобрать заявки</span><strong>${count('new')}</strong><small>Проверить фото, риск и цену</small></button><button class="card metric metric-action" data-status="awaiting_confirmation"><span>Ждут клиента</span><strong>${count('awaiting_confirmation')}</strong><small>Цена или время отправлены</small></button><button class="card metric metric-action" data-status="in_progress"><span>Сейчас в работе</span><strong>${count('in_progress')}</strong><small>Открыть технологическую карту</small></button><div class="card metric"><span>Выручка сегодня</span><strong>${money(revenue)}</strong><small>Только выполненные заказы</small></div></div><div class="panel"><div class="panel-head"><span>Сегодняшние работы</span><span class="mini">${todayOrders.length}</span></div>${todayOrders.length?orderTable(todayOrders):'<div class="empty">На сегодня работ нет.</div>'}</div><div class="panel"><div class="panel-head"><span>Нужно решить</span><span class="mini">новые · изменение времени · высокий риск · STOP</span></div>${attention.length?orderTable(attention):'<div class="empty">Срочных решений нет.</div>'}</div>`;
-  main.querySelector('#openOrders')?.addEventListener('click',orders);
-  main.querySelectorAll('[data-status]').forEach(b=>b.addEventListener('click',orders));
+  activeView='dashboard';
+  const o=await getOrders(),now=new Date(),today=localDate(now),dayStart=new Date(now),dayEnd=new Date(now);
+  dayStart.setHours(0,0,0,0);dayEnd.setHours(24,0,0,0);
+  let chemicals=[],todayAppointments=[],recentAudit=[];
+  if(!preview&&sb){
+    const [chemRes,apptRes,auditRes]=await Promise.all([
+      sb.from('chemicals').select('id,name,brand,active,stock_status,stock_note,hse_status,risk_level').eq('active',true).order('brand').order('name'),
+      sb.from('appointments').select('order_id,starts_at,ends_at,tentative').gte('starts_at',dayStart.toISOString()).lt('starts_at',dayEnd.toISOString()).order('starts_at'),
+      canAdmin()?sb.from('audit_events').select('action,entity_id,metadata,created_at').eq('entity_type','order').order('created_at',{ascending:false}).limit(8):Promise.resolve({data:[]})
+    ]);
+    chemicals=chemRes.data||[];todayAppointments=apptRes.data||[];recentAudit=auditRes.data||[];
+  }
+  const reviewOrders=o.filter(x=>['new','under_review'].includes(x.status));
+  const inWork=o.filter(x=>x.status==='in_progress');
+  const unpaidDone=o.filter(x=>x.status==='completed'&&x.payment_status!=='paid');
+  const completedToday=o.filter(x=>x.status==='completed'&&localDate(x.completed_at)===today);
+  const todayIds=new Set(todayAppointments.map(x=>x.order_id));
+  const todayOrders=preview?o.filter(x=>['scheduled','in_progress'].includes(x.status)):o.filter(x=>todayIds.has(x.id)||x.status==='in_progress');
+  const urgent=o.filter(x=>['high_risk','stop'].includes(x.risk_level)||['new','under_review','customer_requested_new_time'].includes(x.status)||(x.status==='completed'&&x.payment_status!=='paid')).slice(0,12);
+  const stockIssues=preview?2:chemicals.filter(x=>['low','out'].includes(x.stock_status)).length;
+  const hseIssues=preview?1:chemicals.filter(x=>x.risk_level==='stop'||!['verified','source_reviewed'].includes(x.hse_status)).length;
+  const revenue=completedToday.reduce((a,x)=>a+(+x.final_price||0),0);
+  const syncState=preview?'PREVIEW':(document.documentElement.dataset.realtime==='online'?'LIVE':'CONNECTING');
+  main.innerHTML=`<div class="section-title"><div><h1>Центр контроля</h1><p>Заказы, работа, оплата, склад и безопасность в одном месте</p></div><div class="toolbar"><span class="sync-badge ${syncState==='LIVE'?'online':''}">● ${syncState==='LIVE'?'LIVE-синхронизация':syncState}</span><button class="btn primary" id="openOrders">Все заказы</button></div></div>${preview?'<div class="notice">Безопасный предпросмотр — реальная база не изменяется.</div>':''}<section class="control-grid">
+    <button class="card metric metric-action" data-control="review"><span>На рассмотрении</span><strong>${reviewOrders.length}</strong><small>Новые и ожидающие решения</small></button>
+    <button class="card metric metric-action" data-control="today"><span>Работы сегодня</span><strong>${todayOrders.length}</strong><small>Запланировано и выполняется</small></button>
+    <button class="card metric metric-action" data-control="in_progress"><span>Сейчас в работе</span><strong>${inWork.length}</strong><small>Открыть текущие работы</small></button>
+    <button class="card metric metric-action" data-control="unpaid"><span>Не оплачено</span><strong>${unpaidDone.length}</strong><small>Выполненные, ожидающие оплату</small></button>
+    <button class="card metric metric-action" data-control="completed_today"><span>Выполнено сегодня</span><strong>${completedToday.length}</strong><small>${money(revenue)} выручки</small></button>
+    <button class="card metric metric-action ${stockIssues?'metric-warn':''}" data-control="inventory"><span>Склад</span><strong>${stockIssues}</strong><small>Заканчивается или отсутствует</small></button>
+    <button class="card metric metric-action ${hseIssues?'metric-danger':''}" data-control="hse"><span>HMS / STOP</span><strong>${hseIssues}</strong><small>Требует проверки безопасности</small></button>
+  </section>
+  <div class="panel attention-panel"><div class="panel-head"><span>Требует внимания</span><span class="mini">заказы · риск · оплата</span></div>${urgent.length?orderTable(urgent):'<div class="empty">Срочных действий нет.</div>'}</div>
+  <div class="panel"><div class="panel-head"><span>Работы сегодня</span><span class="mini">${todayOrders.length}</span></div>${todayOrders.length?orderTable(todayOrders):'<div class="empty">На сегодня работ нет.</div>'}</div>
+  ${recentAudit.length?`<div class="panel"><div class="panel-head"><span>Последние изменения</span><button class="btn" data-view-audit>Открыть журнал</button></div><div class="activity-list">${recentAudit.map(x=>`<div class="activity-row"><span>${new Date(x.created_at).toLocaleString('ru')}</span><b>${esc(auditActionLabel(x.action))}</b><small>${esc(x.metadata?.from||'')} ${x.metadata?.to?'→ '+x.metadata.to:''}</small></div>`).join('')}</div></div>`:''}`;
+  main.querySelector('#openOrders')?.addEventListener('click',()=>orders());
+  main.querySelector('[data-control="review"]')?.addEventListener('click',()=>orders({attention:'review'}));
+  main.querySelector('[data-control="today"]')?.addEventListener('click',()=>orders({attention:'today',ids:[...todayIds]}));
+  main.querySelector('[data-control="in_progress"]')?.addEventListener('click',()=>orders({status:'in_progress'}));
+  main.querySelector('[data-control="unpaid"]')?.addEventListener('click',()=>orders({attention:'unpaid'}));
+  main.querySelector('[data-control="completed_today"]')?.addEventListener('click',()=>orders({attention:'completed_today'}));
+  main.querySelector('[data-control="inventory"]')?.addEventListener('click',inventory);
+  main.querySelector('[data-control="hse"]')?.addEventListener('click',guide);
+  main.querySelector('[data-view-audit]')?.addEventListener('click',audit);
   bindOrderRows();
+}
+function auditActionLabel(action){
+  return {order_status_changed:'Статус заказа',order_final_price_changed:'Цена заказа',order_assignment_changed:'Исполнитель',order_risk_changed:'Риск',order_payment_status_changed:'Оплата'}[action]||action||'Изменение';
 }
 function orderTable(rows){return `<div class="table-wrap"><table class="table"><thead><tr><th>Заказ</th><th>Клиент</th><th>Услуга</th><th>Статус</th><th>Цена</th><th>Риск</th></tr></thead><tbody>${rows.map(x=>`<tr class="order-row" data-id="${x.id}" tabindex="0"><td><b>${esc(x.order_no||'—')}</b><div class="mini">${new Date(x.created_at).toLocaleDateString('ru')}</div></td><td>${esc(x.customer_name||'—')}<div class="mini">${esc(x.phone||'')}</div></td><td>${esc(serviceLabel[x.service_type]||x.service_type||'—')}</td><td>${statusLabel[x.status]||esc(x.status||'—')}</td><td>${x.final_price!=null?money(x.final_price):x.preliminary_price!=null?`${money(x.preliminary_price)} ориентир`:'—'}</td><td><span class="risk ${(x.risk_level||'low').replace('_','-')}">${esc((x.risk_level||'LOW').toUpperCase())}</span></td></tr>`).join('')}</tbody></table></div>`;}
 function bindOrderRows(){main.querySelectorAll('.order-row').forEach(r=>{const open=()=>orderDetail(r.dataset.id);r.addEventListener('click',open);r.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});});}
 
-async function orders(){
+async function orders(options={}){
+  activeView='orders';
   const o=await getOrders();
-  main.innerHTML=`<div class="section-title"><div><h1>Заказы</h1><p>Один список: найти, открыть, принять решение</p></div>${canManage()?'<button class="btn primary" id="manualOrder">+ Ручной заказ</button>':''}</div><div class="order-filters"><input id="orderSearch" placeholder="Номер, имя, телефон, автомобиль"><select id="orderStatus"><option value="">Все активные статусы</option>${allStatuses.map(s=>`<option value="${s}">${statusLabel[s]}</option>`).join('')}</select></div><div id="ordersResult">${o.length?`<div class="panel">${orderTable(o)}</div>`:'<div class="card empty">Заказов пока нет.</div>'}</div>`;
-  bindOrderRows();
-  const paint=()=>{const q=main.querySelector('#orderSearch').value.toLowerCase().trim(),status=main.querySelector('#orderStatus').value;const rows=o.filter(x=>(!status||x.status===status)&&(!q||[x.order_no,x.customer_name,x.phone,x.vehicle_plate,x.vehicle_brand,x.vehicle_model].join(' ').toLowerCase().includes(q)));main.querySelector('#ordersResult').innerHTML=rows.length?`<div class="panel">${orderTable(rows)}</div>`:'<div class="card empty">Ничего не найдено.</div>';bindOrderRows();};
-  main.querySelector('#orderSearch').addEventListener('input',paint);main.querySelector('#orderStatus').addEventListener('change',paint);
+  let special=options.attention||'',initialStatus=options.status||'',ids=new Set(options.ids||[]);
+  main.innerHTML=`<div class="section-title"><div><h1>Заказы</h1><p>Единый список со статусом сайта, работой и оплатой</p></div>${canManage()?'<button class="btn primary" id="manualOrder">+ Ручной заказ</button>':''}</div><div class="order-filters"><input id="orderSearch" placeholder="Номер, имя, телефон, автомобиль"><select id="orderStatus"><option value="">Все статусы</option>${allStatuses.map(s=>`<option value="${s}" ${initialStatus===s?'selected':''}>${statusLabel[s]}</option>`).join('')}</select><select id="orderPayment"><option value="">Любая оплата</option><option value="unpaid">Не оплачено</option><option value="paid">Оплачено</option><option value="refunded">Возврат</option></select></div><div id="ordersFilterNote"></div><div id="ordersResult"></div>`;
+  const paint=()=>{
+    const q=main.querySelector('#orderSearch').value.toLowerCase().trim(),status=main.querySelector('#orderStatus').value,payment=main.querySelector('#orderPayment').value;
+    let rows=o.filter(x=>(!status||x.status===status)&&(!payment||(x.payment_status||'unpaid')===payment)&&(!q||[x.order_no,x.customer_name,x.phone,x.vehicle_plate,x.vehicle_brand,x.vehicle_model].join(' ').toLowerCase().includes(q)));
+    if(special==='review')rows=rows.filter(x=>['new','under_review'].includes(x.status));
+    if(special==='unpaid')rows=rows.filter(x=>x.status==='completed'&&x.payment_status!=='paid');
+    if(special==='completed_today')rows=rows.filter(x=>x.status==='completed'&&localDate(x.completed_at)===localDate(new Date()));
+    if(special==='today'&&ids.size)rows=rows.filter(x=>ids.has(x.id)||x.status==='in_progress');
+    const note={review:'Показаны новые заказы и заказы на рассмотрении',unpaid:'Показаны выполненные, но не оплаченные заказы',completed_today:'Показаны выполненные сегодня',today:'Показаны работы на сегодня'}[special]||'';
+    main.querySelector('#ordersFilterNote').innerHTML=note?`<div class="notice compact">${note} <button class="link-btn" id="clearSpecial">Сбросить</button></div>`:'';
+    main.querySelector('#ordersResult').innerHTML=rows.length?`<div class="panel">${orderTable(rows)}</div>`:'<div class="card empty">Ничего не найдено.</div>';
+    main.querySelector('#clearSpecial')?.addEventListener('click',()=>{special='';paint();});
+    bindOrderRows();
+  };
+  paint();
+  main.querySelector('#orderSearch').addEventListener('input',paint);
+  main.querySelector('#orderStatus').addEventListener('change',()=>{special='';paint();});
+  main.querySelector('#orderPayment').addEventListener('change',()=>{special='';paint();});
   main.querySelector('#manualOrder')?.addEventListener('click',manualOrderForm);
 }
 async function manualOrderForm(){
