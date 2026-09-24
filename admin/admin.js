@@ -374,11 +374,15 @@ async function manualOrderForm(){
   main.querySelector('#backOrders').addEventListener('click',orders);
   main.querySelector('#manualForm').addEventListener('submit',async e=>{
     e.preventDefault();if(!ensureWritable())return;const f=new FormData(e.target),name=String(f.get('name')).trim(),phone=String(f.get('phone')).trim();
-    const referral='SIR-'+crypto.randomUUID().slice(0,8).toUpperCase();
-    const {data:c,error:ce}=await sb.from('customers').upsert({name,phone,referral_code:referral},{onConflict:'phone'}).select('id').single();
-    if(ce){alert(ce.message);return;}
-    const {data:o,error}=await sb.from('orders').insert({customer_id:c.id,customer_name:name,phone,service_type:String(f.get('service')),preliminary_price:numOrNull(f.get('price')),customer_comment:String(f.get('comment')||''),status:'under_review',source:'manual'}).select('id').single();
-    if(error){alert(error.message);return;}orderDetail(o.id);
+    const {data:o,error}=await sb.rpc('create_manual_order',{
+      p_name:name,
+      p_phone:phone,
+      p_service:String(f.get('service')),
+      p_preliminary_price:numOrNull(f.get('price')),
+      p_comment:String(f.get('comment')||'')
+    });
+    if(error){window.SIR_ADMIN_RUNTIME?.record(error,'orders.create_manual');alert(orderActionError(error));return;}
+    orderDetail(o.id);
   });
 }
 
@@ -603,9 +607,18 @@ async function settings(){
       ['referral',{referrer_credit:+f.get('referrer_credit'),new_customer_discount:+f.get('new_customer_discount'),minimum_order:+f.get('ref_minimum_order')}],
       ['work_rules',{working_day_start:String(f.get('working_day_start')),working_day_end:String(f.get('working_day_end')),default_buffer_minutes:+f.get('default_buffer_minutes')}]
     ];
-    for(const [key,value] of updates){const {error}=await sb.from('app_settings').upsert({key,value},{onConflict:'key'});if(error){window.SIR_ADMIN_RUNTIME?.record(error,'settings.upsert');alert('Не удалось сохранить настройки. Изменения не применены.');return;}}
-    for(const tr of main.querySelectorAll('[data-price]')){const {error}=await sb.from('price_rules').update({light_price:numOrNull(tr.querySelector('.p-light').value),medium_price:numOrNull(tr.querySelector('.p-medium').value),heavy_price:numOrNull(tr.querySelector('.p-heavy').value)}).eq('id',tr.dataset.price);if(error){alert(error.message);return;}}
-    alert('Настройки сохранены. Клиентский калькулятор получит новые цены автоматически.');settings();
+    const settingsPayload=Object.fromEntries(updates);
+    const pricesPayload=[...main.querySelectorAll('[data-price]')].map(tr=>({
+      id:tr.dataset.price,
+      light_price:numOrNull(tr.querySelector('.p-light').value),
+      medium_price:numOrNull(tr.querySelector('.p-medium').value),
+      heavy_price:numOrNull(tr.querySelector('.p-heavy').value)
+    }));
+    const submit=e.currentTarget.querySelector('button[type="submit"]');if(submit)submit.disabled=true;
+    const {error}=await sb.rpc('save_admin_settings_bundle',{p_settings:settingsPayload,p_prices:pricesPayload});
+    if(submit)submit.disabled=false;
+    if(error){window.SIR_ADMIN_RUNTIME?.record(error,'settings.atomic_save');alert('Не удалось сохранить настройки. Все изменения отменены — частичного сохранения нет.');return;}
+    alert('Настройки сохранены атомарно. Клиентский калькулятор получит новые цены автоматически.');settings();
   });
 }
 function input(name,label,value,type='text'){return `<div class="field"><label>${label}</label><input name="${name}" type="${type}" value="${esc(value)}"></div>`;}
