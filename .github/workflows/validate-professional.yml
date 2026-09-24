@@ -123,6 +123,11 @@ jobs:
         run: |
           set -euo pipefail
           timeout 45s node tests/status-sync.mjs
+      - name: Run admin runtime/offline resilience regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s node tests/admin-resilience.mjs
       - name: Run admin mobile workspace regression
         shell: bash
         run: |
