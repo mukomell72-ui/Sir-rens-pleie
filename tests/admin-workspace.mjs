@@ -12,10 +12,12 @@ await page.locator('#recoveryButton').click();
 assert.match(await page.locator('#loginStatus').innerText(),/Сначала введите email/);
 await page.locator('#previewBtn').click();
 await page.waitForSelector('#app:not(.hidden)');
-assert.equal((await page.locator('#main h1').first().textContent()).trim(),'Сегодня');
-assert.equal(await page.getByText('Только то, что требует решения или действия').count(),1);
+assert.equal((await page.locator('#main h1').first().textContent()).trim(),'Центр контроля');
+assert.equal(await page.getByText('Заказы, работа, оплата, склад и безопасность в одном месте').count(),1);
 assert.equal(await page.locator('[data-view="orders"]').count(),1);
 assert.equal(await page.locator('[data-view="guide"]').count(),1);
+assert.equal(await page.locator('[data-view="inventory"]').count(),1);
+assert.ok(await page.locator('.control-grid .metric').count()>=7);
 const siteLink=await page.evaluate(()=>{const el=document.querySelector('.admin-site-link');return el&&{text:el.textContent.trim(),href:el.getAttribute('href'),target:el.target,rel:el.rel,visible:el.getClientRects().length>0}});
 assert.deepEqual(siteLink,{text:'Открыть сайт',href:'../',target:'_blank',rel:'noopener noreferrer',visible:true});
 
@@ -42,6 +44,11 @@ await page.locator('#demoOrderForm').locator('button[type="submit"]').click();
 assert.match(await page.locator('#demoSaveStatus').innerText(),/Сохранено/);
 await page.locator('#backOrders').click();
 assert.equal(await page.locator('.order-row').count(),3);
+
+await page.locator('[data-view="inventory"]').click();
+await page.waitForSelector('.inventory-table');
+assert.equal(await page.locator('.inventory-table tbody tr').count(),3);
+assert.match(await page.locator('#main').innerText(),/Заканчивается/);
 
 await page.locator('.nav-more summary').click();
 await page.locator('[data-view="finance"]').click();
