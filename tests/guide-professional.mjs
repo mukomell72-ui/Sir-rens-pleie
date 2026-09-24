@@ -27,7 +27,9 @@ try{
   const greenCard=page.locator('.card').filter({has:page.locator('.name',{hasText:'Green Star'})}).first();
   await greenCard.locator('.name').click();
   assert(await greenCard.evaluate(el=>el.classList.contains('open')),'Green Star card did not open');
-  const green=await greenCard.innerText();
+  const greenBody=greenCard.locator('.body');
+  assert(await greenBody.isVisible(),'Green Star body is not visible after open');
+  const green=await greenBody.textContent();
   for(const marker of ['HMS / опасности','СИЗ','Первая помощь','Проверка HMS','SDS / HMS-источник']){
     assert(green.includes(marker),'Green Star missing '+marker);
   }
@@ -36,7 +38,9 @@ try{
   const w4Card=page.locator('.card').filter({has:page.locator('.name',{hasText:'Gtechniq W4'})}).first();
   await w4Card.locator('.name').click();
   assert(await w4Card.evaluate(el=>el.classList.contains('open')),'Gtechniq W4 card did not open');
-  const w4=await w4Card.innerText();
+  const w4Body=w4Card.locator('.body');
+  assert(await w4Body.isVisible(),'Gtechniq W4 body is not visible after open');
+  const w4=await w4Body.textContent();
   assert(/STOP/i.test(w4),'Legacy W4 must visibly show STOP');
 
   await page.locator('#q').fill('');
