@@ -4,6 +4,7 @@
     if(!badge)return;
     const actor=(badge.textContent||'').trim().toUpperCase();
     document.querySelectorAll('[data-owner-admin-only]').forEach(el=>{el.hidden=!['OWNER','ADMIN'].includes(actor);});
+    document.querySelectorAll('[data-manager-plus]').forEach(el=>{el.hidden=!['OWNER','ADMIN','MANAGER'].includes(actor);});
     if(actor!=='ADMIN')return;
     document.querySelectorAll('[data-profile]').forEach(row=>{
       const select=row.querySelector('.role');
