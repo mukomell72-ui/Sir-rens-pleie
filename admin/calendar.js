@@ -2,6 +2,7 @@
   const C=window.SIR_CONFIG,root=document.getElementById('calendarApp');
   const sb=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const ensureWritable=()=>{if(navigator.onLine)return true;window.SIR_ADMIN_RUNTIME?.refresh();alert('Нет сети. Слот не сохранён. После восстановления подключения повторите действие.');return false;};
   const statusLabel={new:'Новый',under_review:'На рассмотрении',offer_sent:'Предложение отправлено',awaiting_confirmation:'Ждёт подтверждения',confirmed:'Подтверждён',scheduled:'Запланирован',in_progress:'В работе',completed:'Выполнен',customer_requested_new_time:'Нужно другое время',cancelled_customer:'Отменён клиентом',cancelled_sir:'Отменён SIR',no_show:'Неявка'};
   let session,profile,cursor=new Date(),appointments=[],orders=[],work={start:'08:00',end:'20:00',buffer:30};
   cursor.setDate(1);cursor.setHours(12,0,0,0);
@@ -71,16 +72,26 @@
     const sync=()=>{const opt=sel.selectedOptions[0];dur.value=Math.min(maxMinutes,+opt.dataset.minutes||120);addr.value=opt.dataset.address||'';};sync();sel.onchange=sync;document.getElementById('calSave').onclick=saveBooking;
   }
   async function saveBooking(){
+    if(!ensureWritable())return;
     const orderId=document.getElementById('calOrder').value,startVal=document.getElementById('calStart').value,duration=Math.max(30,+document.getElementById('calDuration').value||120),mode=document.getElementById('calMode').value,address=document.getElementById('calAddress').value.trim();if(!orderId||!startVal)return;
     const start=new Date(startVal),end=new Date(start.getTime()+duration*60000),button=document.getElementById('calSave');button.disabled=true;button.textContent='Сохраняю…';
-    const {error}=await sb.from('appointments').insert({order_id:orderId,starts_at:start.toISOString(),ends_at:end.toISOString(),tentative:true,location_mode:mode,address:address||null,buffer_minutes:work.buffer,created_by:session.user.id});
-    if(error){window.SIR_ADMIN_RUNTIME?.record(error,'calendar.create_booking');alert('Не удалось сохранить слот. Изменения не применены.');button.disabled=false;button.textContent='Сохранить временный слот';return;}
-    const row=orders.find(o=>o.id===orderId);
-    if(row&&row.status==='new'){
-      const {error:statusError}=await sb.from('orders').update({status:'under_review'}).eq('id',orderId);
-      if(statusError){window.SIR_ADMIN_RUNTIME?.record(statusError,'calendar.order_status');alert('Слот сохранён, но статус заказа не обновился. Откройте заказ и проверьте статус вручную.');}
+    try{
+      const {error}=await sb.rpc('save_calendar_booking',{
+        p_order_id:orderId,
+        p_starts_at:start.toISOString(),
+        p_ends_at:end.toISOString(),
+        p_tentative:true,
+        p_location_mode:mode,
+        p_address:address||null,
+        p_buffer_minutes:work.buffer
+      });
+      if(error)throw error;
+      closeDialog();await reload();
+    }catch(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'calendar.create_booking');
+      alert('Не удалось сохранить слот. Операция отменена целиком — частичных изменений нет.');
+      button.disabled=false;button.textContent='Сохранить временный слот';
     }
-    closeDialog();await reload();
   }
   function openEvent(id){const a=appointments.find(x=>x.id===id);if(!a)return;const o=a.orders||{};dialog(`<h2>${esc(o.order_no||'Заказ')}</h2><div class="status-row"><b>${esc(o.customer_name||'')}</b><div class="mini">${esc(o.phone||'')}</div></div><p><b>${hm(a.starts_at)}–${hm(a.ends_at)}</b> · ${esc(statusLabel[o.status]||o.status||'')}</p><p>${a.tentative?'Временный слот — клиент ещё не подтвердил.':'Слот подтверждён.'}</p><p>${esc(a.address||o.address||'')}</p><p>Оценка времени: ${+o.estimated_minutes||'—'} мин · Цена: ${o.final_price??o.preliminary_price??'—'} NOK</p>`,`<button class="btn" data-close>Закрыть</button><a class="btn" href="tel:${esc(o.phone||'')}">Позвонить</a><a class="btn primary" href="./?order=${encodeURIComponent(o.id)}">Открыть заказ</a>`);}
   function dialog(content,actions){const back=document.createElement('div');back.className='dialog-back';back.id='calDialog';back.innerHTML=`<div class="dialog">${content}<div class="dialog-actions">${actions}</div></div>`;document.body.appendChild(back);back.addEventListener('click',e=>{if(e.target===back||e.target.closest('[data-close]'))closeDialog();});}
