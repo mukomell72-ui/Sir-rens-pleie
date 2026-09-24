@@ -17,8 +17,10 @@
     }catch(error){window.SIR_ADMIN_RUNTIME?.record(error,'accounting.invoice_issue');alert('Не удалось выставить счёт. Проверьте реквизиты ENK и данные заказа.');}
   }
   async function paid(id){
-    const method=prompt('Способ оплаты: bank / card / cash / vipps / other','bank');if(method===null)return;
-    const m=String(method).trim().toLowerCase();if(!Object.keys(A.methods).includes(m)){alert('Допустимые способы: банковский перевод, карта, наличные, Vipps или другое');return;}
+    const method=prompt('Способ оплаты: банковский перевод / карта / наличные / Vipps / другое','банковский перевод');if(method===null)return;
+    const input=String(method).trim().toLowerCase();
+    const map={'банковский перевод':'bank','банк':'bank','bank':'bank','карта':'card','card':'card','наличные':'cash','cash':'cash','vipps':'vipps','другое':'other','other':'other'};
+    const m=map[input];if(!m||!Object.keys(A.methods).includes(m)){alert('Допустимые способы: банковский перевод, карта, наличные, Vipps или другое');return;}
     try{const {error}=await A.sb.rpc('set_accounting_invoice_paid',{p_invoice_id:id,p_paid:true,p_method:m});if(error)throw error;await A.load();A.render();}
     catch(error){window.SIR_ADMIN_RUNTIME?.record(error,'accounting.invoice_paid');alert('Не удалось изменить оплату счёта. Изменения не применены.');}
   }
