@@ -171,10 +171,13 @@ jobs:
           declare
             v_owner uuid;
             v_order uuid;
+            v_rug uuid;
+            v_result jsonb;
             caught boolean;
           begin
             select id into v_owner from public.profiles where role='owner' and active=true limit 1;
             if v_owner is null then raise exception 'active_owner_missing'; end if;
+            perform set_config('request.jwt.claim.sub',v_owner::text,true);
 
             insert into public.orders(
               customer_name,phone,service_type,status,risk_level,final_price,assigned_to
@@ -197,26 +200,31 @@ jobs:
 
             update public.orders set status='in_progress' where id=v_order;
 
-            update public.orders set risk_level='stop' where id=v_order;
+            perform public.raise_order_stop(v_order,'CI safety stop');
+            if (select risk_level<>'stop' from public.orders where id=v_order) then
+              raise exception 'atomic_stop_did_not_mark_order';
+            end if;
+            if (select reviewed_at is not null or reviewed_by is not null from public.order_technology_cards where order_id=v_order) then
+              raise exception 'atomic_stop_did_not_invalidate_review';
+            end if;
+
             caught:=false;
             begin
-              update public.orders set status='completed' where id=v_order;
+              update public.orders set risk_level='caution' where id=v_order;
             exception when others then
-              caught:=position('STOP risk blocks work completion' in SQLERRM)>0;
+              caught:=position('reviewed technology card' in SQLERRM)>0;
             end;
-            if not caught then raise exception 'stop_order_completed'; end if;
+            if not caught then raise exception 'stop_cleared_without_new_review'; end if;
 
-            update public.orders set risk_level='caution' where id=v_order;
-            update public.order_technology_cards set reviewed_by=null,reviewed_at=null where order_id=v_order;
-            caught:=false;
-            begin
-              update public.orders set status='completed' where id=v_order;
-            exception when others then
-              caught:=position('reviewed technology card required before completion' in SQLERRM)>0;
-            end;
-            if not caught then raise exception 'work_completed_without_reviewed_technology'; end if;
+            perform public.approve_order_technology_card(
+              v_order,
+              jsonb_build_object(
+                'material_guess','CI reviewed material',
+                'risk_level','caution',
+                'owner_note','CI clearance'
+              )
+            );
 
-            update public.order_technology_cards set reviewed_by=v_owner,reviewed_at=now() where order_id=v_order;
             update public.orders set status='completed' where id=v_order;
             if (select completed_at is null from public.orders where id=v_order) then
               raise exception 'completed_at_not_normalized';
@@ -234,6 +242,25 @@ jobs:
               caught:=position('must be in progress before completion' in SQLERRM)>0;
             end;
             if not caught then raise exception 'completed_without_in_progress'; end if;
+
+            insert into public.orders(
+              customer_name,phone,service_type,status,risk_level,material_code,contamination
+            )
+            values('CI Rug','9000000022','rug','under_review','low','wool','medium')
+            returning id into v_rug;
+
+            v_result:=public.generate_order_technology_card(v_rug);
+            if coalesce(v_result->>'risk_level','')<>'high_risk' then
+              raise exception 'rug_wool_not_high_risk';
+            end if;
+            if not exists(
+              select 1 from public.order_technology_cards
+              where order_id=v_rug
+                and risk_level='high_risk'
+                and stop_conditions::text like '%Ковёр%'
+            ) then
+              raise exception 'rug_stop_conditions_missing';
+            end if;
           end $workflow$;
 
           do $privileges$
@@ -268,6 +295,18 @@ jobs:
             end if;
             if (select prosecdef from pg_proc where oid='public.save_order_decision(uuid,jsonb,jsonb)'::regprocedure) then
               raise exception 'atomic_order_decision_must_be_security_invoker';
+            end if;
+            if has_function_privilege('anon','public.approve_order_technology_card(uuid,jsonb)','EXECUTE') then
+              raise exception 'anon_technology_approval_execute_granted';
+            end if;
+            if has_function_privilege('anon','public.raise_order_stop(uuid,text)','EXECUTE') then
+              raise exception 'anon_stop_execute_granted';
+            end if;
+            if not has_function_privilege('authenticated','public.approve_order_technology_card(uuid,jsonb)','EXECUTE') then
+              raise exception 'authenticated_technology_approval_execute_missing';
+            end if;
+            if not has_function_privilege('authenticated','public.raise_order_stop(uuid,text)','EXECUTE') then
+              raise exception 'authenticated_stop_execute_missing';
             end if;
           end $privileges$;
 
