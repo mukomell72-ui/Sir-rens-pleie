@@ -58,7 +58,7 @@ function startRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'orders'},payload=>scheduleRealtimeRefresh(payload.new?.id||payload.old?.id||null))
     .on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>scheduleRealtimeRefresh())
     .on('postgres_changes',{event:'*',schema:'public',table:'chemicals'},()=>scheduleRealtimeRefresh())
-    .subscribe(status=>{document.documentElement.dataset.realtime=status==='SUBSCRIBED'?'online':'connecting';});
+    .subscribe(status=>{document.documentElement.dataset.realtime=status==='SUBSCRIBED'?'online':'connecting';if(status==='SUBSCRIBED'&&activeView==='dashboard')scheduleRealtimeRefresh();});
 }
 
 async function dashboard(){
@@ -186,7 +186,7 @@ async function orderDetail(id){
   if(canManage()){
     const quick=nextStatusAction(o.status);
     const controls=[];
-    if(quick)controls.push(`<button class="btn primary" data-quick-status="${quick.status}">${quick.label}</button>`);
+    if(quick&&!(quick.status==='in_progress'&&o.risk_level==='stop'))controls.push(`<button class="btn primary" data-quick-status="${quick.status}">${quick.label}</button>`);
     if(o.status==='completed'&&o.payment_status!=='paid')controls.push('<button class="btn" data-mark-paid>✓ Отметить оплату</button>');
     if(controls.length){
       main.querySelector('.decision-bar')?.insertAdjacentHTML('afterend',`<div class="quick-workflow"><span>Быстрое действие</span><div class="toolbar">${controls.join('')}</div></div>`);
@@ -212,7 +212,7 @@ async function orderDetail(id){
   }
   main.querySelector('#orderForm').addEventListener('submit',async e=>{
     e.preventDefault();const f=new FormData(e.target),patch={internal_note:String(f.get('note')||'')};
-    if(canManage()){patch.status=String(f.get('status'));patch.payment_status=String(f.get('payment_status')||'unpaid');patch.risk_level=String(f.get('risk'));patch.final_price=numOrNull(f.get('final_price'));patch.assigned_to=f.get('assigned_to')||null;if(patch.status==='completed'&&!o.completed_at)patch.completed_at=new Date().toISOString();if(patch.status!=='completed'&&o.status==='completed')patch.completed_at=null;}
+    if(canManage()){patch.status=String(f.get('status'));patch.payment_status=String(f.get('payment_status')||'unpaid');patch.risk_level=String(f.get('risk'));patch.final_price=numOrNull(f.get('final_price'));patch.assigned_to=f.get('assigned_to')||null;if(patch.status==='completed'&&!o.completed_at)patch.completed_at=new Date().toISOString();if(patch.status!=='completed'&&o.status==='completed')patch.completed_at=null;}if(patch.status==='in_progress'&&patch.risk_level==='stop'){alert('STOP: работу нельзя начинать, пока риск STOP не устранён и не перепроверен.');return;}
     const {error:ue}=await sb.from('orders').update(patch).eq('id',id);if(ue){alert(ue.message);return;}
     if(canManage()){
       const date=String(f.get('date')||''),time=String(f.get('time')||'');
