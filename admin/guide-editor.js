@@ -4,23 +4,43 @@
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const arr=v=>String(v||'').split(',').map(x=>x.trim()).filter(Boolean);
   const lines=v=>String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const safeArray=v=>Array.isArray(v)?v:[];
   let session,profile,chemicals=[],procedures=[],tab='chemicals';
   init();
 
   async function init(){
-    const {data:{session:s}}=await sb.auth.getSession();session=s;
-    if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">SIR Admin</a>.</div>';return;}
-    const {data:p}=await sb.from('profiles').select('role,active,display_name').eq('id',session.user.id).single();profile=p;
-    if(!profile?.active){root.innerHTML='<div class="notice">Доступ отключён.</div>';return;}
-    await load();render();
+    try{
+      const {data:{session:s},error:sessionError}=await sb.auth.getSession();
+      if(sessionError)throw sessionError;
+      session=s;
+      if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">SIR Admin</a>.</div>';return;}
+      const {data:p,error:profileError}=await sb.from('profiles').select('role,active,display_name').eq('id',session.user.id).single();
+      if(profileError)throw profileError;
+      profile=p;
+      if(!profile?.active){root.innerHTML='<div class="notice">Доступ отключён.</div>';return;}
+      if(await load())render();
+    }catch(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'guide_editor.init');
+      showLoadError();
+    }
+  }
+  function showLoadError(){
+    root.innerHTML='<div class="notice"><b>Справочник не загружен.</b><br>Чтобы не редактировать неполные данные, работа редактора заблокирована.</div><button class="btn primary" id="guideRetry">Повторить</button>';
+    root.querySelector('#guideRetry')?.addEventListener('click',()=>location.reload());
   }
   async function load(){
-    const [{data:c=[],error:ce},{data:p=[],error:pe}]=await Promise.all([
+    const [chemRes,procRes]=await Promise.all([
       sb.from('chemicals').select('*').order('brand').order('name'),
       sb.from('procedures').select('*').order('surface_type').order('contamination').order('name')
     ]);
-    if(ce||pe){root.innerHTML=`<div class="notice">${esc(ce?.message||pe?.message||'Ошибка загрузки')}</div>`;return;}
-    chemicals=c;procedures=p;
+    const error=chemRes.error||procRes.error;
+    if(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'guide_editor.load');
+      showLoadError();
+      return false;
+    }
+    chemicals=chemRes.data||[];procedures=procRes.data||[];
+    return true;
   }
   const canEdit=()=>['owner','admin'].includes(profile?.role);
   function render(){
@@ -34,7 +54,7 @@
   function renderChemicals(){
     const body=root.querySelector('#guideBody');
     body.innerHTML=`<div class="section-title"><div><h2>Химия</h2><p>${chemicals.length} записей</p></div>${canEdit()?'<button class="btn primary" id="addChemical">+ Добавить средство</button>':''}</div>
-      <div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Средство</th><th>Назначение</th><th>Разведение</th><th>Проверка</th><th>HMS/SDS</th><th>Риск</th><th>Активно</th><th></th></tr></thead><tbody>${chemicals.map(c=>`<tr><td><b>${esc(c.brand||'')} ${esc(c.name)}</b><div class="mini">${esc(c.category||'')}</div></td><td>${esc((c.intended_surfaces||[]).join(', ')||'—')}</td><td>${esc(c.dilution||'—')}</td><td>${esc(c.verification_status||'draft')}</td><td><b>${esc(c.hse_status||'unverified')}</b><div class="mini">${c.hse_verified_at?esc(c.hse_verified_at):'не проверено'}</div></td><td><span class="risk ${String(c.risk_level||'caution').replace('_','-')}">${esc(String(c.risk_level||'caution').toUpperCase())}</span>${c.approval_required?'<div class="mini">нужно подтверждение</div>':''}</td><td>${c.active?'да':'нет'}</td><td><button class="btn edit-chemical" data-id="${c.id}">${canEdit()?'Редактировать':'Открыть'}</button></td></tr>`).join('')}</tbody></table></div></div><div id="editArea"></div>`;
+      <div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Средство</th><th>Назначение</th><th>Разведение</th><th>Проверка</th><th>HMS/SDS</th><th>Риск</th><th>Активно</th><th></th></tr></thead><tbody>${chemicals.map(c=>`<tr><td><b>${esc(c.brand||'')} ${esc(c.name)}</b><div class="mini">${esc(c.category||'')}</div></td><td>${esc(safeArray(c.intended_surfaces).join(', ')||'—')}</td><td>${esc(c.dilution||'—')}</td><td>${esc(c.verification_status||'draft')}</td><td><b>${esc(c.hse_status||'unverified')}</b><div class="mini">${c.hse_verified_at?esc(c.hse_verified_at):'не проверено'}</div></td><td><span class="risk ${String(c.risk_level||'caution').replace('_','-')}">${esc(String(c.risk_level||'caution').toUpperCase())}</span>${c.approval_required?'<div class="mini">нужно подтверждение</div>':''}</td><td>${c.active?'да':'нет'}</td><td><button class="btn edit-chemical" data-id="${c.id}">${canEdit()?'Редактировать':'Открыть'}</button></td></tr>`).join('')}</tbody></table></div></div><div id="editArea"></div>`;
     body.querySelector('#addChemical')?.addEventListener('click',()=>chemicalForm(null));
     body.querySelectorAll('.edit-chemical').forEach(b=>b.addEventListener('click',()=>chemicalForm(chemicals.find(x=>x.id===b.dataset.id))));
   }
@@ -42,7 +62,7 @@
     const edit=root.querySelector('#editArea');if(!edit)return;
     c=c||{brand:'',name:'',category:'',intended_surfaces:[],prohibited_surfaces:[],dilution:'',application_method:'',dwell_time:'',follow_up:'',warnings:'',purchase_price:null,shop_url:'',verification_status:'draft',source_note:'',active:true,risk_level:'caution',approval_required:false,hse_status:'unverified',sds_url:'',sds_language:'no',sds_revision:'',hse_verified_at:'',hse_hazards:'',hse_ppe:'',hse_first_aid:'',hse_storage:''};
     edit.innerHTML=`<form class="card" id="chemicalForm"><div class="section-title"><div><h2>${c.id?'Средство':'Новое средство'}</h2><p>${c.id?esc(`${c.brand||''} ${c.name||''}`):'Сначала внесите данные, затем подтверждайте источник.'}</p></div><button class="btn" type="button" id="closeEditor">Закрыть</button></div><div class="settings-grid">
-      ${field('brand','Марка',c.brand,true)}${field('name','Название',c.name,true)}${field('category','Категория',c.category)}${field('intended','Разрешённые поверхности через запятую',(c.intended_surfaces||[]).join(', '))}${field('prohibited','Запрещённые/нежелательные поверхности',(c.prohibited_surfaces||[]).join(', '))}${field('dilution','Разведение / готово к применению',c.dilution)}${field('dwell','Выдержка',c.dwell_time)}${field('purchase','Закупочная цена NOK',c.purchase_price??'','number')}${field('shop','Ссылка на магазин',c.shop_url,'url')}${field('source','Официальный источник / инструкция',c.source_note,'url')}
+      ${field('brand','Марка',c.brand,true)}${field('name','Название',c.name,true)}${field('category','Категория',c.category)}${field('intended','Разрешённые поверхности через запятую',safeArray(c.intended_surfaces).join(', '))}${field('prohibited','Запрещённые/нежелательные поверхности',safeArray(c.prohibited_surfaces).join(', '))}${field('dilution','Разведение / готово к применению',c.dilution)}${field('dwell','Выдержка',c.dwell_time)}${field('purchase','Закупочная цена NOK',c.purchase_price??'','number')}${field('shop','Ссылка на магазин',c.shop_url,'url')}${field('source','Официальный источник / инструкция',c.source_note,'url')}
       <div class="field"><label>Статус технологии</label><select name="verification"><option value="draft" ${c.verification_status==='draft'?'selected':''}>draft</option><option value="source_reviewed" ${c.verification_status==='source_reviewed'?'selected':''}>source_reviewed</option><option value="manufacturer_verified" ${c.verification_status==='manufacturer_verified'?'selected':''}>manufacturer_verified</option></select></div>
       <div class="field"><label>HMS / SDS статус</label><select name="hse_status"><option value="unverified" ${(c.hse_status||'unverified')==='unverified'?'selected':''}>unverified — STOP для автоподбора</option><option value="source_reviewed" ${c.hse_status==='source_reviewed'?'selected':''}>source_reviewed</option><option value="verified" ${c.hse_status==='verified'?'selected':''}>verified</option><option value="stop" ${c.hse_status==='stop'?'selected':''}>STOP</option></select></div>
       <div class="field"><label>Риск</label><select name="risk_level"><option value="low" ${c.risk_level==='low'?'selected':''}>LOW</option><option value="caution" ${(c.risk_level||'caution')==='caution'?'selected':''}>CAUTION</option><option value="high_risk" ${c.risk_level==='high_risk'?'selected':''}>HIGH RISK</option><option value="stop" ${c.risk_level==='stop'?'selected':''}>STOP</option></select></div>
@@ -68,7 +88,16 @@
       if(hseStatus==='stop'){riskLevel='stop';approvalRequired=true;}
       if(riskLevel==='high_risk'||riskLevel==='stop')approvalRequired=true;
       const row={brand:String(f.get('brand')).trim(),name:String(f.get('name')).trim(),category:String(f.get('category')||'').trim(),intended_surfaces:arr(f.get('intended')),prohibited_surfaces:arr(f.get('prohibited')),dilution,application_method:application,dwell_time:String(f.get('dwell')||'').trim(),follow_up:String(f.get('follow')||'').trim(),warnings:String(f.get('warnings')||'').trim(),purchase_price:numOrNull(f.get('purchase')),shop_url:String(f.get('shop')||'').trim()||null,verification_status:verification,source_note:source||null,active,risk_level:riskLevel,approval_required:approvalRequired,hse_status:hseStatus,sds_url:sdsUrl||null,sds_language:sdsLanguage||null,sds_revision:String(f.get('sds_revision')||'').trim()||null,hse_verified_at:hseDate||null,hse_hazards:hseHazards||null,hse_ppe:hsePpe||null,hse_first_aid:hseFirst||null,hse_storage:hseStorage||null};
-      const q=c.id?sb.from('chemicals').update(row).eq('id',c.id):sb.from('chemicals').insert(row);const {error}=await q;if(error){alert(error.message);return;}await load();render();
+      const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+      try{
+        const q=c.id?sb.from('chemicals').update(row).eq('id',c.id):sb.from('chemicals').insert(row);
+        const {error}=await q;if(error)throw error;
+        if(await load())render();
+      }catch(error){
+        window.SIR_ADMIN_RUNTIME?.record(error,'guide_editor.chemical_save');
+        alert('Не удалось сохранить карточку химии. Изменения не применены.');
+        button.disabled=false;
+      }
     });
     edit.scrollIntoView({behavior:'smooth',block:'start'});
   }
@@ -84,7 +113,7 @@
     p=p||{name:'',code:'',surface_type:'',contamination:'medium',risk_level:'caution',steps:[],stop_conditions:[],pass_plan:'',drying_rule:'',mechanical_method:'',chemical_rule:'',source_note:'',verified:false,version:1};
     edit.innerHTML=`<form class="card" id="procedureForm"><div class="section-title"><div><h2>${p.id?'Процедура':'Новая процедура'}</h2><p>При обновлении существующей процедуры версия увеличивается автоматически.</p></div><button class="btn" type="button" id="closeEditor">Закрыть</button></div><div class="settings-grid">
       ${field('name','Название',p.name,true)}${field('code','Код',p.code,true)}${field('surface','Поверхность',p.surface_type,true)}<div class="field"><label>Загрязнение</label><select name="condition"><option value="light" ${p.contamination==='light'?'selected':''}>light</option><option value="medium" ${p.contamination==='medium'?'selected':''}>medium</option><option value="heavy" ${p.contamination==='heavy'?'selected':''}>heavy</option><option value="special" ${p.contamination==='special'?'selected':''}>special</option></select></div><div class="field"><label>Риск</label><select name="risk"><option value="low" ${p.risk_level==='low'?'selected':''}>LOW</option><option value="caution" ${p.risk_level==='caution'?'selected':''}>CAUTION</option><option value="high_risk" ${p.risk_level==='high_risk'?'selected':''}>HIGH RISK</option><option value="stop" ${p.risk_level==='stop'?'selected':''}>STOP</option></select></div>${field('source','Источник / основание',p.source_note,'text')}<div class="field"><label>Проверено SIR</label><select name="verified"><option value="false" ${!p.verified?'selected':''}>Нет</option><option value="true" ${p.verified?'selected':''}>Да</option></select></div></div>
-      ${area('pass_plan','Количество/логика проходов',p.pass_plan)}${area('drying_rule','Нужно ли ждать высыхания между проходами',p.drying_rule)}${area('mechanical','Механическое воздействие / инструмент',p.mechanical_method)}${area('chemical_rule','Правило выбора химии',p.chemical_rule)}${area('steps','Шаги — по одному на строку',(Array.isArray(p.steps)?p.steps:[]).join('\n'))}${area('stops','STOP — по одному условию на строку',(Array.isArray(p.stop_conditions)?p.stop_conditions:[]).join('\n'))}
+      ${area('pass_plan','Количество/логика проходов',p.pass_plan)}${area('drying_rule','Нужно ли ждать высыхания между проходами',p.drying_rule)}${area('mechanical','Механическое воздействие / инструмент',p.mechanical_method)}${area('chemical_rule','Правило выбора химии',p.chemical_rule)}${area('steps','Шаги — по одному на строку',safeArray(p.steps).join('\n'))}${area('stops','STOP — по одному условию на строку',safeArray(p.stop_conditions).join('\n'))}
       ${canEdit()?'<button class="btn primary" type="submit">Сохранить</button>':''}</form>`;
     edit.querySelector('#closeEditor').addEventListener('click',()=>{edit.innerHTML='';});
     if(!canEdit())edit.querySelectorAll('input,textarea,select').forEach(x=>x.disabled=true);
@@ -93,7 +122,16 @@
       if(!code){alert('Укажите код процедуры.');return;}
       const row={name:String(f.get('name')).trim(),code,surface_type:String(f.get('surface')).trim(),contamination:String(f.get('condition')),risk_level:String(f.get('risk')),steps:lines(f.get('steps')),stop_conditions:lines(f.get('stops')),pass_plan:String(f.get('pass_plan')||'').trim(),drying_rule:String(f.get('drying_rule')||'').trim(),mechanical_method:String(f.get('mechanical')||'').trim(),chemical_rule:String(f.get('chemical_rule')||'').trim(),source_note:String(f.get('source')||'').trim()||null,verified:String(f.get('verified'))==='true'};
       if(row.verified&&(!row.steps.length||!row.stop_conditions.length||!row.pass_plan||!row.drying_rule||!row.chemical_rule)){alert('Проверенная процедура должна содержать шаги, STOP-условия, проходы, сушку и правило выбора химии.');return;}
-      const q=p.id?sb.from('procedures').update(row).eq('id',p.id):sb.from('procedures').insert({...row,version:1});const {error}=await q;if(error){alert(error.message);return;}await load();render();
+      const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+      try{
+        const q=p.id?sb.from('procedures').update(row).eq('id',p.id):sb.from('procedures').insert({...row,version:1});
+        const {error}=await q;if(error)throw error;
+        if(await load())render();
+      }catch(error){
+        window.SIR_ADMIN_RUNTIME?.record(error,'guide_editor.procedure_save');
+        alert('Не удалось сохранить процедуру. Изменения не применены.');
+        button.disabled=false;
+      }
     });
     edit.scrollIntoView({behavior:'smooth',block:'start'});
   }
