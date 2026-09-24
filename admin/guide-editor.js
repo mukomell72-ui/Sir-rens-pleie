@@ -5,6 +5,82 @@
   const arr=v=>String(v||'').split(',').map(x=>x.trim()).filter(Boolean);
   const lines=v=>String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   const safeArray=v=>Array.isArray(v)?v:[];
+  const RU_SURFACE={
+    'clean dry tyre sidewall':'чистая сухая боковина шины',
+    'tyres':'шины',
+    'most modern clear-coated wheels':'большинство современных дисков с прозрачным лаком',
+    'paint':'лакокрасочное покрытие',
+    'coated_paint':'защищённое/покрытое ЛКП',
+    'solvent-resistant paint':'стойкое к растворителям ЛКП',
+    'glass':'стекло',
+    'ceramic':'керамика',
+    'metal':'металл',
+    'solvent-resistant textiles':'стойкий к растворителям текстиль',
+    'textiles':'текстиль',
+    'upholstery':'обивка',
+    'headliner':'потолок салона',
+    'room air':'воздух в помещении',
+    'mirrors':'зеркала',
+    'smooth surfaces':'гладкие поверхности',
+    'vehicle interior':'салон автомобиля',
+    'vehicle exterior':'кузов автомобиля',
+    'engine':'двигатель',
+    'smooth leather':'гладкая кожа',
+    'suede':'замша',
+    'perforated leather':'перфорированная кожа',
+    'automotive paintwork':'автомобильное ЛКП',
+    'external plastic':'наружный пластик',
+    'rubber':'резина',
+    'door seals':'уплотнители дверей',
+    'tyre sidewall':'боковина шины',
+    'leather':'кожа',
+    'alcantara':'алькантара',
+    'carpet':'ковролин',
+    'wheels':'колёсные диски',
+    'textile':'текстиль',
+    'interior_plastic':'пластик салона',
+    'interior_rubber':'резина салона'
+  };
+  const RU_CATEGORY={
+    'tyre protection':'защита шин',
+    'tyre cleaner':'очиститель шин',
+    'exterior':'кузов / наружные работы',
+    'solvent residue remover':'удалитель следов на основе растворителя',
+    'solvent spot remover':'локальный пятновыводитель на растворителе',
+    'odour eliminator':'нейтрализатор запаха',
+    'glass cleaner':'очиститель стекла',
+    'cleaner':'очиститель',
+    'leather care':'уход за кожей',
+    'shampoo':'автошампунь',
+    'exterior care':'уход за наружным пластиком и резиной',
+    'interior textile/leather cleaner':'очиститель текстиля и кожи салона',
+    'interior':'салон'
+  };
+  const RU_DILUTION={
+    'Ready to use.':'Готово к применению.',
+    'Ready to use; do not dilute.':'Готово к применению; не разбавлять.',
+    'Use as supplied; no dilution step is specified on the product page.':'Использовать в исходной концентрации; производитель не указывает разведение.',
+    'Use undiluted.':'Использовать неразбавленным.',
+    'Sprayable ready application; manufacturer does not specify a dilution step on the product page.':'Готово к распылению; производитель не указывает разведение.',
+    'Ready to use / undiluted.':'Готово к применению / использовать неразбавленным.',
+    'Interior/textiles: 1:10–1:20. Exterior/engine: 1:5–1:30.':'Салон/текстиль: 1:10–1:20. Кузов/двигатель: 1:5–1:30.',
+    'Apply directly as supplied; no dilution step is stated in the manufacturer application instructions.':'Наносить в исходной концентрации; разведение производителем не предусмотрено.',
+    '50 ml in 10 L warm water.':'50 мл на 10 л тёплой воды.',
+    '1:5–1:20 depending on soil level.':'1:5–1:20 в зависимости от степени загрязнения.',
+    'Starting mix 1:5 in foam-gun bottle; adjust up to 1:10 depending on equipment/foam.':'Начальное разведение 1:5 в бачке пенной насадки; при необходимости увеличить до 1:10 в зависимости от оборудования и пены.',
+    'Do not mix stronger than 50:50 product:water in compatible foaming equipment.':'Не использовать концентрацию сильнее 50:50 (средство : вода) в совместимом пенообразующем оборудовании.',
+    'Pre-spray 5–10%; direct extraction method 2%. Choose one method.':'Предварительное распыление: 5–10%; при прямой экстракции: 2%. Использовать только один из методов.',
+    'Legacy bottle dosage verified from label; professional automatic use blocked until exact matching legacy SDS is obtained.':'Дозировка старой версии подтверждена по этикетке; автоматическое профессиональное применение запрещено до получения точного SDS для этой версии.'
+  };
+  const RU_VERIFY={draft:'черновик',source_reviewed:'источник проверен',manufacturer_verified:'проверено по инструкции производителя'};
+  const RU_HSE={unverified:'не проверено',source_reviewed:'источник проверен',verified:'проверено',stop:'STOP — применение запрещено'};
+  const RU_RISK={low:'низкий риск',caution:'осторожно',high_risk:'высокий риск',stop:'STOP'};
+  const trSurface=v=>RU_SURFACE[String(v??'').trim()]||String(v??'');
+  const trCategory=v=>RU_CATEGORY[String(v??'').trim()]||String(v??'');
+  const trDilution=v=>RU_DILUTION[String(v??'').trim()]||String(v??'');
+  const trVerify=v=>RU_VERIFY[String(v??'').trim()]||String(v??'');
+  const trHse=v=>RU_HSE[String(v??'').trim()]||String(v??'');
+  const trRisk=v=>RU_RISK[String(v??'').trim()]||String(v??'');
   let session,profile,chemicals=[],procedures=[],tab='chemicals';
   init();
 
@@ -45,7 +121,7 @@
   const canEdit=()=>['owner','admin'].includes(profile?.role);
   function render(){
     root.innerHTML=`<div class="section-title"><div><h1>Редактор справочника</h1><p>Химия и технологические процедуры меняются здесь без редактирования кода сайта.</p></div><div class="toolbar"><button class="btn ${tab==='chemicals'?'primary':''}" data-tab="chemicals">Химия</button><button class="btn ${tab==='procedures'?'primary':''}" data-tab="procedures">Процедуры</button></div></div>
-      <div class="notice safe"><b>Правило SIR:</b> статус <code>manufacturer_verified</code> ставим только после сверки с официальной инструкцией производителя. Непроверенное разведение или смесь не превращается в рабочую инструкцию.</div>
+      <div class="notice safe"><b>Правило SIR:</b> статус «проверено по инструкции производителя» (<code>manufacturer_verified</code>) ставим только после сверки с официальной инструкцией. В таблице рабочие значения показаны по-русски, исходные данные производителя в базе сохраняются без изменений.</div>
       ${canEdit()?'':'<div class="notice">У вас режим просмотра. Редактирование доступно OWNER и ADMIN.</div>'}
       <div id="guideBody"></div>`;
     root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;render();}));
@@ -54,7 +130,7 @@
   function renderChemicals(){
     const body=root.querySelector('#guideBody');
     body.innerHTML=`<div class="section-title"><div><h2>Химия</h2><p>${chemicals.length} записей</p></div>${canEdit()?'<button class="btn primary" id="addChemical">+ Добавить средство</button>':''}</div>
-      <div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Средство</th><th>Назначение</th><th>Разведение</th><th>Проверка</th><th>HMS/SDS</th><th>Риск</th><th>Активно</th><th></th></tr></thead><tbody>${chemicals.map(c=>`<tr><td><b>${esc(c.brand||'')} ${esc(c.name)}</b><div class="mini">${esc(c.category||'')}</div></td><td>${esc(safeArray(c.intended_surfaces).join(', ')||'—')}</td><td>${esc(c.dilution||'—')}</td><td>${esc(c.verification_status||'draft')}</td><td><b>${esc(c.hse_status||'unverified')}</b><div class="mini">${c.hse_verified_at?esc(c.hse_verified_at):'не проверено'}</div></td><td><span class="risk ${String(c.risk_level||'caution').replace('_','-')}">${esc(String(c.risk_level||'caution').toUpperCase())}</span>${c.approval_required?'<div class="mini">нужно подтверждение</div>':''}</td><td>${c.active?'да':'нет'}</td><td><button class="btn edit-chemical" data-id="${c.id}">${canEdit()?'Редактировать':'Открыть'}</button></td></tr>`).join('')}</tbody></table></div></div><div id="editArea"></div>`;
+      <div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Средство</th><th>Назначение</th><th>Разведение</th><th>Проверка</th><th>HMS/SDS</th><th>Риск</th><th>Активно</th><th></th></tr></thead><tbody>${chemicals.map(c=>`<tr><td><b>${esc(c.brand||'')} ${esc(c.name)}</b><div class="mini">${esc(trCategory(c.category||''))}</div></td><td>${esc(safeArray(c.intended_surfaces).map(trSurface).join(', ')||'—')}</td><td>${esc(trDilution(c.dilution||'—'))}</td><td>${esc(trVerify(c.verification_status||'draft'))}</td><td><b>${esc(trHse(c.hse_status||'unverified'))}</b><div class="mini">${c.hse_verified_at?esc(c.hse_verified_at):'не проверено'}</div></td><td><span class="risk ${String(c.risk_level||'caution').replace('_','-')}">${esc(trRisk(c.risk_level||'caution'))}</span>${c.approval_required?'<div class="mini">нужно подтверждение</div>':''}</td><td>${c.active?'да':'нет'}</td><td><button class="btn edit-chemical" data-id="${c.id}">${canEdit()?'Редактировать':'Открыть'}</button></td></tr>`).join('')}</tbody></table></div></div><div id="editArea"></div>`;
     body.querySelector('#addChemical')?.addEventListener('click',()=>chemicalForm(null));
     body.querySelectorAll('.edit-chemical').forEach(b=>b.addEventListener('click',()=>chemicalForm(chemicals.find(x=>x.id===b.dataset.id))));
   }
@@ -63,9 +139,9 @@
     c=c||{brand:'',name:'',category:'',intended_surfaces:[],prohibited_surfaces:[],dilution:'',application_method:'',dwell_time:'',follow_up:'',warnings:'',purchase_price:null,shop_url:'',verification_status:'draft',source_note:'',active:true,risk_level:'caution',approval_required:false,hse_status:'unverified',sds_url:'',sds_language:'no',sds_revision:'',hse_verified_at:'',hse_hazards:'',hse_ppe:'',hse_first_aid:'',hse_storage:''};
     edit.innerHTML=`<form class="card" id="chemicalForm"><div class="section-title"><div><h2>${c.id?'Средство':'Новое средство'}</h2><p>${c.id?esc(`${c.brand||''} ${c.name||''}`):'Сначала внесите данные, затем подтверждайте источник.'}</p></div><button class="btn" type="button" id="closeEditor">Закрыть</button></div><div class="settings-grid">
       ${field('brand','Марка',c.brand,true)}${field('name','Название',c.name,true)}${field('category','Категория',c.category)}${field('intended','Разрешённые поверхности через запятую',safeArray(c.intended_surfaces).join(', '))}${field('prohibited','Запрещённые/нежелательные поверхности',safeArray(c.prohibited_surfaces).join(', '))}${field('dilution','Разведение / готово к применению',c.dilution)}${field('dwell','Выдержка',c.dwell_time)}${field('purchase','Закупочная цена NOK',c.purchase_price??'','number')}${field('shop','Ссылка на магазин',c.shop_url,'url')}${field('source','Официальный источник / инструкция',c.source_note,'url')}
-      <div class="field"><label>Статус технологии</label><select name="verification"><option value="draft" ${c.verification_status==='draft'?'selected':''}>draft</option><option value="source_reviewed" ${c.verification_status==='source_reviewed'?'selected':''}>source_reviewed</option><option value="manufacturer_verified" ${c.verification_status==='manufacturer_verified'?'selected':''}>manufacturer_verified</option></select></div>
-      <div class="field"><label>HMS / SDS статус</label><select name="hse_status"><option value="unverified" ${(c.hse_status||'unverified')==='unverified'?'selected':''}>unverified — STOP для автоподбора</option><option value="source_reviewed" ${c.hse_status==='source_reviewed'?'selected':''}>source_reviewed</option><option value="verified" ${c.hse_status==='verified'?'selected':''}>verified</option><option value="stop" ${c.hse_status==='stop'?'selected':''}>STOP</option></select></div>
-      <div class="field"><label>Риск</label><select name="risk_level"><option value="low" ${c.risk_level==='low'?'selected':''}>LOW</option><option value="caution" ${(c.risk_level||'caution')==='caution'?'selected':''}>CAUTION</option><option value="high_risk" ${c.risk_level==='high_risk'?'selected':''}>HIGH RISK</option><option value="stop" ${c.risk_level==='stop'?'selected':''}>STOP</option></select></div>
+      <div class="field"><label>Статус технологии</label><select name="verification"><option value="draft" ${c.verification_status==='draft'?'selected':''}>Черновик</option><option value="source_reviewed" ${c.verification_status==='source_reviewed'?'selected':''}>Источник проверен</option><option value="manufacturer_verified" ${c.verification_status==='manufacturer_verified'?'selected':''}>Проверено по инструкции производителя</option></select></div>
+      <div class="field"><label>HMS / SDS статус</label><select name="hse_status"><option value="unverified" ${(c.hse_status||'unverified')==='unverified'?'selected':''}>Не проверено — STOP для автоподбора</option><option value="source_reviewed" ${c.hse_status==='source_reviewed'?'selected':''}>Источник проверен</option><option value="verified" ${c.hse_status==='verified'?'selected':''}>Проверено</option><option value="stop" ${c.hse_status==='stop'?'selected':''}>STOP — применение запрещено</option></select></div>
+      <div class="field"><label>Риск</label><select name="risk_level"><option value="low" ${c.risk_level==='low'?'selected':''}>Низкий риск</option><option value="caution" ${(c.risk_level||'caution')==='caution'?'selected':''}>Осторожно</option><option value="high_risk" ${c.risk_level==='high_risk'?'selected':''}>Высокий риск</option><option value="stop" ${c.risk_level==='stop'?'selected':''}>STOP</option></select></div>
       <div class="field"><label>Требует подтверждения</label><select name="approval_required"><option value="false" ${!c.approval_required?'selected':''}>Нет</option><option value="true" ${c.approval_required?'selected':''}>Да</option></select></div>
       ${field('sds_url','SDS / HMS URL',c.sds_url||'',false,'url')}${field('sds_language','Язык SDS',c.sds_language||'no')}${field('sds_revision','Версия / дата SDS',c.sds_revision||'')}${field('hse_verified_at','Дата проверки HMS',c.hse_verified_at||'',false,'date')}
       <div class="field"><label>Активно</label><select name="active"><option value="true" ${c.active!==false?'selected':''}>Да</option><option value="false" ${c.active===false?'selected':''}>Нет / архив</option></select></div></div>
