@@ -80,6 +80,12 @@ try{
     ];
     for(const [label,path] of urls){
       await page.goto('http://127.0.0.1:4173'+path,{waitUntil:'domcontentloaded'});
+      if(label==='guide'){
+        await page.waitForSelector('#guideHealth',{timeout:15000});
+        await page.locator('.card').evaluateAll(els=>els.forEach(el=>el.classList.add('open')));
+        await page.locator('details').evaluateAll(els=>els.forEach(el=>el.open=true));
+        await page.locator('#wizBuild').click();
+      }
       await assertNorwegianVisible(page,label);
     }
     await context.close();
