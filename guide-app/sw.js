@@ -1,6 +1,7 @@
-const CACHE='sir-guide-v13-professional-ui-v18';
+const CACHE='sir-guide-v13-resilience-v19';
 const CORE=[
   './index-v13.html',
+  './guide-runtime-guard.js',
   './app-v13.js',
   './guide-wizard.js',
   './hse-v13.js',
