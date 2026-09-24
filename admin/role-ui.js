@@ -1,8 +1,13 @@
 (() => {
+  function actorRole(){
+    const badge=document.getElementById('roleBadge');
+    const raw=document.documentElement.dataset.adminRole||badge?.dataset.role||badge?.textContent||'';
+    return String(raw).trim().toUpperCase();
+  }
   function apply(){
     const badge=document.getElementById('roleBadge');
     if(!badge)return;
-    const actor=(badge.textContent||'').trim().toUpperCase();
+    const actor=actorRole();
     document.querySelectorAll('[data-owner-admin-only]').forEach(el=>{el.hidden=!['OWNER','ADMIN'].includes(actor);});
     document.querySelectorAll('[data-manager-plus]').forEach(el=>{el.hidden=!['OWNER','ADMIN','MANAGER'].includes(actor);});
     if(actor!=='ADMIN')return;
@@ -23,7 +28,11 @@
       }
     });
   }
-  addEventListener('DOMContentLoaded',()=>{
-    const observer=new MutationObserver(apply);observer.observe(document.body,{subtree:true,childList:true});apply();
-  });
+  function init(){
+    const observer=new MutationObserver(apply);
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['data-role']});
+    apply();
+  }
+  window.SIR_ROLE_UI={apply,actorRole};
+  if(document.readyState==='loading')addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
