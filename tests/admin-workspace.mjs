@@ -64,7 +64,7 @@ assert.ok(await guideFrame.locator('.card').count()>=1);
 assert.match(await guideFrame.locator('.card').first().innerText(),/Pol Star/i);
 await guideFrame.locator('#q').fill('пластик');
 assert.ok(await guideFrame.locator('.card').count()>=2);
-assert.match(await guideFrame.locator('#count').innerText(),/пластик/);
+assert.match(await guideFrame.locator('#count').innerText(),/пластик/i);
 assert.ok((await guideFrame.locator('.card .mini').allInnerTexts()).every(text=>text.trim().length>10));
 await guideFrame.locator('#q').fill('несуществующее-средство');
 assert.equal(await guideFrame.locator('.card').count(),0);
