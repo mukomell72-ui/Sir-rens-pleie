@@ -52,7 +52,7 @@
         ['Контакты','SIR Rens & Pleie, Kongsberg. Телефон: +47 93 95 35 81 или +47 48 68 91 64. Полное зарегистрированное название, организационный номер и юридический адрес должны быть предоставлены до заключения обязательного платного договора.']
       ]}
     };
-    const $=id=>document.getElementById(id);let lang=localStorage.getItem('sir_lang')||'no';if(!data[lang])lang='no';
+    const POLICY_KEY='sir_language_policy_no_20260924_v2';if(localStorage.getItem(POLICY_KEY)!=='1'){for(const key of ['sir_admin_lang','sir_lang']){const saved=localStorage.getItem(key);if(saved&&saved!=='no')localStorage.setItem(key,'no');}localStorage.setItem(POLICY_KEY,'1');}const $=id=>document.getElementById(id);let lang=localStorage.getItem('sir_lang')||'no';if(!data[lang])lang='no';
     function render(){const d=data[lang];document.documentElement.lang=lang==='no'?'nb':lang;$('back').textContent=d.back;$('eyebrow').textContent=d.eyebrow;$('title').textContent=d.title;$('lead').textContent=d.lead;$('content').innerHTML=d.sections.map(([h,p])=>`<div class="info-card" style="margin-top:12px"><b>${h}</b><p>${p}</p></div>`).join('');document.querySelectorAll('[data-lang]').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));}
     document.querySelectorAll('[data-lang]').forEach(b=>b.addEventListener('click',()=>{lang=b.dataset.lang;localStorage.setItem('sir_lang',lang);render();}));render();
   })();

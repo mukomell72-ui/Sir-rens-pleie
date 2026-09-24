@@ -1,4 +1,12 @@
 (() => {
+  const POLICY_KEY='sir_language_policy_no_20260924_v2';
+  if(localStorage.getItem(POLICY_KEY)!=='1'){
+    for(const key of ['sir_admin_lang','sir_lang']){
+      const saved=localStorage.getItem(key);
+      if(saved&&saved!=='no')localStorage.setItem(key,'no');
+    }
+    localStorage.setItem(POLICY_KEY,'1');
+  }
   const dict={
     'Профессиональная химчистка · выезд':{no:'Profesjonell dyprens · mobil service',en:'Professional deep cleaning · mobile service'},
     'Чистый салон.':{no:'Rent bilinteriør.',en:'Clean interior.'},'Свежий дом.':{no:'Friskt hjem.',en:'Fresh home.'},
