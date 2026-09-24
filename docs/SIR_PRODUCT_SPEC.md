@@ -260,6 +260,7 @@ For professional use in Norway, the Guide must behave as an operational suppleme
 - SIR baseline during concentrated chemical dosing/spraying is chemical-resistant gloves and splash eye protection; any stricter SDS Section 8 requirement overrides this baseline.
 - The Guide must provide an emergency reminder for immediate eye flushing, Giftinformasjonen (22 59 13 00) and emergency number 113.
 - Exact compatibility of defoamers/additives with extraction equipment must be documented before automatic use.
+- Internal SIR policy: re-check each HMS/SDS/source record at least every 365 days, and immediately when the label, formulation, supplier documentation or intended application changes. A stale record becomes STOP until reviewed.
 
 Never invent a dilution or chemical combination. Prefer manufacturer-confirmed instructions.
 
