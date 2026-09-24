@@ -19,7 +19,7 @@ assert.match(adminSource,/sb\.rpc\('create_manual_order'/);
 assert.match(adminSource,/sb\.rpc\('save_admin_settings_bundle'/);
 assert.match(calendarSource,/sb\.rpc\('save_calendar_booking'/);
 assert.doesNotMatch(calendarSource,/\.from\('appointments'\)\.insert/);
-assert.match(paymentsSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch:\{payment_status:status\}/);
+assert.match(paymentsSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch:\{payment_status:status,_expected_updated_at:row\?\.updated_at\},p_appointment:null\}\)/);
 
 const browser=await chromium.launch({headless:true});
 
