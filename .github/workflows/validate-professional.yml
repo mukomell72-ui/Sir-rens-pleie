@@ -93,6 +93,11 @@ jobs:
         run: |
           set -euo pipefail
           timeout 90s node tests/guide-professional.mjs
+      - name: Run SIR Guide resilience/error-protection regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s node tests/guide-resilience.mjs
       - name: Run final mobile browser regression
         shell: bash
         run: |
