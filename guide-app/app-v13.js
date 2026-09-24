@@ -6,7 +6,7 @@ const items=rawItems.filter(x=>x&&typeof x==='object');
 const photos=asObject(window.SIR_PHOTOS);
 const hseMap=asObject(window.SIR_HSE);
 const hseMeta=asObject(window.SIR_HSE_META);
-const HSE_FALLBACK={status:'UNVERIFIED',label:'HMS ikke verifisert',level:'STOP',hazards:'Ingen verifisert SDS/HMS-post er koblet til denne varen.',ppe:'STOP for profesjonelt arbeid til korrekt sikkerhetsdatablad og risikovurdering er lagt inn.',first:'Ved uhell: start nødvendig førstehjelp, bruk etikett/SDS og kontakt Giftinformasjonen 22 59 13 00. Ved alvorlige symptomer: 113.',storage:'Oppbevar i original/korrekt merket beholder og sett varen i karantene til dokumentasjonen er kontrollert.',sds:'',verified:'—'};
+const HSE_FALLBACK={status:'UNVERIFIED',label:'HMS не проверен',level:'STOP',hazards:'Для этого средства нет подтверждённой записи SDS/HMS.',ppe:'STOP для профессиональной работы до внесения правильного паспорта безопасности и оценки риска.',first:'При происшествии начать необходимую первую помощь, использовать этикетку/SDS и обратиться в Giftinformasjonen 22 59 13 00. При тяжёлых симптомах: 113.',storage:'Хранить в оригинальной или правильно маркированной таре и держать средство в карантине до проверки документации.',sds:'',verified:'—'};
 const normalize=v=>String(v||'').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/g,' ').trim();
 const canonicalName=v=>normalize(v)
   .replace(/\b\d+(?:[.,]\d+)?\s*(?:л|l|мл|ml|кг|kg)\b/g,' ')
