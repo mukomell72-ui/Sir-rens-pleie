@@ -19,6 +19,8 @@ const photos=ctx.window.SIR_PHOTOS||{};
 const hse=ctx.window.SIR_HSE||{};
 const meta=ctx.window.SIR_HSE_META||{};
 const errors=[];
+const reviewDays=Number(meta.reviewDays)||365;
+const today=Date.now();
 
 const norm=v=>String(v||'').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/g,' ').trim();
 const canonical=v=>norm(v)
@@ -51,7 +53,14 @@ for(const x of core){
   }
   if(row.sds&&!/^https:\/\//i.test(row.sds))errors.push(`${x.n}: HSE source must be HTTPS`);
   if(!/^(LOW|CAUTION|HIGH RISK|STOP)$/.test(String(row.level)))errors.push(`${x.n}: invalid HSE level ${row.level}`);
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(row.verified)))errors.push(`${x.n}: invalid HSE verified date`);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(row.verified))){
+    errors.push(`${x.n}: invalid HSE verified date`);
+  }else{
+    const ts=Date.parse(row.verified+'T00:00:00Z');
+    const ageDays=Math.floor((today-ts)/86400000);
+    if(ageDays<0)errors.push(`${x.n}: HSE verified date is in the future`);
+    if(ageDays>reviewDays)errors.push(`${x.n}: HSE review is stale (${ageDays} days > ${reviewDays})`);
+  }
 }
 
 const w4=core.find(x=>x.n==='Gtechniq W4 Citrus Foam');
