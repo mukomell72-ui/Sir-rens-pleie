@@ -1,5 +1,5 @@
 (() => {
-const workspaceCss=document.createElement('link');workspaceCss.rel='stylesheet';workspaceCss.href='workspace.css?v=20260924-sms1';document.head.appendChild(workspaceCss);
+const workspaceCss=document.createElement('link');workspaceCss.rel='stylesheet';workspaceCss.href='workspace.css?v=20260924-translate1';document.head.appendChild(workspaceCss);
 const inspectionScript=document.createElement('script');inspectionScript.src='inspection.js?v=20260902-inspection-flow';inspectionScript.defer=true;document.head.appendChild(inspectionScript);
 const C=window.SIR_CONFIG;
 let sb=null,preview=false,currentRole='PREVIEW',calendarCursor=new Date(),activeView='dashboard',orderRealtime=null,realtimeRefreshTimer=null;
