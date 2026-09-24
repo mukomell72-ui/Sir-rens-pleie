@@ -194,6 +194,9 @@ def main() -> int:
             errors.append(f"Admin page does not load runtime guard: {page.relative_to(ROOT)}")
         if re.search(r"@supabase/supabase-js@2(?:[\"'/<])", text):
             errors.append(f"Floating Supabase JS major version found: {page.relative_to(ROOT)}")
+        for marker in ("Content-Security-Policy", "object-src 'none'", "base-uri 'self'", 'name="referrer" content="no-referrer"'):
+            if marker not in text:
+                errors.append(f"Admin browser hardening marker is missing in {page.relative_to(ROOT)}: {marker}")
 
     for obsolete in ("signupForm", "signupOwnerCode", 'id="ownerCode"'):
         if obsolete in admin_index:
@@ -207,6 +210,9 @@ def main() -> int:
     for marker in ("order_assessments", "accounting_entries", "accounting_mileage", "accounting_assets", "accounting_invoices"):
         if marker not in backup_js:
             errors.append(f"Business backup coverage is missing: {marker}")
+    for marker in ("format_version:2", "manifest_sha256", "SHA-256", "backup.export"):
+        if marker not in backup_js:
+            errors.append(f"Business backup integrity marker is missing: {marker}")
 
     for migration in (
         "20260924083540_sir_admin_final_hardening.sql",
@@ -219,6 +225,10 @@ def main() -> int:
         "20260924090749_sir_rug_technology_flow.sql",
         "20260924091915_sir_atomic_stop_and_clearance_gate.sql",
         "20260924092025_sir_owner_admin_risk_downgrade.sql",
+        "20260924092356_sir_explicit_rate_limit_deny_policy.sql",
+        "20260924092740_sir_verified_library_constraints.sql",
+        "20260924093037_sir_scheduled_requires_appointment.sql",
+        "20260924093145_sir_no_prescheduled_inserts.sql",
     ):
         if not (ROOT / "supabase" / "migrations" / migration).exists():
             errors.append(f"Admin hardening migration is missing: {migration}")
@@ -256,6 +266,28 @@ def main() -> int:
     for marker in ("owner','admin", "v_new_rank < v_old_rank", "newly reviewed technology card"):
         if marker not in risk_downgrade:
             errors.append(f"Risk downgrade protection is missing: {marker}")
+
+    verified_library = (ROOT / "supabase" / "migrations" / "20260924092740_sir_verified_library_constraints.sql").read_text(encoding="utf-8")
+    for marker in ("procedures_verified_completeness_check", "chemicals_manufacturer_verified_completeness_check", "jsonb_array_length", "cardinality(intended_surfaces)"):
+        if marker not in verified_library:
+            errors.append(f"Verified library database constraint is missing: {marker}")
+
+    scheduled_gate = (ROOT / "supabase" / "migrations" / "20260924093145_sir_no_prescheduled_inserts.sql").read_text(encoding="utf-8")
+    for marker in ("scheduled", "appointment required before scheduling", "new order cannot start as scheduled"):
+        if marker not in scheduled_gate:
+            errors.append(f"Scheduled-order invariant is missing: {marker}")
+
+    deny_policy = (ROOT / "supabase" / "migrations" / "20260924092356_sir_explicit_rate_limit_deny_policy.sql").read_text(encoding="utf-8")
+    if "using (false)" not in deny_policy.lower() or "with check (false)" not in deny_policy.lower():
+        errors.append("Vehicle lookup rate-limit deny policy is incomplete")
+
+    technology_procedures = (ROOT / "admin" / "technology-procedures.js").read_text(encoding="utf-8")
+    if "SIR_ADMIN_SB" not in technology_procedures:
+        errors.append("Technology procedures must reuse the shared admin Supabase client")
+    if "confirmed:{status:'scheduled'" in admin_js:
+        errors.append("Confirmed orders must not have a direct scheduled quick-action without a calendar slot")
+    if 'data-view="finance"' in admin_index:
+        errors.append("Legacy duplicate finance view must stay removed")
 
     photo_function = (ROOT / "supabase" / "functions" / "order-photo-upload" / "index.ts").read_text(encoding="utf-8")
     if 'npm:@supabase/supabase-js@2.117.1' not in photo_function:
