@@ -1,7 +1,7 @@
 (() => {
   const C=window.SIR_CONFIG,root=document.getElementById('backupApp');
   const sb=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
-  const tables=['profiles','customers','orders','order_items','appointments','order_events','audit_events','app_settings','price_rules','referrals','chemicals','procedures','order_technology_cards','order_photos'];
+  const tables=['profiles','customers','orders','order_items','appointments','order_events','order_assessments','audit_events','app_settings','price_rules','referrals','chemicals','procedures','order_technology_cards','order_photos','accounting_entries','accounting_mileage','accounting_assets','accounting_invoices'];
   let session,profile;
   init();
 
@@ -14,7 +14,7 @@
   }
   function render(){
     root.innerHTML=`<div class="section-title"><div><h1>Резервная копия SIR</h1><p>Переносимый экспорт бизнес-данных без привязки к одному хостингу.</p></div><a class="btn" href="./">← Admin</a></div>
-      <div class="notice safe"><b>Что входит:</b> заказы, клиенты, календарь, цены, настройки, рекомендации, справочник, технологические карты, журнал и метаданные фотографий.</div>
+      <div class="notice safe"><b>Что входит:</b> заказы, клиенты, календарь, повторные осмотры, цены, настройки, рекомендации, справочник, технологические карты, бухгалтерские записи, счета, поездки, оборудование, журнал и метаданные фотографий.</div>
       <div class="notice"><b>Что не входит в JSON:</b> пароли сотрудников и сами бинарные файлы фотографий. Пароли не экспортируются принципиально. Фотографии хранятся отдельно в приватном Storage и при полноценной миграции копируются отдельным этапом.</div>
       <div class="card"><h3>Создать экспорт</h3><p class="mini">Файл содержит номер версии схемы, дату выгрузки и данные таблиц. Его можно использовать как основу переноса в другой PostgreSQL/Supabase-проект.</p><button id="exportBtn" class="btn primary">Скачать резервную копию JSON</button><div id="status" class="mini" style="margin-top:10px"></div></div>`;
     document.getElementById('exportBtn').addEventListener('click',exportAll);
