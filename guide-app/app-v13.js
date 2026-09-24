@@ -1,8 +1,11 @@
 (()=>{
-const items=window.SIR_ITEMS||[];
-const photos=window.SIR_PHOTOS||{};
-const hseMap=window.SIR_HSE||{};
-const hseMeta=window.SIR_HSE_META||{};
+const asObject=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{};
+const asArray=v=>Array.isArray(v)?v:[];
+const rawItems=Array.isArray(window.SIR_ITEMS)?window.SIR_ITEMS:[];
+const items=rawItems.filter(x=>x&&typeof x==='object');
+const photos=asObject(window.SIR_PHOTOS);
+const hseMap=asObject(window.SIR_HSE);
+const hseMeta=asObject(window.SIR_HSE_META);
 const HSE_FALLBACK={status:'UNVERIFIED',label:'HMS ikke verifisert',level:'STOP',hazards:'Ingen verifisert SDS/HMS-post er koblet til denne varen.',ppe:'STOP for profesjonelt arbeid til korrekt sikkerhetsdatablad og risikovurdering er lagt inn.',first:'Ved uhell: start nødvendig førstehjelp, bruk etikett/SDS og kontakt Giftinformasjonen 22 59 13 00. Ved alvorlige symptomer: 113.',storage:'Oppbevar i original/korrekt merket beholder og sett varen i karantene til dokumentasjonen er kontrollert.',sds:'',verified:'—'};
 const normalize=v=>String(v||'').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/g,' ').trim();
 const canonicalName=v=>normalize(v)
@@ -33,17 +36,39 @@ function hseFor(x){
 }
 const broadCats=['Все','Химия','Расходники','Оборудование'];
 const q=document.getElementById('q'),chips=document.getElementById('chips'),list=document.getElementById('list'),count=document.getElementById('count');let active='Все';
+const missingDom=[['q',q],['chips',chips],['list',list],['count',count]].filter(([,el])=>!el).map(([id])=>id);
+if(missingDom.length){
+  window.SIR_GUIDE_FATAL={reason:'missing-dom',missing:missingDom};
+  window.SIR_RUNTIME_GUARD?.record?.('missing-dom',missingDom.join(', '));
+  return;
+}
 function dbDisplayName(c){
   const b=String(c.brand||'').trim(),n=String(c.name||'').trim();
   return b&&n&&!normalize(n).startsWith(normalize(b))?`${b} ${n}`:(n||b||'Без названия');
 }
+function liveDbEligible(c){
+  if(!c||typeof c!=='object'||c.active===false)return false;
+  if(c.verification_status!=='manufacturer_verified'||!['verified','source_reviewed'].includes(c.hse_status))return false;
+  if(!String(c.name||c.brand||'').trim())return false;
+  if(!Array.isArray(c.intended_surfaces))return false;
+  if(c.prohibited_surfaces!=null&&!Array.isArray(c.prohibited_surfaces))return false;
+  if(!/^https:\/\//i.test(String(c.source_note||'')))return false;
+  if(!/^https:\/\//i.test(String(c.sds_url||'')))return false;
+  for(const field of ['dilution','application_method','hse_hazards','hse_ppe','hse_first_aid','hse_storage','hse_verified_at']){
+    if(!String(c[field]||'').trim())return false;
+  }
+  const verified=Date.parse(String(c.hse_verified_at));
+  const reviewDays=Number(hseMeta?.reviewDays)||365;
+  if(!Number.isFinite(verified)||verified>Date.now()||Date.now()-verified>reviewDays*86400000)return false;
+  return true;
+}
 const fromDb=c=>({
   n:dbDisplayName(c),c:c.category||'Химия',m:'DB',col:'#35d2bd',
-  f:(c.intended_surfaces||[]).join(', ')||c.category||'Назначение уточняется',
+  f:asArray(c.intended_surfaces).join(', ')||c.category||'Назначение уточняется',
   d:c.dilution||'Не указано',u:c.application_method||'Не указано',a:c.follow_up||'Не указано',
   w:[c.warnings,c.technology_note].filter(Boolean).join(' ')||'Перед применением проверить совместимость.',
   p:`База SIR · ${c.hse_status||'HMS не проверен'}`,
-  tags:[c.category,...(c.intended_surfaces||[]),...(c.prohibited_surfaces||[])].filter(Boolean),
+  tags:[c.category,...asArray(c.intended_surfaces),...asArray(c.prohibited_surfaces)].filter(Boolean),
   t:c.dwell_time?`Выдержка: ${c.dwell_time}`:'',
   buy:{shop:c.shop_url?'Открыть магазин':'Ссылка не добавлена',url:c.shop_url||'#'},
   src:c.source_note||'',_db:true,_id:c.id,_verification:c.verification_status,
@@ -53,9 +78,9 @@ const fromDb=c=>({
 });
 window.addEventListener('message',e=>{
   if(e.origin!==location.origin||e.data?.type!=='sir-guide-chemicals'||!Array.isArray(e.data.items))return;
-  const live=e.data.items
-    .filter(c=>c?.active!==false&&c?.verification_status==='manufacturer_verified'&&['verified','source_reviewed'].includes(c?.hse_status))
-    .map(fromDb);
+  const rejected=e.data.items.filter(c=>!liveDbEligible(c));
+  window.SIR_DB_REJECTIONS=rejected.map(c=>({id:c?.id||null,name:dbDisplayName(c||{}),reason:'professional validation failed'}));
+  const live=e.data.items.filter(liveDbEligible).map(fromDb);
   for(const x of live){
     const i=items.findIndex(old=>canonicalName(old.n)===canonicalName(x.n));
     if(i>=0){
@@ -85,7 +110,7 @@ const aliases={
 };
 function searchFields(x){return{
   name:normalize([x.n,brand(x),x.m].join(' ')),
-  purpose:normalize([x.c,broad(x),x.f,...(x.tags||[])].join(' ')),
+  purpose:normalize([x.c,broad(x),x.f,...asArray(x.tags)].join(' ')),
   details:normalize([x.mcolorname,x.t,x.d,x.u,x.a,x.w,x.p,x.buy?.shop,hseFor(x).label,hseFor(x).hazards,hseFor(x).ppe,hseFor(x).storage].join(' '))
 }}
 function termsFor(token){const direct=aliases[token];if(direct)return direct.map(normalize);const group=Object.entries(aliases).find(([,values])=>values.some(v=>normalize(v).includes(token)||token.includes(normalize(v))));return group?[normalize(token),...group[1].map(normalize)]:[token]}
@@ -118,6 +143,8 @@ function guideHealth(){
   }
   if(chem.length<20)issues.push(`Неполный инвентарь: химических/служебных карточек ${chem.length}, ожидается минимум 20`);
   if(!hseMeta?.version)issues.push('Не загружена версия HMS-слоя');
+  const runtimeErrors=asArray(window.SIR_RUNTIME_ERRORS);
+  if(runtimeErrors.length)issues.push(`Системные ошибки загрузки/выполнения: ${runtimeErrors.length}`);
   const health={ok:issues.length===0,issues,count:chem.length,checkedAt:new Date().toISOString(),reviewDays,nextReviewAt:earliestDue?new Date(earliestDue).toISOString().slice(0,10):null};
   window.SIR_GUIDE_HEALTH=health;
   let el=document.getElementById('guideHealth');
@@ -165,7 +192,7 @@ function card(x){
       ${hasSource?`<div class="sec"><b>Источник инструкции</b><p><a class="buy-btn" href="${h(sourceUrl)}" target="_blank" rel="noopener noreferrer">Официальная инструкция ↗</a></p></div>`:''}
       <div class="sec"><b>Где купить</b><p>${canBuy?`<a class="buy-btn" href="${h(url)}" target="_blank" rel="noopener noreferrer">${h(x.buy?.shop||'Магазин')} ↗</a>`:'Ссылка не добавлена'}</p></div>
       <div class="sec"><b>Наличие</b><p>${h(x.p)}</p></div>
-      <div class="tags">${(x.tags||[]).map(t=>`<span class="tag">${h(t)}</span>`).join('')}</div>
+      <div class="tags">${asArray(x.tags).map(t=>`<span class="tag">${h(t)}</span>`).join('')}</div>
     </div>
   </article>`;
 }
