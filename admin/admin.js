@@ -202,7 +202,7 @@ async function dashboard(){
   main.querySelector('[data-control="unpaid"]')?.addEventListener('click',()=>orders({attention:'unpaid'}));
   main.querySelector('[data-control="completed_today"]')?.addEventListener('click',()=>orders({attention:'completed_today'}));
   main.querySelector('[data-control="inventory"]')?.addEventListener('click',inventory);
-  main.querySelector('[data-control="hse"]')?.addEventListener('click',guide);
+  main.querySelector('[data-control="hse"]')?.addEventListener('click',()=>inventory({hseOnly:true}));
   main.querySelector('[data-view-audit]')?.addEventListener('click',audit);
   bindOrderRows();
 }
@@ -547,7 +547,7 @@ async function guide(){
     if(frame.contentDocument?.body&&window.ResizeObserver){const observer=new ResizeObserver(fit);observer.observe(frame.contentDocument.body);frame._guideObserver=observer;}
   });
 }
-async function inventory(){
+async function inventory(options={}){
   activeView='inventory';
   const demo=[
     {id:'stock-1',brand:'Koch-Chemie',name:'Pol Star',stock_status:'ok',stock_note:'Рабочий запас',hse_status:'source_reviewed',risk_level:'caution'},
@@ -560,22 +560,26 @@ async function inventory(){
     if(error){main.innerHTML=`<div class="notice error">Не удалось загрузить склад: ${esc(error.message)}</div>`;return;}
     rows=data||[];
   }
-  const low=rows.filter(x=>x.stock_status==='low').length,out=rows.filter(x=>x.stock_status==='out').length,stops=rows.filter(x=>x.risk_level==='stop'||!['verified','source_reviewed'].includes(x.hse_status)).length;
-  main.innerHTML=`<div class="section-title"><div><h1>Склад и химия</h1><p>Наличие средств и контроль HMS в одном списке</p></div><a class="btn" href="guide-editor.html">Карточки химии</a></div>
+  const hseProblem=x=>x.risk_level==='stop'||!['verified','source_reviewed'].includes(x.hse_status);
+  const low=rows.filter(x=>x.stock_status==='low').length,out=rows.filter(x=>x.stock_status==='out').length,stops=rows.filter(hseProblem).length;
+  const visibleRows=options.hseOnly?rows.filter(hseProblem):rows;
+  const hseReason=x=>x.risk_level==='stop'?'STOP: средство заблокировано':!['verified','source_reviewed'].includes(x.hse_status)?`HMS не подтверждён: ${x.hse_status||'unverified'}`:'';
+  main.innerHTML=`<div class="section-title"><div><h1>${options.hseOnly?'HMS / STOP — заблокированные средства':'Склад и химия'}</h1><p>${options.hseOnly?'Показаны только средства, которые требуют проверки безопасности или имеют STOP':'Наличие средств и контроль HMS в одном списке'}</p></div><div class="toolbar">${options.hseOnly?'<button class="btn" id="showAllInventory">Показать весь склад</button>':''}<a class="btn" href="guide-editor.html">Карточки химии</a></div></div>
     <div class="control-grid inventory-metrics">
-      <div class="card metric"><span>Всего активных</span><strong>${rows.length}</strong></div>
+      <div class="card metric"><span>${options.hseOnly?'Показано проблемных':'Всего активных'}</span><strong>${options.hseOnly?visibleRows.length:rows.length}</strong></div>
       <div class="card metric metric-warn"><span>Заканчивается</span><strong>${low}</strong></div>
       <div class="card metric metric-danger"><span>Нет в наличии</span><strong>${out}</strong></div>
       <div class="card metric ${stops?'metric-danger':''}"><span>HMS / STOP</span><strong>${stops}</strong></div>
     </div>
     ${preview?'<div class="notice">Предпросмотр — статусы склада демонстрационные.</div>':''}
-    <div class="panel"><div class="panel-head"><span>Контроль наличия</span><span class="mini">Есть · Заканчивается · Нет</span></div>
-      <div class="table-wrap"><table class="table inventory-table"><thead><tr><th>Средство</th><th>HMS</th><th>Наличие</th><th>Заметка</th><th></th></tr></thead><tbody>
-      ${rows.map(x=>`<tr data-chemical="${x.id}"><td><b>${esc([x.brand,x.name].filter(Boolean).join(' '))}</b></td><td><span class="risk ${x.risk_level==='stop'?'stop':(x.risk_level||'caution').replace('_','-')}">${esc((x.risk_level||'caution').toUpperCase())}</span><div class="mini">${esc(x.hse_status||'unverified')}</div></td><td><select class="stock-status" ${canAdmin()&&!preview?'':'disabled'}><option value="ok" ${x.stock_status==='ok'?'selected':''}>Есть</option><option value="low" ${x.stock_status==='low'?'selected':''}>Заканчивается</option><option value="out" ${x.stock_status==='out'?'selected':''}>Нет</option></select></td><td><input class="stock-note" value="${esc(x.stock_note||'')}" placeholder="Например: заказать 1 л" ${canAdmin()&&!preview?'':'disabled'}></td><td>${canAdmin()&&!preview?'<button class="btn save-stock">Сохранить</button>':''}</td></tr>`).join('')}
-      </tbody></table></div>
+    <div class="panel"><div class="panel-head"><span>${options.hseOnly?'Требует проверки безопасности':'Контроль наличия'}</span><span class="mini">${options.hseOnly?visibleRows.length+' средств':'Есть · Заканчивается · Нет'}</span></div>
+      ${visibleRows.length?`<div class="table-wrap"><table class="table inventory-table"><thead><tr><th>Средство</th><th>HMS</th>${options.hseOnly?'<th>Причина</th>':''}<th>Наличие</th><th>Заметка</th><th></th></tr></thead><tbody>
+      ${visibleRows.map(x=>`<tr data-chemical="${x.id}"><td><b>${esc([x.brand,x.name].filter(Boolean).join(' '))}</b></td><td><span class="risk ${x.risk_level==='stop'?'stop':(x.risk_level||'caution').replace('_','-')}">${esc((x.risk_level||'caution').toUpperCase())}</span><div class="mini">${esc(x.hse_status||'unverified')}</div></td>${options.hseOnly?`<td><b>${esc(hseReason(x))}</b></td>`:''}<td><select class="stock-status" ${canAdmin()&&!preview?'':'disabled'}><option value="ok" ${x.stock_status==='ok'?'selected':''}>Есть</option><option value="low" ${x.stock_status==='low'?'selected':''}>Заканчивается</option><option value="out" ${x.stock_status==='out'?'selected':''}>Нет</option></select></td><td><input class="stock-note" value="${esc(x.stock_note||'')}" placeholder="Например: заказать 1 л" ${canAdmin()&&!preview?'':'disabled'}></td><td>${canAdmin()&&!preview?'<button class="btn save-stock">Сохранить</button>':''}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="empty">Заблокированных средств нет.</div>'}
     </div>
     ${!canAdmin()&&!preview?'<div class="notice">Менять наличие могут OWNER и ADMIN. Остальные роли видят состояние склада.</div>':''}`;
-  main.querySelectorAll('.save-stock').forEach(btn=>btn.addEventListener('click',async()=>{
+  main.querySelector('#showAllInventory')?.addEventListener('click',()=>inventory());
+    main.querySelectorAll('.save-stock').forEach(btn=>btn.addEventListener('click',async()=>{
     if(!ensureWritable())return;
     const tr=btn.closest('[data-chemical]'),patch={stock_status:tr.querySelector('.stock-status').value,stock_note:tr.querySelector('.stock-note').value.trim()||null};
     btn.disabled=true;
