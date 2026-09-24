@@ -140,12 +140,13 @@ jobs:
             v_expired_start timestamptz := date_trunc('hour',now()) + interval '5 days';
           begin
             insert into public.orders(customer_name,phone,service_type,status)
-            values('CI Calendar A','9000000011','car','scheduled') returning id into v_order_a;
+            values('CI Calendar A','9000000011','car','confirmed') returning id into v_order_a;
             insert into public.orders(customer_name,phone,service_type,status)
-            values('CI Calendar B','9000000012','car','scheduled') returning id into v_order_b;
+            values('CI Calendar B','9000000012','car','confirmed') returning id into v_order_b;
 
             insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
             values(v_order_a,v_start,v_start+interval '2 hours',false,0);
+            update public.orders set status='scheduled' where id=v_order_a;
 
             caught := false;
             begin
@@ -156,15 +157,25 @@ jobs:
             end;
             if not caught then raise exception 'calendar_overlap_not_blocked'; end if;
 
+            caught := false;
+            begin
+              insert into public.orders(customer_name,phone,service_type,status)
+              values('CI Prescheduled','9000000015','car','scheduled');
+            exception when others then
+              caught := position('cannot start as scheduled' in SQLERRM) > 0;
+            end;
+            if not caught then raise exception 'prescheduled_insert_not_blocked'; end if;
+
             insert into public.orders(customer_name,phone,service_type,status,confirmation_expires_at)
             values('CI Expired Hold','9000000013','car','awaiting_confirmation',now()-interval '1 hour') returning id into v_order_expired;
             insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
             values(v_order_expired,v_expired_start,v_expired_start+interval '2 hours',true,0);
 
             insert into public.orders(customer_name,phone,service_type,status)
-            values('CI After Expiry','9000000014','car','scheduled') returning id into v_order_after;
+            values('CI After Expiry','9000000014','car','confirmed') returning id into v_order_after;
             insert into public.appointments(order_id,starts_at,ends_at,tentative,buffer_minutes)
             values(v_order_after,v_expired_start+interval '30 minutes',v_expired_start+interval '90 minutes',false,0);
+            update public.orders set status='scheduled' where id=v_order_after;
           end $$;
 
           do $workflow$
