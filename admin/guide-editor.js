@@ -100,7 +100,7 @@
       const {data:{session:s},error:sessionError}=await sb.auth.getSession();
       if(sessionError)throw sessionError;
       session=s;
-      if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">SIR Admin</a>.</div>';return;}
+      if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">Админ-панель SIR</a>.</div>';return;}
       const {data:p,error:profileError}=await sb.from('profiles').select('role,active,display_name').eq('id',session.user.id).single();
       if(profileError)throw profileError;
       profile=p;
@@ -265,10 +265,10 @@
       const hseDate=String(f.get('hse_verified_at')||'').trim(),hseHazards=String(f.get('hse_hazards')||'').trim(),hsePpe=String(f.get('hse_ppe')||'').trim(),hseFirst=String(f.get('hse_first_aid')||'').trim(),hseStorage=String(f.get('hse_storage')||'').trim();
       let riskLevel=String(f.get('risk_level')||'caution'),approvalRequired=String(f.get('approval_required'))==='true';
       const active=String(f.get('active'))==='true';
-      if(verification==='manufacturer_verified'&&(!/^https:\/\//i.test(source)||!dilution||!application)){alert('Для manufacturer_verified нужны официальный HTTPS-источник, разведение и способ применения.');return;}
-      if(active&&verification==='manufacturer_verified'&&hseStatus==='unverified'){alert('Активное manufacturer_verified средство не может иметь HMS=unverified. Сначала проверьте SDS/HMS либо установите STOP.');return;}
-      if(['source_reviewed','verified'].includes(hseStatus)&&(!/^https:\/\//i.test(sdsUrl)||!hseDate)){alert('Для HMS=source_reviewed/verified обязательны HTTPS SDS/HMS-источник и дата проверки.');return;}
-      if(hseStatus==='verified'&&(!sdsLanguage||!hseHazards||!hsePpe||!hseFirst||!hseStorage)){alert('Для HMS=verified дополнительно обязательны язык SDS, опасности, СИЗ, первая помощь и хранение.');return;}
+      if(verification==='manufacturer_verified'&&(!/^https:\/\//i.test(source)||!dilution||!application)){alert('Для статуса «Проверено по инструкции производителя» нужны официальный HTTPS-источник, разведение и способ применения.');return;}
+      if(active&&verification==='manufacturer_verified'&&hseStatus==='unverified'){alert('Активное средство со статусом «Проверено по инструкции производителя» не может иметь HMS «Не проверено». Сначала проверьте SDS/HMS либо установите STOP.');return;}
+      if(['source_reviewed','verified'].includes(hseStatus)&&(!/^https:\/\//i.test(sdsUrl)||!hseDate)){alert('Для статуса HMS «Источник проверен» или «Проверено» обязательны HTTPS-источник SDS/HMS и дата проверки.');return;}
+      if(hseStatus==='verified'&&(!sdsLanguage||!hseHazards||!hsePpe||!hseFirst||!hseStorage)){alert('Для статуса HMS «Проверено» дополнительно обязательны язык SDS, опасности, СИЗ, первая помощь и условия хранения.');return;}
       if(hseStatus==='stop'){riskLevel='stop';approvalRequired=true;}
       if(riskLevel==='high_risk'||riskLevel==='stop')approvalRequired=true;
       const row={brand:String(f.get('brand')).trim(),name:String(f.get('name')).trim(),category:String(f.get('category')||'').trim(),intended_surfaces:arr(f.get('intended')),prohibited_surfaces:arr(f.get('prohibited')),dilution,application_method:application,dwell_time:String(f.get('dwell')||'').trim(),follow_up:String(f.get('follow')||'').trim(),warnings:String(f.get('warnings')||'').trim(),purchase_price:numOrNull(f.get('purchase')),shop_url:String(f.get('shop')||'').trim()||null,verification_status:verification,source_note:source||null,active,risk_level:riskLevel,approval_required:approvalRequired,hse_status:hseStatus,sds_url:sdsUrl||null,sds_language:sdsLanguage||null,sds_revision:String(f.get('sds_revision')||'').trim()||null,hse_verified_at:hseDate||null,hse_hazards:hseHazards||null,hse_ppe:hsePpe||null,hse_first_aid:hseFirst||null,hse_storage:hseStorage||null};
