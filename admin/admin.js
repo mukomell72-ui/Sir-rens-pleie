@@ -43,7 +43,7 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
   if(!sb){alert('База SIR не подключена.');return;}
   const email=document.getElementById('email').value,password=document.getElementById('password').value;
   const {data,error}=await sb.auth.signInWithPassword({email,password});
-  if(error){window.SIR_ADMIN_RUNTIME?.record(error,'auth.sign_in');const status=document.getElementById('loginStatus');if(status){status.textContent='Email или пароль неверны. Проверьте данные либо восстановите пароль.';status.classList.remove('hidden');}else alert('Не удалось войти.');return;}
+  if(error){window.SIR_ADMIN_RUNTIME?.record(error,'auth.sign_in');const status=document.getElementById('loginStatus');if(status){status.textContent='Эл. почта или пароль неверны. Проверьте данные либо восстановите пароль.';status.classList.remove('hidden');}else alert('Не удалось войти.');return;}
   const {data:profile,error:pe}=await sb.from('profiles').select('role,display_name,active').eq('id',data.user.id).single();
   if(pe||!profile?.active){if(pe)window.SIR_ADMIN_RUNTIME?.record(pe,'auth.profile');await sb.auth.signOut();alert('Доступ к SIR Admin не активирован.');return;}
   currentRole=(profile.role||'worker').toUpperCase();enter(currentRole);
