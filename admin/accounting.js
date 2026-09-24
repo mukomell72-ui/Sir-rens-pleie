@@ -15,7 +15,7 @@
 
   A.load=async()=>{
     const s=A.state, since=new Date();since.setFullYear(since.getFullYear()-2);
-    const [{data:settingRow},{data:o=[]},{data:e=[]},{data:m=[]},{data:a=[]},{data:i=[]}]=await Promise.all([
+    const results=await Promise.all([
       A.sb.from('app_settings').select('value').eq('key','accounting').maybeSingle(),
       A.sb.from('orders').select('id,order_no,customer_name,phone,address,status,service_type,final_price,preliminary_price,completed_at,payment_status,paid_at').gte('created_at',since.toISOString()).order('created_at',{ascending:false}).limit(1000),
       A.sb.from('accounting_entries').select('*').order('entry_date',{ascending:false}).limit(1500),
@@ -23,7 +23,11 @@
       A.sb.from('accounting_assets').select('*').order('purchase_date',{ascending:false}).limit(1000),
       A.sb.from('accounting_invoices').select('*').order('invoice_no',{ascending:false}).limit(1000)
     ]);
-    s.settings=settingRow?.value||{};s.orders=o;s.entries=e;s.mileage=m;s.assets=a;s.invoices=i;
+    const error=results.find(x=>x.error)?.error;
+    if(error){window.SIR_ADMIN_RUNTIME?.record(error,'accounting.load');throw error;}
+    const [settingsRes,ordersRes,entriesRes,mileageRes,assetsRes,invoicesRes]=results;
+    s.settings=settingsRes.data?.value||{};s.orders=ordersRes.data||[];s.entries=entriesRes.data||[];s.mileage=mileageRes.data||[];s.assets=assetsRes.data||[];s.invoices=invoicesRes.data||[];
+    return true;
   };
 
   A.activeEntries=kind=>A.state.entries.filter(e=>e.kind===kind&&!e.voided_at);
@@ -67,7 +71,7 @@
   A.render=()=>{
     const s=A.state;
     A.root.innerHTML=`<div class="section-title"><div><h1>ENK / Regnskap</h1><p>Внутренний учёт SIR: доходы, расходы, MVA, счета, поездки и документы</p></div><div class="toolbar"><button class="btn" id="refresh">Обновить</button><a class="btn" href="./">← Admin</a></div></div><div class="acct-tabs">${[['dashboard','Обзор'],['ledger','Доходы / расходы'],['invoices','Счета'],['mileage','Поездки'],['assets','Оборудование'],['settings','Настройки ENK']].map(([id,l])=>`<button class="acct-tab ${s.tab===id?'active':''}" data-tab="${id}">${l}</button>`).join('')}</div><div id="acctView"></div>`;
-    A.root.querySelector('#refresh').addEventListener('click',async()=>{await A.load();A.render();});
+    A.root.querySelector('#refresh').addEventListener('click',async()=>{A.root.querySelector('#acctView').innerHTML='<div class="empty">Обновляю…</div>';try{await A.load();A.render();}catch(_e){A.root.innerHTML='<div class="notice"><b>Бухгалтерские данные не загружены.</b><br>Нет подтверждённого ответа от базы. Ложные суммы не показываются.</div><button class="btn primary" id="acctRetry">Повторить</button>';A.root.querySelector('#acctRetry')?.addEventListener('click',init);}});
     A.root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{s.tab=b.dataset.tab;A.render();}));
     const view=A.root.querySelector('#acctView'),fn=A.views[s.tab];if(fn)fn(view);
   };
@@ -77,7 +81,12 @@
     if(!session){A.root.innerHTML='<div class="notice">Сначала войдите в <a href="./">SIR Admin</a>.</div>';return;}
     const {data:p,error}=await A.sb.from('profiles').select('role,active,display_name').eq('id',session.user.id).single();
     if(error||!p?.active||!['owner','admin'].includes(p.role)){A.root.innerHTML='<div class="notice">Раздел ENK / Regnskap доступен только OWNER и ADMIN.</div>';return;}
-    A.state.profile=p;await A.load();A.render();
+    A.state.profile=p;
+    try{await A.load();A.render();}
+    catch(_e){
+      A.root.innerHTML='<div class="notice"><b>Бухгалтерские данные не загружены.</b><br>Нет подтверждённого ответа от базы. Ложные суммы не показываются.</div><button class="btn primary" id="acctRetry">Повторить</button>';
+      A.root.querySelector('#acctRetry')?.addEventListener('click',init);
+    }
   }
   addEventListener('DOMContentLoaded',init);
 })();
