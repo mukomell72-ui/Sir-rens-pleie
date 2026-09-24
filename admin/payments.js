@@ -16,7 +16,7 @@
   }
   async function load(){
     const [orderRes,referralRes,customerRes]=await Promise.all([
-      sb.from('orders').select('id,order_no,customer_id,customer_name,phone,status,final_price,preliminary_price,payment_status,paid_at,referral_discount,referral_code_used,customer_credit_applied,created_at').order('created_at',{ascending:false}).limit(300),
+      sb.from('orders').select('id,order_no,customer_id,customer_name,phone,status,final_price,preliminary_price,payment_status,paid_at,referral_discount,referral_code_used,customer_credit_applied,created_at,updated_at').order('created_at',{ascending:false}).limit(300),
       sb.from('referrals').select('*').order('created_at',{ascending:false}).limit(300),
       sb.from('customers').select('id,name,phone,referral_code,credit_balance').order('created_at',{ascending:false}).limit(500)
     ]);
@@ -68,7 +68,7 @@
     const row=orders.find(o=>o.id===id);
     if(status==='paid'&&row?.status!=='completed'&&!confirm('Заказ ещё не имеет статус «Выполнен». Отметить оплату всё равно? Бонус рекомендателю начислится только после завершения заказа.'))return;
     if(!ensureWritable())return;
-    const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:{payment_status:status},p_appointment:null});
+    const {error}=await sb.rpc('save_order_decision',{p_order_id:id,p_patch:{payment_status:status,_expected_updated_at:row?.updated_at},p_appointment:null});
     if(error){window.SIR_ADMIN_RUNTIME?.record(error,'payments.update');alert('Не удалось изменить оплату. Изменения не применены.');return;}
     if(await load())render();
   }
