@@ -13,7 +13,7 @@
     if(!tech)return;
     const orderId=new URL(tech.href,location.href).searchParams.get('order');
     if(!orderId)return;
-    const role=(document.getElementById('roleBadge')?.textContent||'').trim().toUpperCase();
+    const badge=document.getElementById('roleBadge');const role=(badge?.dataset.role||badge?.textContent||'').trim().toUpperCase();
     if(!['OWNER','ADMIN','MANAGER'].includes(role))return;
     const box=document.createElement('div');box.className='notice safe';box.innerHTML='<b>Предложение клиенту</b><p class="mini">Сначала сохраните окончательную цену, дату и время. Затем откройте готовое SMS с защищённой ссылкой подтверждения.</p><button class="btn primary" type="button" id="sendOfferBtn">Подготовить SMS клиенту</button><div id="offerStatus" class="mini"></div>';
     form.insertAdjacentElement('afterend',box);
