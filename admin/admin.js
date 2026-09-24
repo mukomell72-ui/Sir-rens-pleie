@@ -63,7 +63,15 @@ function startRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'orders'},payload=>scheduleRealtimeRefresh(payload.new?.id||payload.old?.id||null))
     .on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>scheduleRealtimeRefresh())
     .on('postgres_changes',{event:'*',schema:'public',table:'chemicals'},()=>scheduleRealtimeRefresh())
-    .subscribe(status=>{document.documentElement.dataset.realtime=status==='SUBSCRIBED'?'online':'connecting';if(status==='SUBSCRIBED'&&activeView==='dashboard')scheduleRealtimeRefresh();});
+    .subscribe(status=>{
+      if(status==='SUBSCRIBED'){document.documentElement.dataset.realtime='online';if(activeView==='dashboard')scheduleRealtimeRefresh();return;}
+      if(['CHANNEL_ERROR','TIMED_OUT'].includes(status)){
+        document.documentElement.dataset.realtime='degraded';
+        window.SIR_ADMIN_RUNTIME?.record(new Error('Realtime '+status),'realtime');
+        return;
+      }
+      document.documentElement.dataset.realtime='connecting';
+    });
 }
 
 async function dashboard(){
@@ -77,6 +85,12 @@ async function dashboard(){
       sb.from('appointments').select('order_id,starts_at,ends_at,tentative').gte('starts_at',dayStart.toISOString()).lt('starts_at',dayEnd.toISOString()).order('starts_at'),
       canAdmin()?sb.from('audit_events').select('action,entity_id,metadata,created_at').eq('entity_type','order').order('created_at',{ascending:false}).limit(8):Promise.resolve({data:[]})
     ]);
+    const coreError=chemRes.error||apptRes.error;
+    if(coreError){
+      window.SIR_ADMIN_RUNTIME?.record(coreError,'dashboard.core');
+      showDataLoadError('Центр контроля','dashboard');return;
+    }
+    if(auditRes.error)window.SIR_ADMIN_RUNTIME?.record(auditRes.error,'dashboard.audit');
     chemicals=chemRes.data||[];todayAppointments=apptRes.data||[];recentAudit=auditRes.data||[];
   }
   const reviewOrders=o.filter(x=>['new','under_review'].includes(x.status));
@@ -419,8 +433,11 @@ function previewOrderDetail(id){
 }
 
 async function customers(){
+  activeView='customers';
   if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Клиенты</h1><p>История и рекомендации</p></div></div><div class="card empty">Доступно после входа.</div>';return;}
-  const {data=[]}=await sb.from('customers').select('*').order('created_at',{ascending:false}).limit(200);
+  if(!['OWNER','ADMIN','MANAGER'].includes(currentRole)){main.innerHTML='<div class="notice">Раздел клиентов доступен OWNER, ADMIN и MANAGER.</div>';return;}
+  const {data=[],error}=await sb.from('customers').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error){window.SIR_ADMIN_RUNTIME?.record(error,'customers.load');showDataLoadError('Клиенты','customers');return;}
   main.innerHTML=`<div class="section-title"><div><h1>Клиенты</h1><p>${data.length} записей</p></div></div><div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Имя</th><th>Телефон</th><th>Реф. код</th><th>Бонус</th></tr></thead><tbody>${data.map(x=>`<tr><td>${esc(x.name)}</td><td><a href="tel:${esc(x.phone)}">${esc(x.phone)}</a></td><td>${esc(x.referral_code||'—')}</td><td>${money(x.credit_balance)}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 async function guide(){
@@ -428,7 +445,13 @@ async function guide(){
   main.innerHTML=`<div class="section-title"><div><h1>Справочник SIR</h1><p>Наш полный рабочий справочник теперь находится прямо в админке</p></div><div class="toolbar"><a class="btn" target="_blank" rel="noopener noreferrer" href="../guide-app/index-v13.html">Открыть отдельно</a><a class="btn primary" href="guide-editor.html">Редактировать знания</a></div></div><div class="guide-rules"><div><b>Один интерфейс</b><span>Полные карточки арсенала, цветовая маркировка и наличие показаны без упрощённой копии.</span></div><div><b>В конкретном заказе</b><span>Рабочая карта использует подтверждённые процедуры и химию из базы.</span></div><div><b>Безопасность</b><span>Неизвестный материал или несовместимость → spot-test либо STOP.</span></div></div><iframe class="guide-frame guide-frame-primary" src="../guide-app/index-v13.html?embedded=admin" scrolling="no" title="Справочник SIR: химия, оборудование и расходники"></iframe>`;
   const frame=main.querySelector('.guide-frame-primary');
   let liveChemicals=[];
-  if(!preview&&sb){const {data,error}=await sb.from('chemicals').select('*').eq('active',true).order('brand').order('name');if(!error)liveChemicals=data||[];}
+  if(!preview&&sb){
+    const {data,error}=await sb.from('chemicals').select('*').eq('active',true).order('brand').order('name');
+    if(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'guide.live_chemicals');
+      frame.insertAdjacentHTML('beforebegin','<div class="notice">Live-база химии временно недоступна. Показана встроенная проверенная копия справочника; изменения склада/карточек не отображаются до восстановления связи.</div>');
+    }else liveChemicals=data||[];
+  }
   frame.addEventListener('load',()=>{
     if(liveChemicals.length)frame.contentWindow?.postMessage({type:'sir-guide-chemicals',items:liveChemicals},location.origin);
     const fit=()=>{const doc=frame.contentDocument;if(doc)frame.style.height=`${Math.ceil(doc.documentElement.scrollHeight)}px`;};
@@ -476,21 +499,31 @@ async function inventory(){
 }
 
 async function team(){
+  activeView='team';
   if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Команда</h1><p>OWNER · ADMIN · MANAGER · WORKER</p></div></div><div class="card empty">Доступно после входа.</div>';return;}
-  const {data=[]}=await sb.from('profiles').select('*').order('created_at');
+  if(!['OWNER','ADMIN','MANAGER'].includes(currentRole)){main.innerHTML='<div class="notice">Раздел команды доступен OWNER, ADMIN и MANAGER.</div>';return;}
+  const {data=[],error}=await sb.from('profiles').select('*').order('created_at');
+  if(error){window.SIR_ADMIN_RUNTIME?.record(error,'team.load');showDataLoadError('Команда','team');return;}
   main.innerHTML=`<div class="section-title"><div><h1>Команда</h1><p>Раздельные аккаунты и роли</p></div></div><div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Имя</th><th>Роль</th><th>Активен</th><th></th></tr></thead><tbody>${data.map(p=>`<tr data-profile="${p.id}"><td>${esc(p.display_name||p.id)}</td><td><select class="role" ${canAdmin()?'':'disabled'}>${['owner','admin','manager','worker'].map(r=>`<option value="${r}" ${p.role===r?'selected':''}>${r.toUpperCase()}</option>`).join('')}</select></td><td><input class="active" type="checkbox" ${p.active?'checked':''} ${canAdmin()?'':'disabled'}></td><td>${canAdmin()?'<button class="btn save-profile">Сохранить</button>':''}</td></tr>`).join('')}</tbody></table></div></div><div class="notice">Пароли сотрудников никогда не показываются владельцу. Новый сотрудник создаёт собственный пароль через Supabase Auth.</div>`;
   main.querySelectorAll('.save-profile').forEach(b=>b.addEventListener('click',async()=>{const tr=b.closest('[data-profile]'),id=tr.dataset.profile,role=tr.querySelector('.role').value,active=tr.querySelector('.active').checked;const {error}=await sb.from('profiles').update({role,active}).eq('id',id);if(error)alert(error.message);else alert('Сохранено');}));
 }
 async function audit(){
   activeView='audit';
   if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Журнал</h1><p>Кто и что изменил</p></div></div><div class="card empty">Доступно после входа.</div>';return;}
-  const {data=[]}=await sb.from('audit_events').select('*').order('created_at',{ascending:false}).limit(300);
+  if(!canAdmin()){main.innerHTML='<div class="notice">Журнал действий доступен только OWNER и ADMIN.</div>';return;}
+  const {data=[],error}=await sb.from('audit_events').select('*').order('created_at',{ascending:false}).limit(300);
+  if(error){window.SIR_ADMIN_RUNTIME?.record(error,'audit.load');showDataLoadError('Журнал действий','audit');return;}
   main.innerHTML=`<div class="section-title"><div><h1>Журнал</h1><p>Критические изменения</p></div></div><div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>Время</th><th>Событие</th><th>Объект</th><th>Пользователь</th></tr></thead><tbody>${data.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('ru')}</td><td>${esc(x.action)}</td><td>${esc(x.entity_type)} ${esc(x.entity_id||'')}</td><td>${esc(x.actor_email||x.actor_id||'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 
 async function settings(){
+  activeView='settings';
   if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Настройки</h1><p>Предпросмотр</p></div></div><div class="card empty">Реальные настройки сохраняются только в базе.</div>';return;}
-  const [{data:prices=[]},{data:settingsRows=[]}]=await Promise.all([sb.from('price_rules').select('*').order('service_code').order('size_key'),sb.from('app_settings').select('*').order('key')]);
+  if(!canAdmin()){main.innerHTML='<div class="notice">Настройки доступны только OWNER и ADMIN.</div>';return;}
+  const [priceRes,settingsRes]=await Promise.all([sb.from('price_rules').select('*').order('service_code').order('size_key'),sb.from('app_settings').select('*').order('key')]);
+  const loadError=priceRes.error||settingsRes.error;
+  if(loadError){window.SIR_ADMIN_RUNTIME?.record(loadError,'settings.load');showDataLoadError('Настройки','settings');return;}
+  const prices=priceRes.data||[],settingsRows=settingsRes.data||[];
   const map=Object.fromEntries(settingsRows.map(x=>[x.key,x.value||{}])),company=map.company||{},travel=map.travel||{},ref=map.referral||{},work=map.work_rules||{};
   main.innerHTML=`<div class="section-title"><div><h1>Настройки</h1><p>Изменения применяются к сайту без редактирования кода</p></div></div>${canAdmin()?'':'<div class="notice">Изменять настройки могут OWNER и ADMIN.</div>'}<form id="settingsForm"><div class="settings-grid"><div class="card"><h3>Компания</h3>${input('phone_primary','Основной телефон',company.phone_primary||C.phonePrimary)}${input('phone_secondary','Второй телефон',company.phone_secondary||C.phoneSecondary)}${input('radius_km','Радиус, км',company.radius_km||40,'number')}${input('review_url','Ссылка для отзыва (Google / сайт)',company.review_url||'','url')}<div class="mini">Если ссылка пустая, SMS попросит клиента ответить оценкой 1–5.</div></div><div class="card"><h3>Выезд</h3>${input('travel_0_10','0–10 км',travel['0_10']??0,'number')}${input('travel_11_20','11–20 км',travel['11_20']??150,'number')}${input('travel_21_30','21–30 км',travel['21_30']??250,'number')}${input('travel_31_40','31–40 км',travel['31_40']??350,'number')}${input('minimum_mobile_order','Минимальный выездной заказ',travel.minimum_mobile_order??750,'number')}</div><div class="card"><h3>Рекомендации</h3>${input('referrer_credit','Бонус рекомендателю',ref.referrer_credit??200,'number')}${input('new_customer_discount','Скидка новому клиенту',ref.new_customer_discount??100,'number')}${input('ref_minimum_order','Минимальный заказ',ref.minimum_order??750,'number')}</div><div class="card"><h3>Рабочее время</h3>${input('working_day_start','Начало',work.working_day_start||'08:00','time')}${input('working_day_end','Конец',work.working_day_end||'20:00','time')}${input('default_buffer_minutes','Буфер между работами, мин.',work.default_buffer_minutes??30,'number')}</div></div><div class="panel"><div class="panel-head">Стартовые цены</div><div class="table-wrap"><table class="table"><thead><tr><th>Услуга</th><th>Размер</th><th>Лёгкое</th><th>Среднее</th><th>Сильное</th></tr></thead><tbody>${prices.map(p=>`<tr data-price="${p.id}"><td>${esc(p.service_code)}</td><td>${esc(p.size_key)}</td><td><input class="p-light" type="number" min="0" value="${p.light_price??''}"></td><td><input class="p-medium" type="number" min="0" value="${p.medium_price??''}"></td><td><input class="p-heavy" type="number" min="0" value="${p.heavy_price??''}"></td></tr>`).join('')}</tbody></table></div></div>${canAdmin()?'<button class="btn primary save-settings" type="submit">Сохранить все настройки</button>':''}</form>`;
   if(!canAdmin())return;
