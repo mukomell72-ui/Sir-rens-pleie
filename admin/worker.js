@@ -22,7 +22,9 @@
     box.querySelectorAll('[data-worker-status]').forEach(btn=>btn.addEventListener('click',()=>setStatus(orderId,btn.dataset.workerStatus,btn)));
   }
   async function setStatus(id,status,btn){
-    btn.disabled=true;const msg=document.getElementById('workerStatusMsg');
+    const msg=document.getElementById('workerStatusMsg');
+    if(!navigator.onLine){window.SIR_ADMIN_RUNTIME?.refresh();msg.textContent='Нет сети. Статус не изменён. После восстановления подключения повторите действие.';return;}
+    btn.disabled=true;
     try{
       const {data:order,error:readError}=await client.from('orders').select('status,risk_level,assigned_to').eq('id',id).single();
       if(readError)throw readError;
