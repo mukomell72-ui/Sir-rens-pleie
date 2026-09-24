@@ -1,6 +1,6 @@
 (() => {
   const C=window.SIR_CONFIG,root=document.getElementById('guideEditor');
-  const sb=window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
+  const sb=window.SIR_ADMIN_SB||window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey);
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const arr=v=>String(v||'').split(',').map(x=>x.trim()).filter(Boolean);
   const lines=v=>String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
