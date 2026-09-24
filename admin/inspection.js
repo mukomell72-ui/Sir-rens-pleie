@@ -60,7 +60,7 @@
       try{
         const {data,error}=await sb.rpc('save_order_assessment',{p_order:id,p_assessment:payload});if(error)throw error;
         status.className='notice safe';status.textContent=`Версия ${data.version} сохранена. ${row.client_visible?'Цена готова к отправке через «Подготовить SMS клиенту».':'Цена клиента не изменена.'}`;
-        rendered='';setTimeout(enhance,0);
+        host.remove();rendered='';setTimeout(enhance,0);
       }catch(error){
         window.SIR_ADMIN_RUNTIME?.record(error,'inspection.save');
         status.className='notice error';status.textContent='Осмотр не сохранён. Проверьте риск, технологическую карту и подключение.';
