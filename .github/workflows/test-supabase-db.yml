@@ -285,6 +285,8 @@ jobs:
             v_booking jsonb;
             v_company jsonb;
             v_saved jsonb;
+            v_stale_updated_at timestamptz;
+            caught boolean;
             v_phone text := 'CI-ATOMIC-'||substr(replace(gen_random_uuid()::text,'-',''),1,10);
           begin
             select id into v_owner from public.profiles where role='owner' and active=true limit 1;
@@ -296,6 +298,21 @@ jobs:
             if not exists(select 1 from public.orders where id=v_order and status='under_review') then
               raise exception 'atomic_manual_order_failed';
             end if;
+
+            select updated_at into v_stale_updated_at from public.orders where id=v_order;
+            perform pg_sleep(0.01);
+            update public.orders set internal_note='CI concurrent change' where id=v_order;
+            caught:=false;
+            begin
+              perform public.save_order_decision(
+                v_order,
+                jsonb_build_object('internal_note','stale overwrite','_expected_updated_at',v_stale_updated_at),
+                null
+              );
+            exception when others then
+              caught:=position('order changed since it was loaded' in SQLERRM)>0;
+            end;
+            if not caught then raise exception 'stale_order_write_not_blocked'; end if;
 
             select referral_code into v_ref_before from public.customers where id=(v_manual->>'customer_id')::uuid;
             v_manual2:=public.create_manual_order('CI Atomic Updated',v_phone,'chair',500,'rollback-only CI second');
