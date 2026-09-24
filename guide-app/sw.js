@@ -1,4 +1,4 @@
-const CACHE='sir-guide-v13-resilience-v19';
+const CACHE='sir-guide-v13-resilience-v20-i18n';
 const CORE=[
   './index-v13.html',
   './guide-runtime-guard.js',
@@ -11,7 +11,8 @@ const CORE=[
   './inventory-v13-4.js',
   './photos-v13.js',
   './manifest.json',
-  './icon.svg'
+  './icon.svg',
+  '../assets/admin-i18n.js'
 ];
 
 self.addEventListener('install',event=>{
@@ -51,7 +52,8 @@ self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
   if(url.origin!==self.location.origin)return;
-  if(!url.pathname.includes('/guide-app/'))return;
+  const isSharedI18n=url.pathname.endsWith('/assets/admin-i18n.js');
+  if(!url.pathname.includes('/guide-app/')&&!isSharedI18n)return;
 
   const isGuideEntry=url.pathname.endsWith('/guide-app/')||url.pathname.endsWith('/guide-app/index.html')||url.pathname.endsWith('/guide-app/index-v13.html');
   const networkRequest=isGuideEntry

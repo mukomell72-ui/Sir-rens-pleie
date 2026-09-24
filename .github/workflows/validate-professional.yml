@@ -133,3 +133,8 @@ jobs:
         run: |
           set -euo pipefail
           timeout 60s node tests/admin-workspace.mjs
+      - name: Run admin and Guide NO/RU language regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s node tests/admin-i18n.mjs

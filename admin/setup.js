@@ -23,14 +23,14 @@
 
   recoveryButton.addEventListener('click',async()=>{
     const email=document.getElementById('email')?.value.trim()||'';
-    if(!email){document.getElementById('email')?.focus();showLoginStatus('Сначала введите email аккаунта SIR.');return;}
+    if(!email){document.getElementById('email')?.focus();showLoginStatus('Сначала введите эл. почту аккаунта SIR.');return;}
     if(!client){showLoginStatus('Сервис входа временно недоступен. Обновите страницу и повторите.');return;}
     recoveryButton.disabled=true;recoveryButton.textContent='Отправляем…';
     try{
       const redirectTo=`${location.origin}${location.pathname}`;
       const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo});
       if(error)throw error;
-      showLoginStatus('Если аккаунт с таким email существует, Supabase отправит защищённую ссылку. Проверьте также папку «Спам».',true);
+      showLoginStatus('Если аккаунт с такой эл. почтой существует, Supabase отправит защищённую ссылку. Проверьте также папку «Спам».',true);
     }catch(error){
       window.SIR_ADMIN_RUNTIME?.record(error,'auth.password_reset');
       showLoginStatus('Не удалось отправить письмо. Проверьте подключение и повторите позже.');

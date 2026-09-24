@@ -190,7 +190,7 @@ def main() -> int:
         text = page.read_text(encoding="utf-8")
         if "@supabase/supabase-js@2.117.1" not in text:
             errors.append(f"Admin page does not pin Supabase JS 2.117.1: {page.relative_to(ROOT)}")
-        if 'src="runtime.js?v=20260924-audit1"' not in text:
+        if not re.search(r'src="runtime\.js\?v=[^"]+"', text):
             errors.append(f"Admin page does not load runtime guard: {page.relative_to(ROOT)}")
         if re.search(r"@supabase/supabase-js@2(?:[\"'/<])", text):
             errors.append(f"Floating Supabase JS major version found: {page.relative_to(ROOT)}")
