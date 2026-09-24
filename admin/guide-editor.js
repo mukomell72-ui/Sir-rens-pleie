@@ -75,12 +75,17 @@
   const RU_VERIFY={draft:'черновик',source_reviewed:'источник проверен',manufacturer_verified:'проверено по инструкции производителя'};
   const RU_HSE={unverified:'не проверено',source_reviewed:'источник проверен',verified:'проверено',stop:'STOP — применение запрещено'};
   const RU_RISK={low:'низкий риск',caution:'осторожно',high_risk:'высокий риск',stop:'STOP'};
-  const trSurface=v=>RU_SURFACE[String(v??'').trim()]||String(v??'');
-  const trCategory=v=>RU_CATEGORY[String(v??'').trim()]||String(v??'');
+  const trSurface=v=>{
+    const raw=String(v??'').trim();
+    if(RU_SURFACE[raw])return RU_SURFACE[raw];
+    if(raw.includes(','))return raw.split(',').map(x=>RU_SURFACE[x.trim()]||x.trim()).join(', ');
+    return raw.replace(/_/g,' ');
+  };
+  const trCategory=v=>RU_CATEGORY[String(v??'').trim()]||String(v??'').replace(/_/g,' ');
   const trDilution=v=>RU_DILUTION[String(v??'').trim()]||String(v??'');
-  const trVerify=v=>RU_VERIFY[String(v??'').trim()]||String(v??'');
-  const trHse=v=>RU_HSE[String(v??'').trim()]||String(v??'');
-  const trRisk=v=>RU_RISK[String(v??'').trim()]||String(v??'');
+  const trVerify=v=>RU_VERIFY[String(v??'').trim()]||String(v??'').replace(/_/g,' ');
+  const trHse=v=>RU_HSE[String(v??'').trim()]||String(v??'').replace(/_/g,' ');
+  const trRisk=v=>RU_RISK[String(v??'').trim()]||String(v??'').replace(/_/g,' ');
   let session,profile,chemicals=[],procedures=[],tab='chemicals';
   let calcChemicalId='',calcRatio=20,calcVolume=500,calcMode='final';
   init();
