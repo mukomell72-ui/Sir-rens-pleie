@@ -17,9 +17,22 @@
   }
   async function setStatus(id,status,btn){
     btn.disabled=true;const msg=document.getElementById('workerStatusMsg');
-    const {error}=await client.from('orders').update({status}).eq('id',id);
-    if(error){msg.textContent=error.message;btn.disabled=false;return;}
-    msg.textContent=status==='in_progress'?'Работа начата.':'Работа отмечена выполненной.';
-    setTimeout(()=>location.reload(),500);
+    try{
+      const {data:order,error:readError}=await client.from('orders').select('status,risk_level,assigned_to').eq('id',id).single();
+      if(readError)throw readError;
+      if(order?.risk_level==='stop'){
+        msg.textContent='STOP: работу нельзя начать или завершить, пока риск не снят ответственным лицом.';
+        return;
+      }
+      const {error}=await client.from('orders').update({status}).eq('id',id);
+      if(error)throw error;
+      msg.textContent=status==='in_progress'?'Работа начата.':'Работа отмечена выполненной.';
+      setTimeout(()=>location.reload(),500);
+    }catch(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'worker.status');
+      msg.textContent='Не удалось изменить статус. Проверьте подключение и условия STOP.';
+    }finally{
+      btn.disabled=false;
+    }
   }
 })();
