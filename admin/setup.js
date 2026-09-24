@@ -1,7 +1,7 @@
 (() => {
   const C=window.SIR_CONFIG;
   if(!C?.supabaseUrl||!C?.supabasePublishableKey)return;
-  const client=window.supabase?.createClient?.(C.supabaseUrl,C.supabasePublishableKey,{auth:{persistSession:true}})||null;
+  const client=window.SIR_ADMIN_SB||window.supabase?.createClient?.(C.supabaseUrl,C.supabasePublishableKey,{auth:{persistSession:true}})||null;
   const loginForm=document.getElementById('loginForm');
   const signupForm=document.getElementById('signupForm');
   const loginStatus=document.createElement('div');loginStatus.id='loginStatus';loginStatus.className='notice hidden';loginForm?.appendChild(loginStatus);
