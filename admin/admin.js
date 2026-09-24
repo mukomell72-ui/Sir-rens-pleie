@@ -14,9 +14,9 @@ const statusLabel={new:'Новый',under_review:'На рассмотрении'
 const serviceLabel={car:'Салон автомобиля',sofa:'Диван',chair:'Кресло',mattress:'Матрас',rug:'Ковёр'};
 const allStatuses=Object.keys(statusLabel);
 const previewOrders=[
-  {id:'demo-car',order_no:'DEMO-1001',created_at:'2026-09-02T08:30:00Z',customer_name:'Анна Л.',phone:'+47 ••• •• 101',service_type:'car',status:'new',preliminary_price:2400,risk_level:'caution',vehicle_plate:'DR 12345',vehicle_brand:'Volkswagen',vehicle_model:'Passat',vehicle_year:2018,registered_seats:5,address:'Storgata 12, 3611 Kongsberg',distance_km:3.8,material:'Ткань + экокожа',cleaning_scope:'Отдельные элементы салона',selected_areas:'5 сидений, ремни безопасности, пол / ковролин, багажник',contamination:'Сильная',stains:true,pet_hair:true,odor:false,customer_comment:'Пятно от кофе на переднем сиденье, шерсть собаки сзади. Просьба аккуратно обработать боковины из экокожи.',estimated_minutes:270,chemical_cost:180,consumables_cost:70,internal_note:'Перед началом сделать фото пятна и тест на незаметном участке.'},
-  {id:'demo-sofa',order_no:'DEMO-1002',created_at:'2026-09-03T10:15:00Z',customer_name:'Мартин Х.',phone:'+47 ••• •• 202',service_type:'sofa',status:'confirmed',final_price:1800,risk_level:'low',contamination:'Средняя',chemical_cost:120,consumables_cost:45},
-  {id:'demo-mattress',order_no:'DEMO-1003',created_at:'2026-09-01T12:00:00Z',completed_at:'2026-09-02T14:00:00Z',customer_name:'Елена К.',phone:'+47 ••• •• 303',service_type:'mattress',status:'completed',final_price:1400,risk_level:'low',contamination:'Лёгкая',chemical_cost:85,consumables_cost:35}
+  {id:'demo-car',order_no:'DEMO-1001',created_at:'2026-09-02T08:30:00Z',customer_name:'Анна Л.',phone:'+47 ••• •• 101',service_type:'car',status:'new',payment_status:'unpaid',preliminary_price:2400,risk_level:'caution',vehicle_plate:'DR 12345',vehicle_brand:'Volkswagen',vehicle_model:'Passat',vehicle_year:2018,registered_seats:5,address:'Storgata 12, 3611 Kongsberg',distance_km:3.8,material:'Ткань + экокожа',cleaning_scope:'Отдельные элементы салона',selected_areas:'5 сидений, ремни безопасности, пол / ковролин, багажник',contamination:'Сильная',stains:true,pet_hair:true,odor:false,customer_comment:'Пятно от кофе на переднем сиденье, шерсть собаки сзади. Просьба аккуратно обработать боковины из экокожи.',estimated_minutes:270,chemical_cost:180,consumables_cost:70,internal_note:'Перед началом сделать фото пятна и тест на незаметном участке.'},
+  {id:'demo-sofa',order_no:'DEMO-1002',created_at:'2026-09-03T10:15:00Z',customer_name:'Мартин Х.',phone:'+47 ••• •• 202',service_type:'sofa',status:'confirmed',payment_status:'unpaid',final_price:1800,risk_level:'low',contamination:'Средняя',chemical_cost:120,consumables_cost:45},
+  {id:'demo-mattress',order_no:'DEMO-1003',created_at:'2026-09-01T12:00:00Z',completed_at:'2026-09-02T14:00:00Z',customer_name:'Елена К.',phone:'+47 ••• •• 303',service_type:'mattress',status:'completed',payment_status:'paid',final_price:1400,risk_level:'low',contamination:'Лёгкая',chemical_cost:85,consumables_cost:35}
 ];
 const previewPurchases=[
   {date:'02.09.2026',category:'Химия',description:'Koch Chemie Pol Star, 1 л',supplier:'Detailshop',amount:289,document:'Чек DEMO-01'},
@@ -111,7 +111,7 @@ async function dashboard(){
 function auditActionLabel(action){
   return {order_status_changed:'Статус заказа',order_final_price_changed:'Цена заказа',order_assignment_changed:'Исполнитель',order_risk_changed:'Риск',order_payment_status_changed:'Оплата'}[action]||action||'Изменение';
 }
-function orderTable(rows){return `<div class="table-wrap"><table class="table"><thead><tr><th>Заказ</th><th>Клиент</th><th>Услуга</th><th>Статус</th><th>Цена</th><th>Риск</th></tr></thead><tbody>${rows.map(x=>`<tr class="order-row" data-id="${x.id}" tabindex="0"><td><b>${esc(x.order_no||'—')}</b><div class="mini">${new Date(x.created_at).toLocaleDateString('ru')}</div></td><td>${esc(x.customer_name||'—')}<div class="mini">${esc(x.phone||'')}</div></td><td>${esc(serviceLabel[x.service_type]||x.service_type||'—')}</td><td>${statusLabel[x.status]||esc(x.status||'—')}</td><td>${x.final_price!=null?money(x.final_price):x.preliminary_price!=null?`${money(x.preliminary_price)} ориентир`:'—'}</td><td><span class="risk ${(x.risk_level||'low').replace('_','-')}">${esc((x.risk_level||'LOW').toUpperCase())}</span></td></tr>`).join('')}</tbody></table></div>`;}
+function orderTable(rows){return `<div class="table-wrap"><table class="table"><thead><tr><th>Заказ</th><th>Клиент</th><th>Услуга</th><th>Статус</th><th>Оплата</th><th>Цена</th><th>Риск</th></tr></thead><tbody>${rows.map(x=>`<tr class="order-row" data-id="${x.id}" tabindex="0"><td><b>${esc(x.order_no||'—')}</b><div class="mini">${new Date(x.created_at).toLocaleDateString('ru')}</div></td><td>${esc(x.customer_name||'—')}<div class="mini">${esc(x.phone||'')}</div></td><td>${esc(serviceLabel[x.service_type]||x.service_type||'—')}</td><td>${statusLabel[x.status]||esc(x.status||'—')}</td><td><span class="payment-pill ${(x.payment_status||'unpaid')}">${x.payment_status==='paid'?'Оплачено':x.payment_status==='refunded'?'Возврат':'Не оплачено'}</span></td><td>${x.final_price!=null?money(x.final_price):x.preliminary_price!=null?`${money(x.preliminary_price)} ориентир`:'—'}</td><td><span class="risk ${(x.risk_level||'low').replace('_','-')}">${esc((x.risk_level||'LOW').toUpperCase())}</span></td></tr>`).join('')}</tbody></table></div>`;}
 function bindOrderRows(){main.querySelectorAll('.order-row').forEach(r=>{const open=()=>orderDetail(r.dataset.id);r.addEventListener('click',open);r.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});});}
 
 async function orders(options={}){
@@ -216,6 +216,44 @@ async function guide(){
     fit();
     if(frame.contentDocument?.body&&window.ResizeObserver){const observer=new ResizeObserver(fit);observer.observe(frame.contentDocument.body);frame._guideObserver=observer;}
   });
+}
+async function inventory(){
+  activeView='inventory';
+  const demo=[
+    {id:'stock-1',brand:'Koch-Chemie',name:'Pol Star',stock_status:'ok',stock_note:'Рабочий запас',hse_status:'source_reviewed',risk_level:'caution'},
+    {id:'stock-2',brand:'Koch-Chemie',name:'Green Star',stock_status:'low',stock_note:'Заказать следующую канистру',hse_status:'verified',risk_level:'high_risk'},
+    {id:'stock-3',brand:'Gtechniq',name:'W4 Citrus Foam',stock_status:'out',stock_note:'Не использовать до точного SDS',hse_status:'stop_no_exact_sds',risk_level:'stop'}
+  ];
+  let rows=demo;
+  if(!preview&&sb){
+    const {data,error}=await sb.from('chemicals').select('id,name,brand,active,stock_status,stock_note,hse_status,risk_level').eq('active',true).order('brand').order('name');
+    if(error){main.innerHTML=`<div class="notice error">Не удалось загрузить склад: ${esc(error.message)}</div>`;return;}
+    rows=data||[];
+  }
+  const low=rows.filter(x=>x.stock_status==='low').length,out=rows.filter(x=>x.stock_status==='out').length,stops=rows.filter(x=>x.risk_level==='stop'||!['verified','source_reviewed'].includes(x.hse_status)).length;
+  main.innerHTML=`<div class="section-title"><div><h1>Склад и химия</h1><p>Наличие средств и контроль HMS в одном списке</p></div><a class="btn" href="guide-editor.html">Карточки химии</a></div>
+    <div class="control-grid inventory-metrics">
+      <div class="card metric"><span>Всего активных</span><strong>${rows.length}</strong></div>
+      <div class="card metric metric-warn"><span>Заканчивается</span><strong>${low}</strong></div>
+      <div class="card metric metric-danger"><span>Нет в наличии</span><strong>${out}</strong></div>
+      <div class="card metric ${stops?'metric-danger':''}"><span>HMS / STOP</span><strong>${stops}</strong></div>
+    </div>
+    ${preview?'<div class="notice">Предпросмотр — статусы склада демонстрационные.</div>':''}
+    <div class="panel"><div class="panel-head"><span>Контроль наличия</span><span class="mini">Есть · Заканчивается · Нет</span></div>
+      <div class="table-wrap"><table class="table inventory-table"><thead><tr><th>Средство</th><th>HMS</th><th>Наличие</th><th>Заметка</th><th></th></tr></thead><tbody>
+      ${rows.map(x=>`<tr data-chemical="${x.id}"><td><b>${esc([x.brand,x.name].filter(Boolean).join(' '))}</b></td><td><span class="risk ${x.risk_level==='stop'?'stop':(x.risk_level||'caution').replace('_','-')}">${esc((x.risk_level||'caution').toUpperCase())}</span><div class="mini">${esc(x.hse_status||'unverified')}</div></td><td><select class="stock-status" ${canAdmin()&&!preview?'':'disabled'}><option value="ok" ${x.stock_status==='ok'?'selected':''}>Есть</option><option value="low" ${x.stock_status==='low'?'selected':''}>Заканчивается</option><option value="out" ${x.stock_status==='out'?'selected':''}>Нет</option></select></td><td><input class="stock-note" value="${esc(x.stock_note||'')}" placeholder="Например: заказать 1 л" ${canAdmin()&&!preview?'':'disabled'}></td><td>${canAdmin()&&!preview?'<button class="btn save-stock">Сохранить</button>':''}</td></tr>`).join('')}
+      </tbody></table></div>
+    </div>
+    ${!canAdmin()&&!preview?'<div class="notice">Менять наличие могут OWNER и ADMIN. Остальные роли видят состояние склада.</div>':''}`;
+  main.querySelectorAll('.save-stock').forEach(btn=>btn.addEventListener('click',async()=>{
+    const tr=btn.closest('[data-chemical]'),patch={stock_status:tr.querySelector('.stock-status').value,stock_note:tr.querySelector('.stock-note').value.trim()||null};
+    btn.disabled=true;
+    const {error}=await sb.from('chemicals').update(patch).eq('id',tr.dataset.chemical);
+    btn.disabled=false;
+    if(error){alert(error.message);return;}
+    btn.textContent='Сохранено';
+    setTimeout(()=>btn.textContent='Сохранить',1200);
+  }));
 }
 async function finance(){const o=await getOrders(),done=o.filter(x=>x.status==='completed'),revenue=done.reduce((a,x)=>a+(+x.final_price||0),0),orderCost=done.reduce((a,x)=>a+(+x.chemical_cost||0)+(+x.consumables_cost||0),0),purchases=preview?previewPurchases:[],purchaseTotal=purchases.reduce((a,x)=>a+x.amount,0);main.innerHTML=`<div class="section-title"><div><h1>Финансы</h1><p>${preview?'Безопасный пример учёта':'Фактические результаты'}</p></div></div>${preview?'<div class="notice safe">Демонстрационные данные. Они не записываются в базу и не учитываются в официальной бухгалтерии.</div>':''}<div class="grid"><div class="card metric"><span>Выполнено</span><strong>${done.length}</strong></div><div class="card metric"><span>Выручка</span><strong>${money(revenue)}</strong></div><div class="card metric"><span>Закупки</span><strong>${money(purchaseTotal)}</strong></div><div class="card metric"><span>Затраты по работам</span><strong>${money(orderCost)}</strong></div></div>${preview?`<section class="panel"><div class="panel-head"><span>Последние закупки</span><span class="mini">3 демонстрационные записи</span></div><div class="table-wrap"><table class="table demo-purchases"><thead><tr><th>Дата</th><th>Категория</th><th>Что куплено</th><th>Поставщик</th><th>Сумма</th><th>Документ</th></tr></thead><tbody>${purchases.map(x=>`<tr><td>${x.date}</td><td>${esc(x.category)}</td><td><b>${esc(x.description)}</b></td><td>${esc(x.supplier)}</td><td>${money(x.amount)}</td><td><span class="badge">${esc(x.document)}</span></td></tr>`).join('')}</tbody></table></div></section>`:''}`;}
 
