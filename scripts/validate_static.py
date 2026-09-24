@@ -202,7 +202,7 @@ def main() -> int:
         if obsolete in admin_index:
             errors.append(f"Obsolete OWNER bootstrap UI is still exposed: {obsolete}")
 
-    for marker in ("SIR_ADMIN_SB", "showDataLoadError", "save_admin_settings_bundle", "create_manual_order", "orders.load", "save_order_decision", "workReady", "orderActionError"):
+    for marker in ("SIR_ADMIN_SB", "showDataLoadError", "save_admin_settings_bundle", "create_manual_order", "orders.load", "save_order_decision", "_expected_updated_at", "orderEditorDirty", "workReady", "orderActionError"):
         if marker not in admin_js:
             errors.append(f"Admin fail-safe marker is missing: {marker}")
 
@@ -230,6 +230,7 @@ def main() -> int:
         "20260924093037_sir_scheduled_requires_appointment.sql",
         "20260924093145_sir_no_prescheduled_inserts.sql",
         "20260924111103_sir_admin_atomic_write_bundle.sql",
+        "20260924112122_sir_order_optimistic_lock.sql",
     ):
         if not (ROOT / "supabase" / "migrations" / migration).exists():
             errors.append(f"Admin hardening migration is missing: {migration}")
