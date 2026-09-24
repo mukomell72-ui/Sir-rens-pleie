@@ -75,6 +75,7 @@ const wiz=read('guide-app/guide-wizard.js');
 const app=read('guide-app/app-v13.js');
 const index=read('guide-app/index-v13.html');
 const sw=read('guide-app/sw.js');
+const guard=read('guide-app/guide-runtime-guard.js');
 
 for(const [label,text,patterns] of [
   ['TASKI',inv2,[/TASKI[\s\S]*?НЕРАЗБАВЛЕНН/iu,/TASKI[\s\S]*?15 минут/iu]],
@@ -86,12 +87,21 @@ for(const [label,text,patterns] of [
 
 if(!meta.version)errors.push('HSE metadata version missing');
 if(!app.includes('SIR_GUIDE_HEALTH'))errors.push('Runtime guide health gate missing');
+if(!app.includes('function liveDbEligible'))errors.push('Live DB professional eligibility gate missing');
+if(!app.includes("reason:'missing-dom'"))errors.push('Missing critical DOM fail-safe missing');
+if(!app.includes('SIR_DB_REJECTIONS'))errors.push('Rejected live DB diagnostics missing');
+if(!guard.includes('SIR_RUNTIME_GUARD'))errors.push('Runtime error guard missing');
+if(!guard.includes("target.tagName==='SCRIPT'"))errors.push('Critical script-load guard missing');
 if(!app.includes("verification_status==='manufacturer_verified'"))errors.push('DB technology verification gate missing');
 if(!app.includes("['verified','source_reviewed'].includes(c?.hse_status)"))errors.push('DB HSE ingestion gate missing');
 if(!wiz.includes('function combinedRisk'))errors.push('Wizard combined HSE risk gate missing');
 if(wiz.includes("return step('Бесконтактная предмойка','Gtechniq W4 Citrus Foam'"))errors.push('Legacy W4 returned to automatic wizard plan');
 if(!sw.includes('ignoreSearch:true'))errors.push('Service worker query-safe offline fallback missing');
 if(!sw.includes('networkWithTimeout'))errors.push('Service worker network timeout missing');
+if(!sw.includes('guide-runtime-guard.js'))errors.push('Runtime guard missing from offline cache');
+const guardPos=index.indexOf('guide-runtime-guard.js');
+const firstDataPos=index.indexOf('photos-v13.js');
+if(guardPos<0||firstDataPos<0||guardPos>=firstDataPos)errors.push('Runtime guard is not loaded before guide data scripts');
 
 const order=['photos-v13.js','inventory-v13-1.js','inventory-v13-2.js','inventory-v13-3.js','inventory-v13-4.js','hse-v13.js','guide-wizard.js','app-v13.js'];
 const positions=order.map(x=>index.indexOf(x));
