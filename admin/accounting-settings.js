@@ -14,7 +14,15 @@
     if(registered&&(org.length!==9||!legalName||!address)){alert('Для зарегистрированного ENK нужны юридическое название, 9-значный org.nr. и официальный адрес.');return;}
     const mvaRegistered=registered&&String(f.get('mva_registered'))==='true';
     const value={enk_registered:registered,legal_name:legalName,org_no:org,address,bank_account:String(f.get('bank_account')||'').trim(),mva_registered:mvaRegistered,mva_registration_date:mvaRegistered?(String(f.get('mva_date')||'')||null):null,default_vat_rate:A.num(f.get('vat_rate')),prices_include_vat:String(f.get('include_vat'))==='true',payment_terms_days:A.num(f.get('terms')),tax_reserve_percent:A.num(f.get('tax')),document_retention_years:A.num(f.get('retention')),asset_capitalization_threshold:A.num(f.get('asset_threshold')),default_vehicle_plate:String(f.get('plate')||'').trim().toUpperCase()};
-    const {error}=await A.sb.from('app_settings').update({value,updated_by:A.state.session.user.id,updated_at:new Date().toISOString()}).eq('key','accounting');
-    if(error){alert(error.message);return;}A.state.settings=value;alert(registered?'Настройки ENK сохранены.':'Режим «ENK ещё не зарегистрирован» сохранён.');A.render();
+    const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+    try{
+      const {error}=await A.sb.from('app_settings').upsert({key:'accounting',value,updated_by:A.state.session.user.id,updated_at:new Date().toISOString()},{onConflict:'key'});
+      if(error)throw error;
+      A.state.settings=value;alert(registered?'Настройки ENK сохранены.':'Режим «ENK ещё не зарегистрирован» сохранён.');A.render();
+    }catch(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'accounting.settings_save');
+      alert('Не удалось сохранить настройки ENK. Изменения не применены.');
+      button.disabled=false;
+    }
   }
 })();
