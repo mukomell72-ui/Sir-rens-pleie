@@ -40,7 +40,17 @@ document.getElementById('nav').addEventListener('click',e=>{const b=e.target.clo
 
 async function enter(role){login.classList.add('hidden');app.classList.remove('hidden');document.getElementById('roleBadge').textContent=role;if(!preview)startRealtime();render('dashboard');}
 async function render(view){activeView=view;delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='calendar')return calendar();if(view==='inventory')return inventory();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='finance')return finance();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
-async function getOrders(limit=200){if(preview)return previewOrders.slice(0,limit);if(!sb)return[];const {data,error}=await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(limit);if(error){console.error(error);return[];}return data||[];}
+async function getOrders(limit=200){
+  if(preview)return previewOrders.slice(0,limit);
+  if(!sb)return null;
+  const {data,error}=await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(limit);
+  if(error){window.SIR_ADMIN_RUNTIME?.record(error,'orders.load');return null;}
+  return data||[];
+}
+function showDataLoadError(title,retryView){
+  main.innerHTML=`<div class="section-title"><div><h1>${esc(title)}</h1><p>Данные не загружены — ложные нули не показываются.</p></div></div><div class="notice"><b>Нет подтверждённого ответа от базы.</b><br>Проверьте подключение и повторите загрузку. Никакие данные не изменялись.</div><button class="btn primary" id="retryDataLoad">Повторить</button>`;
+  main.querySelector('#retryDataLoad')?.addEventListener('click',()=>render(retryView));
+}
 function scheduleRealtimeRefresh(orderId=null){
   if(preview)return;
   clearTimeout(realtimeRefreshTimer);
@@ -63,7 +73,7 @@ function startRealtime(){
 
 async function dashboard(){
   activeView='dashboard';
-  const o=await getOrders(),now=new Date(),today=localDate(now),dayStart=new Date(now),dayEnd=new Date(now);
+  const o=await getOrders();if(!o){showDataLoadError('Центр контроля','dashboard');return;}const now=new Date(),today=localDate(now),dayStart=new Date(now),dayEnd=new Date(now);
   dayStart.setHours(0,0,0,0);dayEnd.setHours(24,0,0,0);
   let chemicals=[],todayAppointments=[],recentAudit=[];
   if(!preview&&sb){
@@ -252,6 +262,7 @@ function bindOrderRows(){main.querySelectorAll('.order-row').forEach(r=>{const o
 async function orders(options={}){
   activeView='orders';
   const o=await getOrders();
+  if(!o){showDataLoadError('Заказы','orders');return;}
   let special=options.attention||'',initialStatus=options.status||'',ids=new Set(options.ids||[]);
   main.innerHTML=`<div class="section-title"><div><h1>Заказы</h1><p>Единый список со статусом сайта, работой и оплатой</p></div>${canManage()?'<button class="btn primary" id="manualOrder">+ Ручной заказ</button>':''}</div><div class="order-filters"><input id="orderSearch" placeholder="Номер, имя, телефон, автомобиль"><select id="orderStatus"><option value="">Все статусы</option>${allStatuses.map(s=>`<option value="${s}" ${initialStatus===s?'selected':''}>${statusLabel[s]}</option>`).join('')}</select><select id="orderPayment"><option value="">Любая оплата</option><option value="unpaid">Не оплачено</option><option value="paid">Оплачено</option><option value="refunded">Возврат</option></select></div><div id="ordersFilterNote"></div><div id="ordersResult"></div>`;
   const paint=()=>{
@@ -424,8 +435,16 @@ async function inventory(){
     setTimeout(()=>btn.textContent='Сохранить',1200);
   }));
 }
-async function finance(){const o=await getOrders(),done=o.filter(x=>x.status==='completed'),revenue=done.reduce((a,x)=>a+(+x.final_price||0),0),orderCost=done.reduce((a,x)=>a+(+x.chemical_cost||0)+(+x.consumables_cost||0),0),purchases=preview?previewPurchases:[],purchaseTotal=purchases.reduce((a,x)=>a+x.amount,0);main.innerHTML=`<div class="section-title"><div><h1>Финансы</h1><p>${preview?'Безопасный пример учёта':'Фактические результаты'}</p></div></div>${preview?'<div class="notice safe">Демонстрационные данные. Они не записываются в базу и не учитываются в официальной бухгалтерии.</div>':''}<div class="grid"><div class="card metric"><span>Выполнено</span><strong>${done.length}</strong></div><div class="card metric"><span>Выручка</span><strong>${money(revenue)}</strong></div><div class="card metric"><span>Закупки</span><strong>${money(purchaseTotal)}</strong></div><div class="card metric"><span>Затраты по работам</span><strong>${money(orderCost)}</strong></div></div>${preview?`<section class="panel"><div class="panel-head"><span>Последние закупки</span><span class="mini">3 демонстрационные записи</span></div><div class="table-wrap"><table class="table demo-purchases"><thead><tr><th>Дата</th><th>Категория</th><th>Что куплено</th><th>Поставщик</th><th>Сумма</th><th>Документ</th></tr></thead><tbody>${purchases.map(x=>`<tr><td>${x.date}</td><td>${esc(x.category)}</td><td><b>${esc(x.description)}</b></td><td>${esc(x.supplier)}</td><td>${money(x.amount)}</td><td><span class="badge">${esc(x.document)}</span></td></tr>`).join('')}</tbody></table></div></section>`:''}`;}
-
+async function finance(){
+  const o=await getOrders();
+  if(!o){showDataLoadError('Финансы','finance');return;}
+  const done=o.filter(x=>x.status==='completed');
+  const revenue=done.reduce((a,x)=>a+(+x.final_price||0),0);
+  const orderCost=done.reduce((a,x)=>a+(+x.chemical_cost||0)+(+x.consumables_cost||0),0);
+  const purchases=preview?previewPurchases:[];
+  const purchaseTotal=purchases.reduce((a,x)=>a+x.amount,0);
+  main.innerHTML=`<div class="section-title"><div><h1>Финансы</h1><p>${preview?'Безопасный пример учёта':'Фактические результаты'}</p></div></div>${preview?'<div class="notice safe">Демонстрационные данные. Они не записываются в базу и не учитываются в официальной бухгалтерии.</div>':''}<div class="grid"><div class="card metric"><span>Выполнено</span><strong>${done.length}</strong></div><div class="card metric"><span>Выручка</span><strong>${money(revenue)}</strong></div><div class="card metric"><span>Закупки</span><strong>${money(purchaseTotal)}</strong></div><div class="card metric"><span>Затраты по работам</span><strong>${money(orderCost)}</strong></div></div>${preview?`<section class="panel"><div class="panel-head"><span>Последние закупки</span><span class="mini">3 демонстрационные записи</span></div><div class="table-wrap"><table class="table demo-purchases"><thead><tr><th>Дата</th><th>Категория</th><th>Что куплено</th><th>Поставщик</th><th>Сумма</th><th>Документ</th></tr></thead><tbody>${purchases.map(x=>`<tr><td>${x.date}</td><td>${esc(x.category)}</td><td><b>${esc(x.description)}</b></td><td>${esc(x.supplier)}</td><td>${money(x.amount)}</td><td><span class="badge">${esc(x.document)}</span></td></tr>`).join('')}</tbody></table></div></section>`:''}`;
+}
 async function team(){
   if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Команда</h1><p>OWNER · ADMIN · MANAGER · WORKER</p></div></div><div class="card empty">Доступно после входа.</div>';return;}
   const {data=[]}=await sb.from('profiles').select('*').order('created_at');
