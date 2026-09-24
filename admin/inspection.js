@@ -2,17 +2,35 @@
   const root=document.getElementById('main'),C=window.SIR_CONFIG;if(!root)return;
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const lines=v=>String(v||'').split('\n').map(x=>x.trim()).filter(Boolean);
-  const sb=C?.supabaseUrl&&C?.supabasePublishableKey&&window.supabase?.createClient?window.supabase.createClient(C.supabaseUrl,C.supabasePublishableKey):null;
+  const sb=window.SIR_ADMIN_SB||null;
   let rendered='';new MutationObserver(()=>queueMicrotask(enhance)).observe(root,{childList:true,subtree:true});enhance();
 
   async function enhance(){
-    const id=root.dataset.orderId;if(!id||rendered===id||root.querySelector('#inspectionWorkspace'))return;rendered=id;
-    if(root.dataset.preview==='true')return id==='demo-car'&&render(id,{preliminary_price:2400,estimated_minutes:270},[],true);
+    const id=root.dataset.orderId;if(!id||rendered===id||root.querySelector('#inspectionWorkspace'))return;
+    if(root.dataset.preview==='true'){rendered=id;return id==='demo-car'&&render(id,{preliminary_price:2400,estimated_minutes:270},[],true);}
     if(!sb)return;
-    const [{data:{session}},{data:order},{data:assessments=[]}]=await Promise.all([
-      sb.auth.getSession(),sb.from('orders').select('id,preliminary_price,final_price,estimated_minutes').eq('id',id).single(),
-      sb.from('order_assessments').select('*').eq('order_id',id).order('version',{ascending:false})]);
-    if(session&&order)render(id,order,assessments,false);
+    try{
+      const [sessionRes,profileRes,orderRes,assessmentRes]=await Promise.all([
+        sb.auth.getSession(),
+        sb.auth.getUser().then(async ({data,error})=>{
+          if(error||!data?.user)return{data:null,error:error||new Error('session user missing')};
+          return sb.from('profiles').select('role,active').eq('id',data.user.id).single();
+        }),
+        sb.from('orders').select('id,preliminary_price,final_price,estimated_minutes').eq('id',id).single(),
+        sb.from('order_assessments').select('*').eq('order_id',id).order('version',{ascending:false})
+      ]);
+      const session=sessionRes.data?.session,profile=profileRes.data,order=orderRes.data,assessments=assessmentRes.data||[];
+      const error=sessionRes.error||profileRes.error||orderRes.error||assessmentRes.error;
+      if(error)throw error;
+      if(!session||!profile?.active||!['owner','admin','manager'].includes(profile.role))return;
+      rendered=id;render(id,order,assessments,false);
+    }catch(error){
+      window.SIR_ADMIN_RUNTIME?.record(error,'inspection.load');
+      if(!root.querySelector('#inspectionLoadError')){
+        const box=document.createElement('div');box.id='inspectionLoadError';box.className='notice';box.innerHTML='<b>Осмотр не загружен.</b> Повторную оценку не сохраняйте до восстановления связи.';
+        root.appendChild(box);
+      }
+    }
   }
   function suggest(o,score,minutes,risk){const base=+o.preliminary_price||+o.final_price||0,extra=Math.max(0,minutes-(+o.estimated_minutes||0))*10,complexity=Math.max(0,score-5)*150,riskFee=risk==='high_risk'?300:0;return Math.round((base+extra+complexity+riskFee)/50)*50;}
   function render(id,order,assessments,demo){
@@ -37,7 +55,17 @@
     form.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(form),status=host.querySelector('#inspectionStatus');if(String(f.get('risk'))==='stop'&&f.has('visible')){status.className='notice error';status.textContent='STOP: цену нельзя отправлять как готовое предложение. Сначала устраните риск или измените объём.';return;}
       const row={order_id:id,version,assessment_type:String(f.get('type')),condition_score:+f.get('score'),observed_condition:String(f.get('condition')).trim(),hidden_findings:String(f.get('hidden')).trim()||null,confirmed_material:String(f.get('material')).trim(),risk_level:String(f.get('risk')),estimated_minutes:+f.get('minutes'),proposed_price:+f.get('price'),price_change_reason:String(f.get('reason')).trim(),work_steps:lines(f.get('steps')),chemistry_plan:lines(f.get('chemistry')),moisture_plan:String(f.get('moisture')).trim(),pass_and_drying_plan:String(f.get('drying')).trim(),stop_conditions:lines(f.get('stops')),client_visible:f.has('visible')};
       if(demo){status.className='notice safe';status.textContent=`Версия ${version} сохранена в предпросмотре. Новая цена ${row.proposed_price} NOK готова к согласованию.`;host.querySelector('.badge').textContent=`Версия ${version} сохранена`;return;}
-      const payload={...row};delete payload.order_id;delete payload.version;const {data,error}=await sb.rpc('save_order_assessment',{p_order:id,p_assessment:payload});if(error){status.className='notice error';status.textContent=error.message;return;}status.className='notice safe';status.textContent=`Версия ${data.version} сохранена. ${row.client_visible?'Цена готова к отправке через «Подготовить SMS клиенту».':'Цена клиента не изменена.'}`;});
+      const payload={...row};delete payload.order_id;delete payload.version;
+      const button=form.querySelector('button[type="submit"]');button.disabled=true;status.textContent='Сохраняю…';
+      try{
+        const {data,error}=await sb.rpc('save_order_assessment',{p_order:id,p_assessment:payload});if(error)throw error;
+        status.className='notice safe';status.textContent=`Версия ${data.version} сохранена. ${row.client_visible?'Цена готова к отправке через «Подготовить SMS клиенту».':'Цена клиента не изменена.'}`;
+        rendered='';setTimeout(enhance,0);
+      }catch(error){
+        window.SIR_ADMIN_RUNTIME?.record(error,'inspection.save');
+        status.className='notice error';status.textContent='Осмотр не сохранён. Проверьте риск, технологическую карту и подключение.';
+        button.disabled=false;
+      }});
   }
   function history(a){return `<details class="assessment-history"><summary>Предыдущая версия ${a.version} · ${esc(a.assessment_type==='on_site'?'осмотр':'дистанционно')}</summary><div class="kv"><span>Цена / время</span><b>${esc(a.proposed_price)} NOK · ${esc(a.estimated_minutes)} мин</b></div><div class="kv"><span>Причина</span><b>${esc(a.price_change_reason||'Без изменения')}</b></div></details>`;}
 })();
