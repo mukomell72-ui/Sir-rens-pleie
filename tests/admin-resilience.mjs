@@ -10,6 +10,14 @@ assert.match(adminSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch
 assert.match(adminSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch:\{payment_status:'paid'\},p_appointment:null\}\)/);
 assert.match(adminSource,/if\(!ensureWritable\(\)\)return/);
 
+const calendarSource=await readFile(new URL('../admin/calendar.js',import.meta.url),'utf8');
+const paymentsSource=await readFile(new URL('../admin/payments.js',import.meta.url),'utf8');
+assert.match(adminSource,/sb\.rpc\('create_manual_order'/);
+assert.match(adminSource,/sb\.rpc\('save_admin_settings_bundle'/);
+assert.match(calendarSource,/sb\.rpc\('save_calendar_booking'/);
+assert.doesNotMatch(calendarSource,/\.from\('appointments'\)\.insert/);
+assert.match(paymentsSource,/sb\.rpc\('save_order_decision',\{p_order_id:id,p_patch:\{payment_status:status\}/);
+
 const browser=await chromium.launch({headless:true});
 
 // Critical dependency failure must be visible and fail closed.
