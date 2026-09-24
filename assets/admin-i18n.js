@@ -1,4 +1,12 @@
 (()=>{
+  const POLICY_KEY='sir_language_policy_no_20260924_v2';
+  if(localStorage.getItem(POLICY_KEY)!=='1'){
+    for(const key of ['sir_admin_lang','sir_lang']){
+      const saved=localStorage.getItem(key);
+      if(saved&&saved!=='no')localStorage.setItem(key,'no');
+    }
+    localStorage.setItem(POLICY_KEY,'1');
+  }
   const KEY='sir_admin_lang';
   const valid=new Set(['no','ru']);
   let lang=localStorage.getItem(KEY)||'no';
