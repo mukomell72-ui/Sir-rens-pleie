@@ -30,7 +30,7 @@ await page.route('**/rest/v1/rpc/public_get_order_status',async route=>{
 
 await page.goto('http://127.0.0.1:4173/status/?o=SIR-TEST-0001&t=test-token',{waitUntil:'domcontentloaded'});
 await page.getByText('На рассмотрении',{exact:true}).waitFor();
-assert.equal(await page.getByText('Обновляется автоматически',{exact:true}).count(),1);
+assert.match(await page.locator('.status-sync').innerText(),/Обновляется автоматически/);
 assert.equal(calls,1);
 
 await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
