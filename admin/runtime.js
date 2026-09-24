@@ -1,4 +1,5 @@
 (() => {
+  if(!window.SIR_ADMIN_I18N&&!document.querySelector('script[data-sir-admin-i18n]')){const i18n=document.createElement('script');i18n.src='../assets/admin-i18n.js?v=20260924-i18n1';i18n.dataset.sirAdminI18n='1';document.head.appendChild(i18n);}
   const C=window.SIR_CONFIG||{};
   const state={errors:[],offline:!navigator.onLine,fatal:false};
 
