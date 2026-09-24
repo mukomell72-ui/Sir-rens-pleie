@@ -24,15 +24,17 @@ try{
   assert(width.sw<=width.cw+1,'Horizontal overflow: '+JSON.stringify(width));
 
   await page.locator('#q').fill('Green Star');
-  await page.locator('.card .head').first().click();
-  const green=await page.locator('.card.open').first().innerText();
+  const greenCard=page.locator('.card').filter({has:page.locator('.name',{hasText:'Green Star'})}).first();
+  await greenCard.locator('.head').click();
+  const green=await greenCard.innerText();
   for(const marker of ['HMS / опасности','СИЗ','Первая помощь','Проверка HMS','SDS / HMS-источник']){
     assert(green.includes(marker),'Green Star missing '+marker);
   }
 
   await page.locator('#q').fill('Gtechniq W4');
-  await page.locator('.card .head').first().click();
-  const w4=await page.locator('.card.open').first().innerText();
+  const w4Card=page.locator('.card').filter({has:page.locator('.name',{hasText:'Gtechniq W4'})}).first();
+  await w4Card.locator('.head').click();
+  const w4=await w4Card.innerText();
   assert(/STOP/i.test(w4),'Legacy W4 must visibly show STOP');
 
   await page.locator('#q').fill('');
