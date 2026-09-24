@@ -2,7 +2,7 @@
   function apply(){
     const badge=document.getElementById('roleBadge');
     if(!badge)return;
-    const actor=(badge.textContent||'').trim().toUpperCase();
+    const actor=(badge.dataset.role||badge.textContent||'').trim().toUpperCase();
     document.querySelectorAll('[data-owner-admin-only]').forEach(el=>{el.hidden=!['OWNER','ADMIN'].includes(actor);});
     document.querySelectorAll('[data-manager-plus]').forEach(el=>{el.hidden=!['OWNER','ADMIN','MANAGER'].includes(actor);});
     if(actor!=='ADMIN')return;
@@ -16,7 +16,7 @@
         select.disabled=true;if(active)active.disabled=true;if(save)save.hidden=true;
         if(!row.querySelector('.owner-lock-note')){
           const td=row.lastElementChild||row;
-          const note=document.createElement('div');note.className='mini owner-lock-note';note.textContent='Изменяет только OWNER';td.appendChild(note);
+          const note=document.createElement('div');note.className='mini owner-lock-note';note.textContent='Изменяет только владелец';td.appendChild(note);
         }
       }else{
         [...select.options].forEach(o=>{if(['owner','admin'].includes(o.value))o.remove();});
