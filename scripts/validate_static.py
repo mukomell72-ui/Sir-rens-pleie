@@ -192,7 +192,7 @@ def main() -> int:
         if obsolete in admin_index:
             errors.append(f"Obsolete OWNER bootstrap UI is still exposed: {obsolete}")
 
-    for marker in ("SIR_ADMIN_SB", "showDataLoadError", "app_settings').upsert", "orders.load"):
+    for marker in ("SIR_ADMIN_SB", "showDataLoadError", "app_settings').upsert", "orders.load", "save_order_decision", "workReady", "orderActionError"):
         if marker not in admin_js:
             errors.append(f"Admin fail-safe marker is missing: {marker}")
 
@@ -204,6 +204,10 @@ def main() -> int:
     for migration in (
         "20260924083540_sir_admin_final_hardening.sql",
         "20260924084814_sir_order_stop_gate.sql",
+        "20260924085114_sir_revoke_dangerous_table_privileges.sql",
+        "20260924085408_sir_order_workflow_gate.sql",
+        "20260924085616_sir_atomic_order_decision.sql",
+        "20260924085757_sir_order_completion_review_gate.sql",
     ):
         if not (ROOT / "supabase" / "migrations" / migration).exists():
             errors.append(f"Admin hardening migration is missing: {migration}")
@@ -211,6 +215,21 @@ def main() -> int:
     stop_gate = (ROOT / "supabase" / "migrations" / "20260924084814_sir_order_stop_gate.sql").read_text(encoding="utf-8")
     if "STOP risk blocks work start/completion" not in stop_gate or "in_progress" not in stop_gate or "completed" not in stop_gate:
         errors.append("Database STOP gate protection is incomplete")
+
+    workflow_gate = (ROOT / "supabase" / "migrations" / "20260924085757_sir_order_completion_review_gate.sql").read_text(encoding="utf-8")
+    for marker in ("reviewed technology card required before work starts", "reviewed technology card required before completion", "assigned_to", "final_price", "STOP risk"):
+        if marker not in workflow_gate:
+            errors.append(f"Professional order workflow gate is missing: {marker}")
+
+    atomic_order = (ROOT / "supabase" / "migrations" / "20260924085616_sir_atomic_order_decision.sql").read_text(encoding="utf-8")
+    for marker in ("save_order_decision", "security invoker", "appointments", "orders", "revoke all", "grant execute"):
+        if marker not in atomic_order.lower():
+            errors.append(f"Atomic order decision migration is missing: {marker}")
+
+    privilege_hardening = (ROOT / "supabase" / "migrations" / "20260924085114_sir_revoke_dangerous_table_privileges.sql").read_text(encoding="utf-8").lower()
+    for marker in ("revoke truncate", "trigger", "references", "anon", "authenticated", "alter default privileges"):
+        if marker not in privilege_hardening:
+            errors.append(f"Dangerous privilege hardening is missing: {marker}")
 
     photo_function = (ROOT / "supabase" / "functions" / "order-photo-upload" / "index.ts").read_text(encoding="utf-8")
     if 'npm:@supabase/supabase-js@2.117.1' not in photo_function:
