@@ -4,15 +4,16 @@
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const ensureWritable=()=>{if(navigator.onLine)return true;window.SIR_ADMIN_RUNTIME?.refresh();alert('Нет сети. Слот не сохранён. После восстановления подключения повторите действие.');return false;};
   const statusLabel={new:'Новый',under_review:'На рассмотрении',offer_sent:'Предложение отправлено',awaiting_confirmation:'Ждёт подтверждения',confirmed:'Подтверждён',scheduled:'Запланирован',in_progress:'В работе',completed:'Выполнен',customer_requested_new_time:'Нужно другое время',cancelled_customer:'Отменён клиентом',cancelled_sir:'Отменён SIR',no_show:'Неявка'};
+  const serviceLabel={car:'Салон автомобиля',sofa:'Диван',chair:'Кресло',mattress:'Матрас',rug:'Ковёр'};
   let session,profile,cursor=new Date(),appointments=[],orders=[],work={start:'08:00',end:'20:00',buffer:30};
   cursor.setDate(1);cursor.setHours(12,0,0,0);
   init();
 
   async function init(){
     const {data:{session:s}}=await sb.auth.getSession();session=s;
-    if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">SIR Admin</a>.</div>';return;}
+    if(!session){root.innerHTML='<div class="notice">Сначала войдите в <a href="./">админ-панель SIR</a>.</div>';return;}
     const {data:p}=await sb.from('profiles').select('role,active').eq('id',session.user.id).single();profile=p;
-    if(!profile?.active||!['owner','admin','manager'].includes(profile.role)){root.innerHTML='<div class="notice">Календарь управления доступен OWNER, ADMIN и MANAGER.</div>';return;}
+    if(!profile?.active||!['owner','admin','manager'].includes(profile.role)){root.innerHTML='<div class="notice">Календарь управления доступен владельцу, администратору и менеджеру.</div>';return;}
     if(await load())render();
   }
 
@@ -66,7 +67,7 @@
     const scheduledIds=new Set(appointments.map(a=>a.order_id));const available=orders.filter(o=>!scheduledIds.has(o.id));
     if(!available.length){dialog(`<h2>Свободное окно ${start}–${end}</h2><p>Нет незапланированных активных заказов. Сначала создайте/получите заказ.</p>`,`<a class="btn primary" href="./">Открыть заказы</a>`);return;}
     const maxMinutes=Math.max(60,minutesBetween(start,end));
-    const options=available.map(o=>`<option value="${o.id}" data-minutes="${+o.estimated_minutes||120}" data-address="${esc(o.address||'')}">${esc(o.order_no)} · ${esc(o.customer_name)} · ${esc(o.service_type)}</option>`).join('');
+    const options=available.map(o=>`<option value="${o.id}" data-minutes="${+o.estimated_minutes||120}" data-address="${esc(o.address||'')}">${esc(o.order_no)} · ${esc(o.customer_name)} · ${esc(serviceLabel[o.service_type]||o.service_type)}</option>`).join('');
     dialog(`<h2>Запланировать работу</h2><div class="field"><label>Заказ</label><select id="calOrder">${options}</select></div><div class="field"><label>Начало</label><input id="calStart" type="datetime-local" value="${date}T${start}"></div><div class="field"><label>Длительность, мин</label><input id="calDuration" type="number" min="30" step="15" max="720"></div><div class="field"><label>Формат</label><select id="calMode"><option value="mobile">SIR приезжает к клиенту</option><option value="shop">Клиент приезжает к SIR</option><option value="other">Другое место</option></select></div><div class="field"><label>Адрес / место</label><input id="calAddress"></div><div class="notice safe">Слот создаётся как временный. После отправки предложения клиент подтверждает его по персональной ссылке.</div>`,`<button class="btn" data-close>Отмена</button><button class="btn primary" id="calSave">Сохранить временный слот</button>`);
     const sel=document.getElementById('calOrder'),dur=document.getElementById('calDuration'),addr=document.getElementById('calAddress');
     const sync=()=>{const opt=sel.selectedOptions[0];dur.value=Math.min(maxMinutes,+opt.dataset.minutes||120);addr.value=opt.dataset.address||'';};sync();sel.onchange=sync;document.getElementById('calSave').onclick=saveBooking;
