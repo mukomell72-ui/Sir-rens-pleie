@@ -7,7 +7,7 @@ const CYRILLIC=/[А-Яа-яЁё]/;
 async function assertNorwegianVisible(page,label){
   await page.waitForTimeout(350);
   const bodyText=await page.locator('body').innerText();
-  const leaks=bodyText.split(/\n+/).map(x=>x.trim()).filter(x=>CYRILLIC.test(x)).slice(0,20);
+  const leaks=bodyText.split(/\n+/).map(x=>x.trim()).filter(x=>CYRILLIC.test(x)).slice(0,200);
   assert.equal(leaks.length,0,label+' leaked Cyrillic in Norwegian mode:\n'+leaks.join('\n'));
   assert.equal(await page.evaluate(()=>document.documentElement.lang),'nb',label+' must expose lang=nb');
 }
