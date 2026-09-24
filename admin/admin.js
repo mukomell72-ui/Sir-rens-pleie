@@ -2,7 +2,7 @@
 const workspaceCss=document.createElement('link');workspaceCss.rel='stylesheet';workspaceCss.href='workspace.css?v=20260924-translate1';document.head.appendChild(workspaceCss);
 const inspectionScript=document.createElement('script');inspectionScript.src='inspection.js?v=20260902-inspection-flow';inspectionScript.defer=true;document.head.appendChild(inspectionScript);
 const C=window.SIR_CONFIG;
-let sb=null,preview=false,currentRole='PREVIEW',calendarCursor=new Date(),activeView='dashboard',orderRealtime=null,realtimeRefreshTimer=null;
+let sb=null,preview=false,currentRole='PREVIEW',activeView='dashboard',orderRealtime=null,realtimeRefreshTimer=null;
 const login=document.getElementById('login'),app=document.getElementById('app'),main=document.getElementById('main');
 const connected=!!window.SIR_ADMIN_SB;
 if(connected){sb=window.SIR_ADMIN_SB;document.getElementById('setupNotice').classList.add('hidden');}
@@ -17,11 +17,6 @@ const previewOrders=[
   {id:'demo-car',order_no:'DEMO-1001',created_at:'2026-09-02T08:30:00Z',customer_name:'Анна Л.',phone:'+47 ••• •• 101',service_type:'car',status:'new',payment_status:'unpaid',preliminary_price:2400,risk_level:'caution',vehicle_plate:'DR 12345',vehicle_brand:'Volkswagen',vehicle_model:'Passat',vehicle_year:2018,registered_seats:5,address:'Storgata 12, 3611 Kongsberg',distance_km:3.8,material:'Ткань + экокожа',cleaning_scope:'Отдельные элементы салона',selected_areas:'5 сидений, ремни безопасности, пол / ковролин, багажник',contamination:'Сильная',stains:true,pet_hair:true,odor:false,customer_comment:'Пятно от кофе на переднем сиденье, шерсть собаки сзади. Просьба аккуратно обработать боковины из экокожи.',estimated_minutes:270,chemical_cost:180,consumables_cost:70,internal_note:'Перед началом сделать фото пятна и тест на незаметном участке.'},
   {id:'demo-sofa',order_no:'DEMO-1002',created_at:'2026-09-03T10:15:00Z',customer_name:'Мартин Х.',phone:'+47 ••• •• 202',service_type:'sofa',status:'confirmed',payment_status:'unpaid',final_price:1800,risk_level:'low',contamination:'Средняя',chemical_cost:120,consumables_cost:45},
   {id:'demo-mattress',order_no:'DEMO-1003',created_at:'2026-09-01T12:00:00Z',completed_at:'2026-09-02T14:00:00Z',customer_name:'Елена К.',phone:'+47 ••• •• 303',service_type:'mattress',status:'completed',payment_status:'paid',final_price:1400,risk_level:'low',contamination:'Лёгкая',chemical_cost:85,consumables_cost:35}
-];
-const previewPurchases=[
-  {date:'02.09.2026',category:'Химия',description:'Koch Chemie Pol Star, 1 л',supplier:'Detailshop',amount:289,document:'Чек DEMO-01'},
-  {date:'01.09.2026',category:'Расходники',description:'Микрофибры и защитные перчатки',supplier:'Biltema',amount:436,document:'Чек DEMO-02'},
-  {date:'29.08.2026',category:'Оборудование',description:'Набор щёток для текстиля',supplier:'Garasjetid',amount:749,document:'Чек DEMO-03'}
 ];
 
 if(document.getElementById('previewBtn'))document.getElementById('previewBtn').addEventListener('click',()=>{preview=true;enter('PREVIEW');});
@@ -39,7 +34,7 @@ document.getElementById('logout').addEventListener('click',async()=>{if(sb&&!pre
 document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;document.querySelectorAll('#nav [data-view]').forEach(x=>x.classList.toggle('active',x===b));render(b.dataset.view);});
 
 async function enter(role){login.classList.add('hidden');app.classList.remove('hidden');document.getElementById('roleBadge').textContent=role;if(!preview)startRealtime();render('dashboard');}
-async function render(view){activeView=view;delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='calendar')return calendar();if(view==='inventory')return inventory();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='finance')return finance();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
+async function render(view){activeView=view;delete main.dataset.orderId;delete main.dataset.preview;main.innerHTML='<div class="empty">Загрузка…</div>';if(view==='dashboard')return dashboard();if(view==='orders')return orders();if(view==='inventory')return inventory();if(view==='customers')return customers();if(view==='guide')return guide();if(view==='finance')return finance();if(view==='team')return team();if(view==='audit')return audit();if(view==='settings')return settings();}
 async function getOrders(limit=200){
   if(preview)return previewOrders.slice(0,limit);
   if(!sb)return null;
@@ -423,17 +418,6 @@ function previewOrderDetail(id){
   main.querySelector('#demoOrderForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target);o.status=String(f.get('status'));o.risk_level=String(f.get('risk'));o.final_price=+f.get('price')||null;o.worker=String(f.get('worker'));o.appointment=String(f.get('appointment'));o.internal_note=String(f.get('note')||'');const s=main.querySelector('#demoSaveStatus');s.textContent='Сохранено в безопасном предпросмотре';s.className='notice safe';});
 }
 
-async function calendar(){
-  if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Календарь</h1><p>Предпросмотр</p></div></div><div class="card empty">После входа здесь будут реальные бронирования.</div>';return;}
-  const y=calendarCursor.getFullYear(),m=calendarCursor.getMonth(),start=new Date(y,m,1),end=new Date(y,m+1,1);
-  const {data:a=[]}=await sb.from('appointments').select('*,orders(order_no,customer_name,service_type,status)').gte('starts_at',start.toISOString()).lt('starts_at',end.toISOString()).order('starts_at');
-  const by={};for(const x of a){const k=localDate(x.starts_at);(by[k]??=[]).push(x);}
-  const days=new Date(y,m+1,0).getDate(),names=['ВС','ПН','ВТ','СР','ЧТ','ПТ','СБ'];let cells='';
-  for(let d=1;d<=days;d++){const dt=new Date(y,m,d),key=localDate(dt);const rows=by[key]||[];cells+=`<div class="day"><b>${d} ${names[dt.getDay()]}</b>${rows.length?rows.map(x=>`<button class="slot slot-btn ${x.tentative?'tentative':'confirmed'}" data-order="${x.order_id}">${new Date(x.starts_at).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})} · ${esc(x.orders?.order_no||'заказ')}</button>`).join(''):'<div class="mini">свободно</div>'}</div>`;}
-  main.innerHTML=`<div class="section-title"><div><h1>Календарь</h1><p>${calendarCursor.toLocaleString('ru',{month:'long',year:'numeric'})}</p></div><div class="toolbar"><button class="btn" id="prevMonth">←</button><button class="btn" id="todayMonth">Сегодня</button><button class="btn" id="nextMonth">→</button></div></div><div class="calendar">${cells}</div>`;
-  main.querySelector('#prevMonth').addEventListener('click',()=>{calendarCursor=new Date(y,m-1,1);calendar();});main.querySelector('#nextMonth').addEventListener('click',()=>{calendarCursor=new Date(y,m+1,1);calendar();});main.querySelector('#todayMonth').addEventListener('click',()=>{calendarCursor=new Date();calendar();});main.querySelectorAll('[data-order]').forEach(b=>b.addEventListener('click',()=>orderDetail(b.dataset.order)));
-}
-
 async function customers(){
   if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Клиенты</h1><p>История и рекомендации</p></div></div><div class="card empty">Доступно после входа.</div>';return;}
   const {data=[]}=await sb.from('customers').select('*').order('created_at',{ascending:false}).limit(200);
@@ -490,16 +474,7 @@ async function inventory(){
     setTimeout(()=>btn.textContent='Сохранить',1200);
   }));
 }
-async function finance(){
-  const o=await getOrders();
-  if(!o){showDataLoadError('Финансы','finance');return;}
-  const done=o.filter(x=>x.status==='completed');
-  const revenue=done.reduce((a,x)=>a+(+x.final_price||0),0);
-  const orderCost=done.reduce((a,x)=>a+(+x.chemical_cost||0)+(+x.consumables_cost||0),0);
-  const purchases=preview?previewPurchases:[];
-  const purchaseTotal=purchases.reduce((a,x)=>a+x.amount,0);
-  main.innerHTML=`<div class="section-title"><div><h1>Финансы</h1><p>${preview?'Безопасный пример учёта':'Фактические результаты'}</p></div></div>${preview?'<div class="notice safe">Демонстрационные данные. Они не записываются в базу и не учитываются в официальной бухгалтерии.</div>':''}<div class="grid"><div class="card metric"><span>Выполнено</span><strong>${done.length}</strong></div><div class="card metric"><span>Выручка</span><strong>${money(revenue)}</strong></div><div class="card metric"><span>Закупки</span><strong>${money(purchaseTotal)}</strong></div><div class="card metric"><span>Затраты по работам</span><strong>${money(orderCost)}</strong></div></div>${preview?`<section class="panel"><div class="panel-head"><span>Последние закупки</span><span class="mini">3 демонстрационные записи</span></div><div class="table-wrap"><table class="table demo-purchases"><thead><tr><th>Дата</th><th>Категория</th><th>Что куплено</th><th>Поставщик</th><th>Сумма</th><th>Документ</th></tr></thead><tbody>${purchases.map(x=>`<tr><td>${x.date}</td><td>${esc(x.category)}</td><td><b>${esc(x.description)}</b></td><td>${esc(x.supplier)}</td><td>${money(x.amount)}</td><td><span class="badge">${esc(x.document)}</span></td></tr>`).join('')}</tbody></table></div></section>`:''}`;
-}
+
 async function team(){
   if(preview||!sb){main.innerHTML='<div class="section-title"><div><h1>Команда</h1><p>OWNER · ADMIN · MANAGER · WORKER</p></div></div><div class="card empty">Доступно после входа.</div>';return;}
   const {data=[]}=await sb.from('profiles').select('*').order('created_at');
