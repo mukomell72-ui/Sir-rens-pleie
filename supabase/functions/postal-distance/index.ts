@@ -33,6 +33,35 @@ function json(req: Request, body: unknown, status = 200) {
   });
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function consumeQuota(req: Request): Promise<boolean> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) throw new Error("rate_limit_not_configured");
+
+  const forwarded = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0] || "").trim();
+  const userAgent = (req.headers.get("user-agent") || "").trim();
+  const origin = (req.headers.get("origin") || "").trim();
+  const clientHash = await sha256Hex(`postal|${forwarded || "unknown"}|${userAgent}|${origin}`);
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/internal_consume_vehicle_lookup_quota`, {
+    method: "POST",
+    headers: {
+      "apikey": serviceRoleKey,
+      "Authorization": `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ p_client_hash: clientHash }),
+  });
+  if (!response.ok) throw new Error("rate_limit_unavailable");
+  return (await response.json()) === true;
+}
+
 function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
   const rad = (n: number) => n * Math.PI / 180;
   const R = 6371;
@@ -50,6 +79,12 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
   if (req.method !== "POST") return json(req, { error: "method_not_allowed" }, 405);
+
+  try {
+    if (!(await consumeQuota(req))) return json(req, { error: "rate_limited" }, 429);
+  } catch {
+    return json(req, { error: "rate_limit_unavailable" }, 503);
+  }
 
   let postalCode = "";
   try {
