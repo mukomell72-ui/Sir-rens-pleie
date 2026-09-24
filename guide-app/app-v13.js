@@ -8,6 +8,7 @@ const normalize=v=>String(v||'').toLowerCase().replace(/ё/g,'е').replace(/[^a-
 const canonicalName=v=>normalize(v)
   .replace(/\b\d+(?:[.,]\d+)?\s*(?:л|l|мл|ml|кг|kg)\b/g,' ')
   .replace(/\b(carpro)\s+\1\b/g,'$1')
+  .replace(/\blegacy red bottle\b/g,' ')
   .replace(/\s+/g,' ').trim();
 const hseCanonical=new Map(Object.entries(hseMap).map(([name,row])=>[canonicalName(name),row]));
 const hseRiskRank={'LOW':1,'CAUTION':2,'HIGH RISK':3,'STOP':4};
@@ -93,6 +94,9 @@ function guideHealth(){
   const chem=items.filter(x=>broad(x)==='Химия');
   const issues=[];
   const seen=new Set();
+  const reviewDays=Number(hseMeta?.reviewDays)||365;
+  const now=Date.now();
+  let earliestDue=null;
   for(const x of chem){
     const key=canonicalName(x.n);
     if(seen.has(key))issues.push(`Дубликат: ${x.n}`); else seen.add(key);
@@ -101,10 +105,20 @@ function guideHealth(){
     const hs=hseFor(x);
     if(!hs||hs===HSE_FALLBACK||!String(hs.status||'').trim())issues.push(`${x.n}: HMS/SDS не привязан`);
     if(hs?.level==='STOP'&&x.n!=='Gtechniq W4 Citrus Foam'&&!x.n.includes('FoamStop'))issues.push(`${x.n}: неожиданный STOP`);
+    const verified=Date.parse(String(hs?.verified||''));
+    if(!Number.isFinite(verified)){
+      issues.push(`${x.n}: некорректная дата HMS`);
+    }else{
+      const ageDays=Math.floor((now-verified)/86400000);
+      if(ageDays<0)issues.push(`${x.n}: дата HMS находится в будущем`);
+      if(ageDays>reviewDays)issues.push(`${x.n}: HMS просрочен (${ageDays} дней)`);
+      const due=verified+reviewDays*86400000;
+      if(earliestDue===null||due<earliestDue)earliestDue=due;
+    }
   }
   if(chem.length<20)issues.push(`Неполный инвентарь: химических/служебных карточек ${chem.length}, ожидается минимум 20`);
   if(!hseMeta?.version)issues.push('Не загружена версия HMS-слоя');
-  const health={ok:issues.length===0,issues,count:chem.length,checkedAt:new Date().toISOString()};
+  const health={ok:issues.length===0,issues,count:chem.length,checkedAt:new Date().toISOString(),reviewDays,nextReviewAt:earliestDue?new Date(earliestDue).toISOString().slice(0,10):null};
   window.SIR_GUIDE_HEALTH=health;
   let el=document.getElementById('guideHealth');
   if(!el){
@@ -113,8 +127,8 @@ function guideHealth(){
   }
   el.className=`guide-health ${health.ok?'guide-health-ok':'guide-health-stop'}`;
   el.innerHTML=health.ok
-    ? `<b>Контроль справочника: OK</b><span>${chem.length} химических/служебных карточек · HMS слой ${h(hseMeta.version||'—')}</span>`
-    : `<b>STOP: данные справочника неполны</b><span>${issues.slice(0,4).map(h).join(' · ')}${issues.length>4?` · ещё ${issues.length-4}`:''}</span>`;
+    ? `<b>Контроль справочника: OK</b><span>${chem.length} химических/служебных карточек · HMS слой ${h(hseMeta.version||'—')} · следующая обязательная перепроверка не позднее ${h(health.nextReviewAt||'—')}</span>`
+    : `<b>STOP: данные справочника неполны/устарели</b><span>${issues.slice(0,4).map(h).join(' · ')}${issues.length>4?` · ещё ${issues.length-4}`:''}</span>`;
   return health;
 }
 function chipsRender(){chips.innerHTML=broadCats.map(c=>`<button class="chip ${c===active?'active':''}" data-c="${c}">${c}</button>`).join('');chips.querySelectorAll('button').forEach(b=>b.onclick=()=>{active=b.dataset.c;chipsRender();render()})}
