@@ -80,6 +80,25 @@ assert.match(await page.locator('#main').innerText(),/Заканчивается
 
 assert.equal(await page.locator('[data-view="finance"]').count(),0);
 assert.equal(await page.getByText('Финансы / ENK',{exact:true}).count(),1);
+assert.equal(await page.getByText('Финансы / ENK',{exact:true}).count(),1);
+
+// Role-gated menu must use stable role metadata, not translated badge text.
+const previewProtectedHidden=await page.locator('.nav-more [data-owner-admin-only],.nav-more [data-manager-plus]').evaluateAll(els=>els.every(el=>el.hidden));
+assert.equal(previewProtectedHidden,true,'Preview must keep protected management links hidden');
+await page.evaluate(()=>{
+  const badge=document.getElementById('roleBadge');
+  document.documentElement.dataset.adminRole='OWNER';
+  badge.dataset.role='OWNER';
+  badge.textContent='Владелец';
+  document.getElementById('main').append(document.createElement('span'));
+});
+await page.waitForTimeout(50);
+assert.equal(await page.locator('.nav-more [data-owner-admin-only]').evaluateAll(els=>els.filter(el=>!el.hidden).length),4,'OWNER must unlock all owner/admin management links');
+assert.equal(await page.locator('.nav-more [data-manager-plus]').evaluateAll(els=>els.filter(el=>!el.hidden).length),3,'OWNER must unlock all manager-plus management links');
+await page.locator('.nav-more').evaluate(el=>el.open=true);
+assert.equal(await page.locator('.nav-more [data-owner-admin-only]:visible').count(),4,'OWNER owner/admin links must render visibly when menu is open');
+assert.equal(await page.locator('.nav-more [data-manager-plus]:visible').count(),3,'OWNER manager-plus links must render visibly when menu is open');
+assert.equal(await page.locator('.nav-more a[href="../assets/sir-master-qr.svg"]:visible').count(),1);
 
 await page.locator('[data-view="guide"]').click();
 await page.waitForSelector('.guide-rules');
