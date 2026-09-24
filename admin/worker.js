@@ -34,8 +34,9 @@
       }
       const valid=(status==='in_progress'&&['scheduled','confirmed'].includes(order?.status))||(status==='completed'&&order?.status==='in_progress');
       if(!valid){msg.textContent='Статус заказа уже изменился. Обновите страницу перед действием.';return;}
-      const {error}=await client.from('orders').update({status}).eq('id',id);
+      const {data:updated,error}=await client.from('orders').update({status}).eq('id',id).select('id').single();
       if(error)throw error;
+      if(!updated?.id)throw new Error('order status update was not applied');
       msg.textContent=status==='in_progress'?'Работа начата.':'Работа отмечена выполненной.';
       setTimeout(()=>location.reload(),500);
     }catch(error){
