@@ -15,7 +15,7 @@
   const rows=[
     ['SIR Admin','Админка SIR'],['ADMIN','АДМИНКА'],['ARBEIDSSENTER','РАБОЧИЙ ЦЕНТР'],['KALENDER','КАЛЕНДАРЬ'],['SIKKERHETSKOPI','РЕЗЕРВНАЯ КОПИЯ'],['VEILEDNING · REDIGERING','СПРАВОЧНИК · РЕДАКТОР'],
     ['Logg inn i administrasjonspanelet','Вход в админ-панель'],['SIR-databasen er ikke koblet til denne versjonen ennå.','База SIR ещё не подключена к этой сборке.'],
-    ['E-post','Эл. почта'],['Passord','Пароль'],['Logg inn','Войти'],['Åpne sikker forhåndsvisning','Открыть безопасный предпросмотр'],
+    ['E-post','Эл. почта'],['Passord','Пароль'],['Logg inn','Войти'],['Glemt passord?','Забыли пароль?'],['Åpne sikker forhåndsvisning','Открыть безопасный предпросмотр'],
     ['Innlogging skjer via sikker Supabase-autentisering. Ansattes passord vises ikke til eieren; tilgang styres av roller.','Вход выполняется через защищённую авторизацию Supabase. Пароли сотрудников владельцу не показываются; доступ ограничивается ролями.'],
     ['← Til SIR Rens & Pleie-nettstedet','← На сайт SIR Rens & Pleie'],['Åpne nettstedet','Открыть сайт'],['Logg ut','Выйти'],
     ['Arbeid','Работа'],['Kontrollsenter','Центр контроля'],['Bestillinger','Заказы'],['Kalender','Календарь'],['Lager','Склад'],
