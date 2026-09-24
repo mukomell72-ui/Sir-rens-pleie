@@ -55,7 +55,7 @@ await page.waitForSelector('.client-communication');
 assert.equal(await page.locator('[data-sms-review]').count(),1);
 const reviewSmsHref=await page.locator('[data-sms-review]').getAttribute('href');
 assert.match(decodeURIComponent(reviewSmsHref),/vurdering fra 1 til 5/);
-assert.match(decodeURIComponent(reviewSmsHref),/Sir-rens-pleie/i);
+assert.match(decodeURIComponent(reviewSmsHref),/Nettsiden vår/);
 await page.locator('#backOrders').click();
 
 await page.locator('[data-view="inventory"]').click();
