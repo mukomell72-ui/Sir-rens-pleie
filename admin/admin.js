@@ -229,6 +229,7 @@ function orderActionError(error){
   if(m.includes('stop risk'))return'STOP: работу нельзя начать или завершить, пока риск не снят и не перепроверен.';
   if(m.includes('must be in progress'))return'Сначала переведите заказ в статус «В работе».';
   if(m.includes('confirmed or scheduled'))return'Сначала подтвердите или запланируйте заказ.';
+  if(m.includes('order changed since it was loaded'))return'Заказ уже изменился в другом окне или клиентом. Обновите заказ и повторите действие.';
   if(m.includes('appointment required before scheduling'))return'Чтобы поставить «Запланирован», сначала укажите дату и время работы.';
   if(m.includes('appointment'))return'Не удалось сохранить время работы. Проверьте дату и интервал.';
   return'Изменение не сохранено. Проверьте данные и подключение, затем повторите.';
