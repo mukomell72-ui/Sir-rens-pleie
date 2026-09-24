@@ -7,7 +7,8 @@
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const safeUrl=v=>{try{const u=new URL(String(v||''));return u.protocol==='https:'?u.href:'';}catch(_e){return'';}};
   const riskRank={low:1,caution:2,high_risk:3,stop:4};
-  const riskName={low:'LOW',caution:'CAUTION',high_risk:'HIGH RISK',stop:'STOP'};
+  const riskName={low:'Низкий риск',caution:'Осторожно',high_risk:'Высокий риск',stop:'STOP'};
+const hseName={verified:'Проверено',source_reviewed:'Источник проверен',unverified:'Не проверено',stop:'STOP',stop_no_exact_sds:'STOP — нет точного SDS'};
   const surfaceName={textile:'Текстиль',carpet:'Ковролин / пол',headliner:'Потолок',mattress:'Матрас',interior_plastic:'Пластик салона',leather:'Кожа / экокожа',seat_belt:'Ремень безопасности',child_seat:'Детское кресло'};
   let data=null,loading=false;
 
@@ -79,7 +80,7 @@
   function procedureCard(surface,p){
     if(!p){
       const special=data.order.contamination==='special';
-      return `<article class="card"><div class="section-title"><div><h3>${esc(surfaceName[surface]||surface)}</h3><p>${special?'Особое состояние — автоматическая технология запрещена.':'Проверенной процедуры для этой комбинации пока нет.'}</p></div><span class="risk ${special?'stop':'caution'}">${special?'STOP':'CAUTION'}</span></div><div class="notice">Осмотр → фото → spot-test → решение OWNER/менеджера. Не подбирать более сильную химию методом проб.</div></article>`;
+      return `<article class="card"><div class="section-title"><div><h3>${esc(surfaceName[surface]||surface)}</h3><p>${special?'Особое состояние — автоматическая технология запрещена.':'Проверенной процедуры для этой комбинации пока нет.'}</p></div><span class="risk ${special?'stop':'caution'}">${special?'STOP':'CAUTION'}</span></div><div class="notice">Осмотр → фото → тест на незаметном участке → решение владельца/менеджера. Не подбирать более сильную химию методом проб.</div></article>`;
     }
     const steps=Array.isArray(p.steps)?p.steps:[],stops=Array.isArray(p.stop_conditions)?p.stop_conditions:[];
     const chems=chemicalCandidates(surface);
@@ -90,14 +91,14 @@
       <div class="kv"><span>Правило химии</span><b>${esc(p.chemical_rule||'Только подтверждённая совместимость')}</b></div>
       <h4>Последовательность</h4><ol>${steps.map(x=>`<li style="margin:8px 0">${esc(x)}</li>`).join('')}</ol>
       <h4>STOP</h4><ul>${stops.map(x=>`<li style="margin:8px 0">${esc(x)}</li>`).join('')}</ul>
-      <div class="notice safe"><b>Химия после technology + HMS gate:</b>${chems.length?` ${chems.map(chemLine).join('<hr style="border:0;border-top:1px solid #ffffff12;margin:10px 0">')}`:' автоматический выбор для этой поверхности отключён. HIGH RISK, STOP, HMS=unverified и approval_required не назначаются автоматически.'}</div>
+      <div class="notice safe"><b>Химия после технологического и HMS-фильтра:</b>${chems.length?` ${chems.map(chemLine).join('<hr style="border:0;border-top:1px solid #ffffff12;margin:10px 0">')}`:' автоматический выбор для этой поверхности отключён. Средства высокого риска, STOP, с непроверенным HMS и требующие подтверждения не назначаются автоматически.'}</div>
     </article>`;
   }
 
   function chemLine(c){
     const src=safeUrl(c.source_note),sds=safeUrl(c.sds_url);
-    const risk=String(c.risk_level||'caution').toUpperCase();
-    return `<div><b>${esc([c.brand,c.name].filter(Boolean).join(' '))}</b> · ${esc(c.dilution||'разведение см. у производителя')}<br><span class="mini">Риск: ${esc(risk)} · HMS: ${esc(c.hse_status||'unverified')}${c.hse_verified_at?` · проверено ${esc(c.hse_verified_at)}`:''}</span><br><span class="mini">${esc(c.application_method||'')} ${c.dwell_time?`Выдержка: ${esc(c.dwell_time)}.`:''} ${c.follow_up?`После: ${esc(c.follow_up)}`:''}</span>${c.hse_ppe?`<br><span class="mini">СИЗ: ${esc(c.hse_ppe)}</span>`:''}${c.warnings?`<br><span class="mini">Предупреждение: ${esc(c.warnings)}</span>`:''}${src?`<br><a href="${src}" target="_blank" rel="noopener noreferrer">Источник производителя</a>`:''}${sds?` · <a href="${sds}" target="_blank" rel="noopener noreferrer">SDS/HMS</a>`:''}</div>`;
+    const risk=String(c.risk_level||'caution');
+    return `<div><b>${esc([c.brand,c.name].filter(Boolean).join(' '))}</b> · ${esc(c.dilution||'разведение см. у производителя')}<br><span class="mini">Риск: ${esc(riskName[risk]||risk)} · HMS: ${esc(hseName[c.hse_status]||c.hse_status||'Не проверено')}${c.hse_verified_at?` · проверено ${esc(c.hse_verified_at)}`:''}</span><br><span class="mini">${esc(c.application_method||'')} ${c.dwell_time?`Выдержка: ${esc(c.dwell_time)}.`:''} ${c.follow_up?`После: ${esc(c.follow_up)}`:''}</span>${c.hse_ppe?`<br><span class="mini">СИЗ: ${esc(c.hse_ppe)}</span>`:''}${c.warnings?`<br><span class="mini">Предупреждение: ${esc(c.warnings)}</span>`:''}${src?`<br><a href="${src}" target="_blank" rel="noopener noreferrer">Источник производителя</a>`:''}${sds?` · <a href="${sds}" target="_blank" rel="noopener noreferrer">SDS/HMS</a>`:''}</div>`;
   }
 
   function append(){
@@ -105,7 +106,7 @@
     const ss=surfaces(),rows=ss.map(procedureFor),risk=maxRisk(rows);
     const section=document.createElement('section');section.id='sirProcedurePlan';section.className='panel';
     section.innerHTML=`<div class="panel-head"><span>Технология по зонам: проходы, сушка, химия</span><span class="risk ${risk.replace('_','-')}">${riskName[risk]||risk}</span></div>
-      <div class="notice" style="margin:14px"><b>Это рабочая карта SIR, а не разрешение рисковать.</b> Если реальный материал, клей, цвет или состояние не совпадают с ожиданием — действует более высокий риск и STOP. Конкретное разведение/выдержка берутся только из manufacturer_verified карточки конкретного средства.</div>
+      <div class="notice" style="margin:14px"><b>Это рабочая карта SIR, а не разрешение рисковать.</b> Если реальный материал, клей, цвет или состояние не совпадают с ожиданием — действует более высокий риск и STOP. Конкретное разведение/выдержка берутся только из карточки конкретного средства, проверенной по инструкции производителя.</div>
       <div style="display:grid;gap:12px;padding:14px">${ss.length?ss.map((s,i)=>procedureCard(s,rows[i])).join(''):'<div class="empty">Зоны работы ещё не определены.</div>'}</div>`;
     root.appendChild(section);
   }
