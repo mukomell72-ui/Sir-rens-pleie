@@ -54,9 +54,16 @@
     const {error}=await A.sb.storage.from('accounting-documents').upload(path,file,{upsert:false,contentType:file.type});
     if(error)throw error;return path;
   };
+  A.removeDocument=async path=>{
+    if(!path)return;
+    const {error}=await A.sb.storage.from('accounting-documents').remove([path]);
+    if(error)window.SIR_ADMIN_RUNTIME?.record(error,'accounting.document_cleanup');
+  };
   A.openDocument=async path=>{
     const {data,error}=await A.sb.storage.from('accounting-documents').createSignedUrl(path,300);
-    if(error){alert(error.message);return;}window.open(data.signedUrl,'_blank','noopener');
+    if(error){window.SIR_ADMIN_RUNTIME?.record(error,'accounting.document_open');alert('Не удалось открыть документ. Повторите после проверки связи.');return;}
+    if(!data?.signedUrl){alert('Не удалось получить защищённую ссылку на документ.');return;}
+    window.open(data.signedUrl,'_blank','noopener');
   };
   const csvCell=v=>`"${String(v??'').replace(/"/g,'""')}"`;
   const download=(name,rows)=>{const text='\ufeff'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n'),blob=new Blob([text],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
